@@ -135,7 +135,7 @@ export function AttractMode() {
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          <div className="neon-text flex items-center justify-center font-display font-semibold leading-none tracking-tight tabular-nums text-text-high">
+          <div className="neon-text flex items-center justify-center font-clock font-semibold leading-none tracking-tight tabular-nums text-text-high">
             <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{hh}</span>
             <motion.span
               animate={{ opacity: [1, 0.2, 1] }}
