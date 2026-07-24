@@ -8,9 +8,7 @@ import {
   EyeOff,
   Gauge,
   Loader2,
-  Lock,
   QrCode,
-  ShieldCheck,
   Sparkles,
   UserCog,
   Wifi,
@@ -26,12 +24,6 @@ type Mode = 'login' | 'register'
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
-const BOOT_LINES = [
-  '> IMBA.SHELL v2.4.1 — kernel lock engaged',
-  '> station PC-17 :: zone VIP-A :: link secure',
-  '> awaiting operator credentials_',
-]
-
 function useClock() {
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
@@ -42,22 +34,10 @@ function useClock() {
   return now
 }
 
-/* Typewriter boot sequence for the terminal header */
-function useBootSequence() {
-  const [visible, setVisible] = useState(0)
-  useEffect(() => {
-    if (visible >= BOOT_LINES.length) return
-    const t = setTimeout(() => setVisible((v) => v + 1), 420)
-    return () => clearTimeout(t)
-  }, [visible])
-  return visible
-}
-
 export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
   const toast = useStore((s) => s.toast)
   const now = useClock()
-  const bootVisible = useBootSequence()
 
   const [mode, setMode] = useState<Mode>('login')
   const [showPass, setShowPass] = useState(false)
@@ -157,27 +137,39 @@ export function LockScreen() {
   const timeStr = now
     ? now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : '--:--'
-  const secStr = now ? now.toLocaleTimeString('en-GB', { second: '2-digit' }) : '--'
+  const secStr = now ? String(now.getSeconds()).padStart(2, '0') : '--'
   const dateStr = now
     ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
 
   return (
-    <div className="app-ambient relative flex h-full min-h-dvh w-full overflow-hidden">
-      {/* ------- backdrop layers ------- */}
-      <div className="hairline-grid pointer-events-none absolute inset-0 opacity-60" />
-      <div className="pointer-events-none absolute -left-40 top-1/2 h-[640px] w-[640px] -translate-y-1/2 rounded-full bg-primary/12 blur-[140px]" />
-      <div className="pointer-events-none absolute -right-32 -top-32 h-[480px] w-[480px] rounded-full bg-primary/8 blur-[120px]" />
-      {/* giant mascot watermark bleeding off the left edge */}
-      <div className="pointer-events-none absolute -left-[8%] top-1/2 hidden h-[130vh] w-[46vw] -translate-y-1/2 opacity-[0.05] lg:block">
-        <Image src="/imba-mark.png" alt="" fill className="object-contain" aria-hidden />
+    <div className="relative flex h-full min-h-dvh w-full overflow-hidden bg-black">
+      {/* ------- cinematic backdrop ------- */}
+      <div className="absolute inset-0">
+        <Image
+          src="/lock-bg.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+          aria-hidden
+        />
       </div>
-      {/* diagonal red accent slash */}
+      {/* readability overlays: darken globally, deepen toward edges and the form side */}
+      <div className="absolute inset-0 bg-black/45" />
       <div
-        className="pointer-events-none absolute inset-y-0 left-[56%] hidden w-px lg:block"
+        className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, transparent, rgba(229,53,43,0.5) 30%, rgba(229,53,43,0.5) 70%, transparent)',
+            'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 45%, rgba(0,0,0,0.72) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 25%, transparent 70%, rgba(0,0,0,0.65) 100%)',
         }}
       />
       <ParticleField />
@@ -260,37 +252,39 @@ export function LockScreen() {
             shake ? { x: [0, -10, 10, -8, 8, -4, 4, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0, x: 0 }
           }
           transition={shake ? { duration: 0.5 } : { duration: 0.7, delay: 0.1, ease: 'easeOut' }}
-          className="glass-strong tick-corners tick-corners-primary scanline w-full max-w-md rounded-xl"
+          className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-black/55 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
         >
-          {/* terminal title bar */}
-          <div className="relative z-[2] flex items-center justify-between border-b border-border px-5 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-              <span className="h-2 w-2 rounded-full bg-white/20" />
-              <span className="h-2 w-2 rounded-full bg-white/20" />
-              <span className="label-mono ml-2 text-[10px] text-text-medium">Access terminal</span>
-            </div>
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-primary">
-              <Lock size={11} />
-              Auth v2.4
-            </span>
-          </div>
+          {/* subtle top accent line */}
+          <div
+            className="absolute inset-x-0 top-0 h-px"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent, rgba(229,53,43,0.8) 50%, transparent)',
+            }}
+          />
 
-          {/* boot sequence */}
-          <div className="relative z-[2] flex flex-col gap-1 border-b border-border bg-black/30 px-5 py-3 font-mono text-[11px] leading-relaxed text-text-low">
-            {BOOT_LINES.slice(0, bootVisible).map((line, i) => (
-              <motion.span
-                key={line}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={i === BOOT_LINES.length - 1 ? 'text-primary/80' : undefined}
-              >
-                {line}
-                {i === bootVisible - 1 && i === BOOT_LINES.length - 1 && (
-                  <span className="caret-blink ml-0.5 inline-block h-3 w-1.5 translate-y-0.5 bg-primary" />
-                )}
-              </motion.span>
-            ))}
+          {/* card header */}
+          <div className="relative z-[2] flex flex-col items-center gap-3 px-6 pb-2 pt-8 text-center">
+            <div className="relative h-14 w-14">
+              <Image
+                src="/imba-mark.png"
+                alt=""
+                fill
+                sizes="56px"
+                className="object-contain drop-shadow-[0_0_18px_rgba(229,53,43,0.45)]"
+                aria-hidden
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display text-2xl font-bold text-text-high text-balance">
+                {mode === 'login' ? 'Welcome back' : 'Join the club'}
+              </h1>
+              <p className="text-sm text-text-medium">
+                {mode === 'login'
+                  ? 'Sign in to unlock your station'
+                  : 'Create your IMBA player account'}
+              </p>
+            </div>
           </div>
 
           {/* form body */}
@@ -446,14 +440,6 @@ export function LockScreen() {
             </AnimatePresence>
           </div>
 
-          {/* terminal footer */}
-          <div className="relative z-[2] flex items-center justify-between border-t border-border px-5 py-2.5">
-            <span className="flex items-center gap-1.5 text-[10px] text-text-low">
-              <ShieldCheck size={12} className="text-primary" />
-              Kernel Lock Active
-            </span>
-            <span className="label-mono text-[9px] text-text-low">imba.shell // secure session</span>
-          </div>
         </motion.div>
 
         {/* mobile clock + station */}
@@ -599,12 +585,12 @@ function SecondaryButton({
 function ParticleField() {
   const particles = useMemo(
     () =>
-      Array.from({ length: 18 }, (_, i) => ({
+      Array.from({ length: 10 }, (_, i) => ({
         id: i,
         left: `${(i * 53) % 100}%`,
-        delay: (i % 6) * 0.8,
-        duration: 6 + (i % 5),
-        size: 2 + (i % 3),
+        delay: (i % 6) * 1.2,
+        duration: 9 + (i % 5),
+        size: 2 + (i % 2),
       })),
     [],
   )
@@ -613,9 +599,9 @@ function ParticleField() {
       {particles.map((p) => (
         <motion.span
           key={p.id}
-          className="absolute rounded-full bg-primary/60"
+          className="absolute rounded-full bg-primary/40"
           style={{ left: p.left, width: p.size, height: p.size, bottom: -10 }}
-          animate={{ y: [0, -700], opacity: [0, 0.8, 0] }}
+          animate={{ y: [0, -700], opacity: [0, 0.5, 0] }}
           transition={{
             duration: p.duration,
             delay: p.delay,
