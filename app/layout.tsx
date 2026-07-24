@@ -1,18 +1,27 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Chakra_Petch, Inter, Space_Grotesk } from 'next/font/google'
+import { Chakra_Petch, Inter, Manrope, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
   variable: '--font-inter',
   display: 'swap',
 })
 
 const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-space-grotesk',
+  display: 'swap',
+})
+
+// Geometric fallback that carries Cyrillic glyphs for the display headings,
+// keeping RU/LT typography visually in line with the Latin Space Grotesk.
+const manrope = Manrope({
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
+  weight: ['500', '600', '700'],
+  variable: '--font-manrope',
   display: 'swap',
 })
 
@@ -46,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${chakraPetch.variable} bg-background`}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${manrope.variable} ${chakraPetch.variable} bg-background`}
     >
       <body className="antialiased bg-background text-foreground">
         {children}
