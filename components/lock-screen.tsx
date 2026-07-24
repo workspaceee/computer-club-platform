@@ -53,7 +53,6 @@ export function LockScreen() {
   // login fields
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
 
   // register fields
   const [rUser, setRUser] = useState('')
@@ -393,21 +392,6 @@ export function LockScreen() {
                       </button>
                     }
                   />
-
-                  <div className="flex items-center justify-between">
-                    <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
-                      <input
-                        type="checkbox"
-                        checked={remember}
-                        onChange={(e) => setRemember(e.target.checked)}
-                        className="h-4 w-4 accent-primary"
-                      />
-                      Remember me
-                    </label>
-                    <span className="label-mono text-[10px] text-text-low">
-                      Session · 128-bit
-                    </span>
-                  </div>
 
                   <PrimaryButton loading={loading} label="Unlock Station" />
 
