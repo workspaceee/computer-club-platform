@@ -8,6 +8,7 @@ import {
   EyeOff,
   Fingerprint,
   Gauge,
+  Globe,
   Loader2,
   Lock,
   Mail,
@@ -28,6 +29,101 @@ import { DEMO_USER } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
 
 type Mode = 'login' | 'register'
+type Lang = 'en' | 'ru' | 'lt'
+
+const LANGS: { code: Lang; label: string }[] = [
+  { code: 'en', label: 'EN' },
+  { code: 'ru', label: 'RU' },
+  { code: 'lt', label: 'LT' },
+]
+
+/** Login-screen copy per language. */
+const T: Record<Lang, Record<string, string>> = {
+  en: {
+    localTime: 'Local time',
+    accessTerminal: 'Access Terminal',
+    online: 'Online',
+    welcome: 'Welcome',
+    welcomeHi: 'back',
+    join: 'Join the',
+    joinHi: 'club',
+    loginSub: 'Authenticate to unlock your station and start the session.',
+    registerSub: 'Create your IMBA player profile in under a minute.',
+    signIn: 'Sign in',
+    register: 'Register',
+    userOrEmail: 'Username or email',
+    password: 'Password',
+    username: 'Username',
+    email: 'Email',
+    confirmPassword: 'Confirm password',
+    unlock: 'Unlock Station',
+    createAccount: 'Create Account',
+    orContinue: 'or continue with',
+    qrLogin: 'QR Login',
+    demo: 'Demo',
+    admin: 'Admin',
+    encrypted: 'Encrypted session',
+    minChars: 'Min 6 characters',
+    repeat: 'Repeat password',
+    language: 'Language',
+  },
+  ru: {
+    localTime: 'Местное время',
+    accessTerminal: 'Терминал доступа',
+    online: 'В сети',
+    welcome: 'С возвращением',
+    welcomeHi: '',
+    join: 'Вступай в',
+    joinHi: 'клуб',
+    loginSub: 'Авторизуйтесь, чтобы разблокировать станцию и начать сессию.',
+    registerSub: 'Создайте профиль игрока IMBA меньше чем за минуту.',
+    signIn: 'Вход',
+    register: 'Регистрация',
+    userOrEmail: 'Имя пользователя или e-mail',
+    password: 'Пароль',
+    username: 'Имя пользователя',
+    email: 'E-mail',
+    confirmPassword: 'Подтвердите пароль',
+    unlock: 'Разблокировать',
+    createAccount: 'Создать аккаунт',
+    orContinue: 'или войти через',
+    qrLogin: 'QR-вход',
+    demo: 'Демо',
+    admin: 'Админ',
+    encrypted: 'Шифрованная сессия',
+    minChars: 'Минимум 6 символов',
+    repeat: 'Повторите пароль',
+    language: 'Язык',
+  },
+  lt: {
+    localTime: 'Vietos laikas',
+    accessTerminal: 'Prieigos terminalas',
+    online: 'Prisijungęs',
+    welcome: 'Sveiki sugrįžę',
+    welcomeHi: '',
+    join: 'Prisijunk prie',
+    joinHi: 'klubo',
+    loginSub: 'Prisijunkite, kad atrakintumėte stotį ir pradėtumėte sesiją.',
+    registerSub: 'Sukurkite IMBA žaidėjo profilį greičiau nei per minutę.',
+    signIn: 'Prisijungti',
+    register: 'Registruotis',
+    userOrEmail: 'Vartotojo vardas arba el. paštas',
+    password: 'Slaptažodis',
+    username: 'Vartotojo vardas',
+    email: 'El. paštas',
+    confirmPassword: 'Pakartokite slaptažodį',
+    unlock: 'Atrakinti stotį',
+    createAccount: 'Sukurti paskyrą',
+    orContinue: 'arba tęskite su',
+    qrLogin: 'QR prisijungimas',
+    demo: 'Demo',
+    admin: 'Administratorius',
+    encrypted: 'Šifruota sesija',
+    minChars: 'Mažiausiai 6 simboliai',
+    repeat: 'Pakartokite slaptažodį',
+    language: 'Kalba',
+  },
+}
 
 /** Idle time before the attract mode kicks in (ms). */
 const IDLE_TIMEOUT_MS = 30_000
@@ -51,6 +147,8 @@ export function LockScreen() {
   const idle = useIdle(IDLE_TIMEOUT_MS)
 
   const [mode, setMode] = useState<Mode>('login')
+  const [lang, setLang] = useState<Lang>('en')
+  const t = T[lang]
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -190,6 +288,9 @@ export function LockScreen() {
       />
       <ParticleField />
 
+      {/* =================== Language switcher =================== */}
+      <LangSwitcher lang={lang} setLang={setLang} label={t.language} />
+
       {/* =================== LEFT — station identity =================== */}
       <div className="relative z-10 hidden flex-1 flex-col justify-between p-10 lg:flex xl:p-14">
         {/* real full logo lockup */}
@@ -218,13 +319,13 @@ export function LockScreen() {
         >
           <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
             <span className="h-px w-8 bg-primary/60" />
-            Local time
+            {t.localTime}
           </span>
           <div className="flex items-end gap-3">
-            <span className="neon-text font-display text-[7rem] font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high xl:text-[9rem]">
+            <span className="neon-text font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
               {timeStr}
             </span>
-            <span className="mb-2 font-display text-2xl font-semibold tabular-nums text-primary xl:mb-3 xl:text-3xl">
+            <span className="mb-2 font-clock text-2xl font-medium tabular-nums text-primary xl:mb-3 xl:text-3xl">
               :{secStr}
             </span>
           </div>
@@ -297,11 +398,11 @@ export function LockScreen() {
             <div className="flex items-center justify-between">
               <span className="label-mono flex items-center gap-2 text-[10px] text-primary">
                 <ShieldCheck size={12} />
-                Access Terminal
+                {t.accessTerminal}
               </span>
               <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                PC-17 · Online
+                PC-17 · {t.online}
               </span>
             </div>
 
@@ -317,21 +418,24 @@ export function LockScreen() {
                 <h1 className="font-display text-[2.1rem] font-bold uppercase leading-[0.95] tracking-tight text-text-high text-balance">
                   {mode === 'login' ? (
                     <>
-                      Welcome{' '}
-                      <span className="text-glow text-primary">back</span>
+                      {t.welcome}
+                      {t.welcomeHi && (
+                        <>
+                          {' '}
+                          <span className="text-glow text-primary">{t.welcomeHi}</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
-                      Join the{' '}
-                      <span className="text-glow text-primary">club</span>
+                      {t.join}{' '}
+                      <span className="text-glow text-primary">{t.joinHi}</span>
                     </>
                   )}
                   <span className="caret-blink ml-1 font-normal text-primary">_</span>
                 </h1>
                 <p className="mt-2.5 text-sm leading-relaxed text-text-medium">
-                  {mode === 'login'
-                    ? 'Authenticate to unlock your station and start the session.'
-                    : 'Create your IMBA player profile in under a minute.'}
+                  {mode === 'login' ? t.loginSub : t.registerSub}
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -355,7 +459,7 @@ export function LockScreen() {
                       transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
                     />
                   )}
-                  <span className="relative z-[1]">{m === 'login' ? 'Sign in' : 'Register'}</span>
+                  <span className="relative z-[1]">{m === 'login' ? t.signIn : t.register}</span>
                 </button>
               ))}
             </div>
@@ -375,7 +479,7 @@ export function LockScreen() {
                   className="flex flex-col gap-4"
                 >
                   <Field
-                    label="Username or email"
+                    label={t.userOrEmail}
                     icon={<User size={15} />}
                     value={identifier}
                     onChange={setIdentifier}
@@ -384,7 +488,7 @@ export function LockScreen() {
                     autoFocus
                   />
                   <Field
-                    label="Password"
+                    label={t.password}
                     icon={<Lock size={15} />}
                     type={showPass ? 'text' : 'password'}
                     value={password}
@@ -403,18 +507,18 @@ export function LockScreen() {
                     }
                   />
 
-                  <PrimaryButton loading={loading} label="Unlock Station" />
+                  <PrimaryButton loading={loading} label={t.unlock} />
 
                   <div className="my-1 flex items-center gap-3 text-text-low">
                     <span className="h-px flex-1 bg-border" />
-                    <span className="label-mono text-[10px]">or continue with</span>
+                    <span className="label-mono text-[10px]">{t.orContinue}</span>
                     <span className="h-px flex-1 bg-border" />
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <SecondaryButton onClick={startQr} icon={<QrCode size={16} />} label="QR Login" />
-                    <SecondaryButton onClick={demoLogin} icon={<Sparkles size={16} />} label="Demo" />
-                    <SecondaryButton onClick={demoAdmin} icon={<UserCog size={16} />} label="Admin" />
+                    <SecondaryButton onClick={startQr} icon={<QrCode size={16} />} label={t.qrLogin} />
+                    <SecondaryButton onClick={demoLogin} icon={<Sparkles size={16} />} label={t.demo} />
+                    <SecondaryButton onClick={demoAdmin} icon={<UserCog size={16} />} label={t.admin} />
                   </div>
                 </motion.form>
               ) : (
@@ -428,7 +532,7 @@ export function LockScreen() {
                   className="flex flex-col gap-4"
                 >
                   <Field
-                    label="Username"
+                    label={t.username}
                     icon={<User size={15} />}
                     value={rUser}
                     onChange={setRUser}
@@ -436,7 +540,7 @@ export function LockScreen() {
                     autoFocus
                   />
                   <Field
-                    label="Email"
+                    label={t.email}
                     icon={<Mail size={15} />}
                     value={rEmail}
                     onChange={setREmail}
@@ -445,12 +549,12 @@ export function LockScreen() {
                   />
                   <div>
                     <Field
-                      label="Password"
+                      label={t.password}
                       icon={<Lock size={15} />}
                       type="password"
                       value={rPass}
                       onChange={setRPass}
-                      placeholder="Min 6 characters"
+                      placeholder={t.minChars}
                       error={touched && rPass && rPass.length < 6 ? 'Minimum 6 characters' : undefined}
                     />
                     {rPass && (
@@ -475,16 +579,16 @@ export function LockScreen() {
                     )}
                   </div>
                   <Field
-                    label="Confirm password"
+                    label={t.confirmPassword}
                     icon={<Fingerprint size={15} />}
                     type="password"
                     value={rConfirm}
                     onChange={setRConfirm}
-                    placeholder="Repeat password"
+                    placeholder={t.repeat}
                     error={touched && rConfirm && rConfirm !== rPass ? 'Passwords do not match' : undefined}
                   />
 
-                  <PrimaryButton loading={loading} label="Create Account" />
+                  <PrimaryButton loading={loading} label={t.createAccount} />
                 </motion.form>
               )}
             </AnimatePresence>
@@ -494,7 +598,7 @@ export function LockScreen() {
           <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
               <Lock size={10} className="text-success" />
-              Encrypted session
+              {t.encrypted}
             </span>
             <span className="label-mono text-[9px] text-text-low">IMBA-SHELL v2.4</span>
           </div>
@@ -502,7 +606,7 @@ export function LockScreen() {
 
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
-          <span className="font-display text-3xl font-bold tabular-nums text-text-high">{timeStr}</span>
+          <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
           <StationBadge />
         </div>
       </div>
@@ -535,6 +639,47 @@ export function LockScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+function LangSwitcher({
+  lang,
+  setLang,
+  label,
+}: {
+  lang: Lang
+  setLang: (l: Lang) => void
+  label: string
+}) {
+  return (
+    <div className="absolute right-4 top-4 z-30 flex items-center gap-2 lg:right-6 lg:top-6">
+      <span className="hidden items-center gap-1.5 text-text-low sm:flex">
+        <Globe size={13} className="text-primary" />
+        <span className="label-mono text-[9px]">{label}</span>
+      </span>
+      <div className="relative flex rounded-full border border-white/10 bg-[#0a0b10]/80 p-1 backdrop-blur-xl">
+        {LANGS.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => setLang(l.code)}
+            aria-pressed={lang === l.code}
+            className={`relative rounded-full px-3 py-1 font-display text-[11px] font-bold tracking-widest transition-colors ${
+              lang === l.code ? 'text-primary-foreground' : 'text-text-low hover:text-text-medium'
+            }`}
+          >
+            {lang === l.code && (
+              <motion.span
+                layoutId="lang-pill"
+                className="absolute inset-0 rounded-full bg-primary shadow-[0_0_18px_rgba(229,53,43,0.5)]"
+                transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+              />
+            )}
+            <span className="relative z-[1]">{l.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
