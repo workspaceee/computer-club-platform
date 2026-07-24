@@ -197,7 +197,7 @@ export function LockScreen() {
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
-          className="relative h-16 w-[360px] xl:h-20 xl:w-[430px]"
+          className="neon-logo relative h-16 w-[360px] xl:h-20 xl:w-[430px]"
         >
           <Image
             src="/imba-logo-full.png"
@@ -205,7 +205,7 @@ export function LockScreen() {
             fill
             priority
             sizes="430px"
-            className="object-contain object-left drop-shadow-[0_0_24px_rgba(229,53,43,0.3)]"
+            className="object-contain object-left"
           />
         </motion.div>
 
@@ -221,7 +221,7 @@ export function LockScreen() {
             Local time
           </span>
           <div className="flex items-end gap-3">
-            <span className="font-display text-[7rem] font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high xl:text-[9rem]">
+            <span className="neon-text font-display text-[7rem] font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high xl:text-[9rem]">
               {timeStr}
             </span>
             <span className="mb-2 font-display text-2xl font-semibold tabular-nums text-primary xl:mb-3 xl:text-3xl">
@@ -253,7 +253,7 @@ export function LockScreen() {
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative mb-8 h-14 w-72 lg:hidden"
+          className="neon-logo relative mb-8 h-14 w-72 lg:hidden"
         >
           <Image
             src="/imba-logo-full.png"
@@ -261,7 +261,7 @@ export function LockScreen() {
             fill
             priority
             sizes="288px"
-            className="object-contain drop-shadow-[0_0_20px_rgba(229,53,43,0.35)]"
+            className="object-contain"
           />
         </motion.div>
 
@@ -281,7 +281,7 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
-          className={`hud-frame relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
+          className={`hud-frame neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* HUD corner ticks */}
           <span className="hud-c hud-tl" aria-hidden />
@@ -649,9 +649,11 @@ function SecondaryButton({
     <button
       type="button"
       onClick={onClick}
-      className="tick-corners flex flex-col items-center gap-1.5 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-text-high"
+      className="group tick-corners flex flex-col items-center gap-2 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-text-high hover:shadow-[0_0_20px_-4px_rgba(229,53,43,0.45)]"
     >
-      <span className="text-text-low transition-colors group-hover:text-primary">{icon}</span>
+      <span className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary shadow-[0_0_12px_rgba(229,53,43,0.22),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all group-hover:border-primary/60 group-hover:bg-primary/20 group-hover:text-white group-hover:shadow-[0_0_18px_rgba(229,53,43,0.5),0_0_4px_rgba(255,255,255,0.3)]">
+        {icon}
+      </span>
       {label}
     </button>
   )

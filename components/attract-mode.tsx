@@ -108,14 +108,14 @@ export function AttractMode() {
           <motion.div
             animate={{ opacity: [0.85, 1, 0.85] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="relative h-12 w-64 md:h-14 md:w-80"
+            className="neon-logo relative h-12 w-64 md:h-14 md:w-80"
           >
             <Image
               src="/imba-logo-full.png"
               alt="IMBA Cyber Club"
               fill
               sizes="320px"
-              className="object-contain drop-shadow-[0_0_32px_rgba(229,53,43,0.45)]"
+              className="object-contain"
             />
           </motion.div>
           <span className="label-mono flex items-center gap-2 text-[10px] tracking-[0.35em] text-text-low">
@@ -135,10 +135,7 @@ export function AttractMode() {
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          <div
-            className="flex items-center justify-center font-display font-semibold leading-none tracking-tight tabular-nums text-text-high"
-            style={{ textShadow: '0 4px 60px rgba(0,0,0,0.85)' }}
-          >
+          <div className="neon-text flex items-center justify-center font-display font-semibold leading-none tracking-tight tabular-nums text-text-high">
             <span className="text-[7rem] md:text-[12rem] xl:text-[14rem]">{hh}</span>
             <motion.span
               animate={{ opacity: [1, 0.2, 1] }}
@@ -186,7 +183,7 @@ export function AttractMode() {
           <motion.span
             animate={{ opacity: [0.45, 1, 0.45] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            className="neon-ring mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
           >
             <MousePointer2 size={13} className="text-primary" />
             Move mouse to unlock

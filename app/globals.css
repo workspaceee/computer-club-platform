@@ -170,6 +170,99 @@
   text-shadow: 0 0 26px rgba(229, 53, 43, 0.5);
 }
 
+/* ---------- Red/white neon system ---------- */
+/* One shared visual language: a thin animated red↔white neon that
+   travels around borders (.neon-ring), breathes through display text
+   (.neon-text) and haloes the brand mark (.neon-logo). */
+
+@property --neon-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes neon-spin {
+  to {
+    --neon-angle: 360deg;
+  }
+}
+
+/* Thin animated border: red and white light traveling around the edge */
+.neon-ring {
+  position: relative;
+}
+.neon-ring::before,
+.neon-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--neon-angle),
+    rgba(229, 53, 43, 0.95) 0%,
+    rgba(255, 255, 255, 0.9) 10%,
+    rgba(229, 53, 43, 0.5) 22%,
+    rgba(229, 53, 43, 0.1) 42%,
+    rgba(255, 255, 255, 0.75) 58%,
+    rgba(229, 53, 43, 0.65) 74%,
+    rgba(229, 53, 43, 0.1) 88%,
+    rgba(229, 53, 43, 0.95) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: neon-spin 7s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+/* Soft glow copy of the ring */
+.neon-ring::after {
+  filter: blur(6px);
+  opacity: 0.55;
+}
+
+/* Breathing red/white neon for display text (clocks) */
+@keyframes neon-text-breathe {
+  0%,
+  100% {
+    text-shadow:
+      0 0 6px rgba(255, 255, 255, 0.22),
+      0 0 24px rgba(229, 53, 43, 0.5),
+      0 0 72px rgba(229, 53, 43, 0.3);
+  }
+  50% {
+    text-shadow:
+      0 0 10px rgba(255, 255, 255, 0.45),
+      0 0 30px rgba(229, 53, 43, 0.35),
+      0 0 80px rgba(255, 255, 255, 0.16);
+  }
+}
+.neon-text {
+  animation: neon-text-breathe 4.5s ease-in-out infinite;
+}
+
+/* Breathing red/white halo for the brand mark */
+@keyframes neon-logo-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 10px rgba(229, 53, 43, 0.55))
+      drop-shadow(0 0 32px rgba(229, 53, 43, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.32))
+      drop-shadow(0 0 34px rgba(229, 53, 43, 0.42));
+  }
+}
+.neon-logo {
+  animation: neon-logo-breathe 5s ease-in-out infinite;
+}
+
 /* ---------- HUD corner ticks (tactical framing) ---------- */
 .tick-corners {
   position: relative;
