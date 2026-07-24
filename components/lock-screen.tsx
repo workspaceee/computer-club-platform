@@ -541,8 +541,8 @@ export function LockScreen() {
 
 function StationBadge() {
   return (
-    <span className="glass flex items-center gap-2 rounded-full px-3.5 py-1.5">
-      <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+  <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+  <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
       <span className="font-display text-sm font-bold tracking-wide text-text-high">PC #17</span>
       <span className="text-[10px] font-semibold uppercase tracking-widest text-success">Ready</span>
     </span>
