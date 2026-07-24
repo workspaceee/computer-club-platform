@@ -136,15 +136,15 @@ export function AttractMode() {
           className="flex flex-col items-center"
         >
           <div className="neon-text flex items-center justify-center font-display font-semibold leading-none tracking-tight tabular-nums text-text-high">
-            <span className="text-[7rem] md:text-[12rem] xl:text-[14rem]">{hh}</span>
+            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{hh}</span>
             <motion.span
               animate={{ opacity: [1, 0.2, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="mx-1 -translate-y-[0.06em] text-[6rem] font-normal text-primary md:mx-2 md:text-[10rem] xl:text-[12rem]"
+              className="mx-1 -translate-y-[0.06em] text-[4.25rem] font-normal text-primary md:mx-1.5 md:text-[6.25rem] xl:text-[7.5rem]"
             >
               :
             </motion.span>
-            <span className="text-[7rem] md:text-[12rem] xl:text-[14rem]">{mm}</span>
+            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{mm}</span>
           </div>
 
           {/* seconds as a thin progress line filling over the minute */}
