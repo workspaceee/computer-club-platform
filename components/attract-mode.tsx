@@ -317,7 +317,7 @@ function HudChip({
   accent?: boolean
 }) {
   return (
-    <span className="glass flex items-center gap-2 rounded-full px-3.5 py-1.5">
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
       {dot && <span className="h-2 w-2 animate-pulse rounded-full bg-success" />}
       {icon && <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>}
       <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>

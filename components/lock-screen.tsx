@@ -281,14 +281,8 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
-          className={`hud-frame neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
+          className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
-          {/* HUD corner ticks */}
-          <span className="hud-c hud-tl" aria-hidden />
-          <span className="hud-c hud-tr" aria-hidden />
-          <span className="hud-c hud-bl" aria-hidden />
-          <span className="hud-c hud-br" aria-hidden />
-
           {/* subtle top accent line */}
           <div
             className="absolute inset-x-0 top-0 h-px"
@@ -567,7 +561,7 @@ function Telemetry({
   accent?: boolean
 }) {
   return (
-    <span className="glass flex items-center gap-2 rounded-full px-3 py-1.5">
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3 py-1.5">
       <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>
       <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
       <span className="text-xs font-semibold tabular-nums text-text-high">{value}</span>
@@ -649,7 +643,7 @@ function SecondaryButton({
     <button
       type="button"
       onClick={onClick}
-      className="group tick-corners flex flex-col items-center gap-2 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-text-high hover:shadow-[0_0_20px_-4px_rgba(229,53,43,0.45)]"
+      className="group flex flex-col items-center gap-2 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-text-high hover:shadow-[0_0_20px_-4px_rgba(229,53,43,0.45)]"
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary shadow-[0_0_12px_rgba(229,53,43,0.22),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all group-hover:border-primary/60 group-hover:bg-primary/20 group-hover:text-white group-hover:shadow-[0_0_18px_rgba(229,53,43,0.5),0_0_4px_rgba(255,255,255,0.3)]">
         {icon}
