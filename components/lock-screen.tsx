@@ -6,10 +6,15 @@ import {
   Cpu,
   Eye,
   EyeOff,
+  Fingerprint,
   Gauge,
   Loader2,
+  Lock,
+  Mail,
   QrCode,
+  ShieldCheck,
   Sparkles,
+  User,
   UserCog,
   Wifi,
 } from 'lucide-react'
@@ -134,6 +139,11 @@ export function LockScreen() {
     }, 4000)
   }
 
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    setTouched(false)
+  }
+
   const timeStr = now
     ? now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : '--:--'
@@ -156,20 +166,21 @@ export function LockScreen() {
           aria-hidden
         />
       </div>
-      {/* readability overlays: darken globally, deepen toward edges and the form side */}
+      {/* readability overlays: cool the red cast, darken globally, deepen toward edges */}
       <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0" style={{ background: 'rgba(8,10,18,0.35)' }} />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 45%, rgba(0,0,0,0.72) 100%)',
+            'linear-gradient(90deg, rgba(5,6,10,0.6) 0%, rgba(5,6,10,0.12) 45%, rgba(5,6,10,0.78) 100%)',
         }}
       />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 25%, transparent 70%, rgba(0,0,0,0.65) 100%)',
+            'linear-gradient(180deg, rgba(5,6,10,0.55) 0%, transparent 25%, transparent 70%, rgba(5,6,10,0.7) 100%)',
         }}
       />
       <ParticleField />
@@ -200,7 +211,10 @@ export function LockScreen() {
           transition={{ duration: 0.8, delay: 0.15, ease: 'easeOut' }}
           className="flex flex-col gap-3"
         >
-          <span className="label-mono text-[11px] text-primary">Local time</span>
+          <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
+            <span className="h-px w-8 bg-primary/60" />
+            Local time
+          </span>
           <div className="flex items-end gap-3">
             <span className="font-display text-[7rem] font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high xl:text-[9rem]">
               {timeStr}
@@ -252,8 +266,14 @@ export function LockScreen() {
             shake ? { x: [0, -10, 10, -8, 8, -4, 4, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0, x: 0 }
           }
           transition={shake ? { duration: 0.5 } : { duration: 0.7, delay: 0.1, ease: 'easeOut' }}
-          className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-black/55 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+          className="hud-frame relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
         >
+          {/* HUD corner ticks */}
+          <span className="hud-c hud-tl" aria-hidden />
+          <span className="hud-c hud-tr" aria-hidden />
+          <span className="hud-c hud-bl" aria-hidden />
+          <span className="hud-c hud-br" aria-hidden />
+
           {/* subtle top accent line */}
           <div
             className="absolute inset-x-0 top-0 h-px"
@@ -263,44 +283,91 @@ export function LockScreen() {
             }}
           />
 
-          {/* card header */}
-          <div className="relative z-[2] flex flex-col items-center gap-3 px-6 pb-2 pt-8 text-center">
-            <div className="relative h-14 w-14">
-              <Image
-                src="/imba-mark.png"
-                alt=""
-                fill
-                sizes="56px"
-                className="object-contain drop-shadow-[0_0_18px_rgba(229,53,43,0.45)]"
-                aria-hidden
-              />
+          {/* ------- card header : access terminal ------- */}
+          <div className="relative z-[2] px-7 pt-7">
+            <div className="flex items-center justify-between">
+              <span className="label-mono flex items-center gap-2 text-[10px] text-primary">
+                <ShieldCheck size={12} />
+                Access Terminal
+              </span>
+              <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                PC-17 · Online
+              </span>
             </div>
-            <div className="flex flex-col gap-1">
-              <h1 className="font-display text-2xl font-bold text-text-high text-balance">
-                {mode === 'login' ? 'Welcome back' : 'Join the club'}
-              </h1>
-              <p className="text-sm text-text-medium">
-                {mode === 'login'
-                  ? 'Sign in to unlock your station'
-                  : 'Create your IMBA player account'}
-              </p>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={mode}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="mt-5"
+              >
+                <h1 className="font-display text-[2.1rem] font-bold uppercase leading-[0.95] tracking-tight text-text-high text-balance">
+                  {mode === 'login' ? (
+                    <>
+                      Welcome{' '}
+                      <span className="text-glow text-primary">back</span>
+                    </>
+                  ) : (
+                    <>
+                      Join the{' '}
+                      <span className="text-glow text-primary">club</span>
+                    </>
+                  )}
+                  <span className="caret-blink ml-1 font-normal text-primary">_</span>
+                </h1>
+                <p className="mt-2.5 text-sm leading-relaxed text-text-medium">
+                  {mode === 'login'
+                    ? 'Authenticate to unlock your station and start the session.'
+                    : 'Create your IMBA player profile in under a minute.'}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* ------- mode switch : segmented tabs ------- */}
+            <div className="mt-6 grid grid-cols-2 rounded-lg border border-border bg-black/40 p-1">
+              {(['login', 'register'] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => switchMode(m)}
+                  className={`relative rounded-md py-2 font-display text-xs font-semibold uppercase tracking-widest transition-colors ${
+                    mode === m ? 'text-text-high' : 'text-text-low hover:text-text-medium'
+                  }`}
+                  aria-pressed={mode === m}
+                >
+                  {mode === m && (
+                    <motion.span
+                      layoutId="mode-pill"
+                      className="absolute inset-0 rounded-md border border-primary/40 bg-primary/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_18px_rgba(229,53,43,0.18)]"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
+                    />
+                  )}
+                  <span className="relative z-[1]">{m === 'login' ? 'Sign in' : 'Register'}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* form body */}
-          <div className="relative z-[2] p-6">
+          {/* ------- form body ------- */}
+          <div className="relative z-[2] p-7 pt-5">
             <AnimatePresence mode="wait">
               {mode === 'login' ? (
                 <motion.form
                   key="login"
-                  initial={{ opacity: 0, x: -30 }}
+                  initial={{ opacity: 0, x: -24 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -30 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.25 }}
                   onSubmit={handleLogin}
                   className="flex flex-col gap-4"
                 >
                   <Field
                     label="Username or email"
+                    icon={<User size={15} />}
                     value={identifier}
                     onChange={setIdentifier}
                     placeholder="player@imba.club"
@@ -309,6 +376,7 @@ export function LockScreen() {
                   />
                   <Field
                     label="Password"
+                    icon={<Lock size={15} />}
                     type={showPass ? 'text' : 'password'}
                     value={password}
                     onChange={setPassword}
@@ -326,21 +394,26 @@ export function LockScreen() {
                     }
                   />
 
-                  <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    Remember me
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Remember me
+                    </label>
+                    <span className="label-mono text-[10px] text-text-low">
+                      Session · 128-bit
+                    </span>
+                  </div>
 
                   <PrimaryButton loading={loading} label="Unlock Station" />
 
                   <div className="my-1 flex items-center gap-3 text-text-low">
                     <span className="h-px flex-1 bg-border" />
-                    <span className="text-[11px] uppercase tracking-widest">or</span>
+                    <span className="label-mono text-[10px]">or continue with</span>
                     <span className="h-px flex-1 bg-border" />
                   </div>
 
@@ -349,33 +422,28 @@ export function LockScreen() {
                     <SecondaryButton onClick={demoLogin} icon={<Sparkles size={16} />} label="Demo" />
                     <SecondaryButton onClick={demoAdmin} icon={<UserCog size={16} />} label="Admin" />
                   </div>
-
-                  <p className="text-center text-sm text-text-medium">
-                    New here?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMode('register')
-                        setTouched(false)
-                      }}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      Register account
-                    </button>
-                  </p>
                 </motion.form>
               ) : (
                 <motion.form
                   key="register"
-                  initial={{ opacity: 0, x: 30 }}
+                  initial={{ opacity: 0, x: 24 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 30 }}
+                  exit={{ opacity: 0, x: 24 }}
+                  transition={{ duration: 0.25 }}
                   onSubmit={handleRegister}
                   className="flex flex-col gap-4"
                 >
-                  <Field label="Username" value={rUser} onChange={setRUser} placeholder="ProGamer" autoFocus />
+                  <Field
+                    label="Username"
+                    icon={<User size={15} />}
+                    value={rUser}
+                    onChange={setRUser}
+                    placeholder="ProGamer"
+                    autoFocus
+                  />
                   <Field
                     label="Email"
+                    icon={<Mail size={15} />}
                     value={rEmail}
                     onChange={setREmail}
                     placeholder="you@imba.club"
@@ -384,6 +452,7 @@ export function LockScreen() {
                   <div>
                     <Field
                       label="Password"
+                      icon={<Lock size={15} />}
                       type="password"
                       value={rPass}
                       onChange={setRPass}
@@ -413,6 +482,7 @@ export function LockScreen() {
                   </div>
                   <Field
                     label="Confirm password"
+                    icon={<Fingerprint size={15} />}
                     type="password"
                     value={rConfirm}
                     onChange={setRConfirm}
@@ -421,25 +491,19 @@ export function LockScreen() {
                   />
 
                   <PrimaryButton loading={loading} label="Create Account" />
-
-                  <p className="text-center text-sm text-text-medium">
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMode('login')
-                        setTouched(false)
-                      }}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      Sign in
-                    </button>
-                  </p>
                 </motion.form>
               )}
             </AnimatePresence>
           </div>
 
+          {/* ------- card footer strip ------- */}
+          <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
+            <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
+              <Lock size={10} className="text-success" />
+              Encrypted session
+            </span>
+            <span className="label-mono text-[9px] text-text-low">IMBA-SHELL v2.4</span>
+          </div>
         </motion.div>
 
         {/* mobile clock + station */}
@@ -510,6 +574,7 @@ function Telemetry({
 
 function Field({
   label,
+  icon,
   value,
   onChange,
   placeholder,
@@ -519,6 +584,7 @@ function Field({
   autoFocus,
 }: {
   label: string
+  icon?: React.ReactNode
   value: string
   onChange: (v: string) => void
   placeholder?: string
@@ -529,11 +595,12 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</label>
+      <label className="label-mono text-[10px] text-text-low">{label}</label>
       <div
-        className="flex items-center gap-2 rounded-xl border bg-black/40 px-3.5 transition-all focus-within:border-primary focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.12)]"
+        className="flex items-center gap-2.5 rounded-lg border bg-black/40 px-3.5 transition-all focus-within:border-primary focus-within:bg-black/60 focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
         style={{ borderColor: error ? 'var(--danger)' : 'var(--border)' }}
       >
+        {icon && <span className="shrink-0 text-text-low">{icon}</span>}
         <input
           type={type}
           value={value}
@@ -554,8 +621,13 @@ function PrimaryButton({ loading, label }: { loading: boolean; label: string }) 
     <button
       type="submit"
       disabled={loading}
-      className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-display font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_20px_rgba(229,53,43,0.35)] transition-all hover:bg-primary-hover hover:shadow-[0_0_30px_rgba(229,53,43,0.55)] disabled:opacity-70"
+      className="group relative flex h-12 items-center justify-center gap-2 overflow-hidden bg-primary font-display text-sm font-bold uppercase tracking-[0.14em] text-primary-foreground shadow-[0_0_24px_rgba(229,53,43,0.35)] transition-all hover:bg-primary-hover hover:shadow-[0_0_36px_rgba(229,53,43,0.55)] disabled:opacity-70 [clip-path:polygon(0_0,100%_0,100%_calc(100%-12px),calc(100%-12px)_100%,0_100%)]"
     >
+      {/* sheen sweep on hover */}
+      <span
+        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+        aria-hidden
+      />
       {loading ? <Loader2 size={18} className="animate-spin" /> : label}
     </button>
   )
@@ -574,9 +646,9 @@ function SecondaryButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-1 rounded-lg border border-border bg-surface px-2 py-2.5 text-[11px] font-medium text-text-medium transition-colors hover:border-border-strong hover:bg-white/10 hover:text-text-high"
+      className="tick-corners flex flex-col items-center gap-1.5 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-text-high"
     >
-      {icon}
+      <span className="text-text-low transition-colors group-hover:text-primary">{icon}</span>
       {label}
     </button>
   )
