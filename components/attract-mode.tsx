@@ -128,48 +128,45 @@ export function AttractMode() {
           </span>
         </div>
 
-        {/* giant terminal clock — optically centered, seconds mirrored by a spacer */}
+        {/* giant display clock — clean HH:MM centerpiece */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          <div className="flex items-end justify-center">
-            {/* invisible mirror of the seconds block keeps HH:MM dead-center */}
-            <div aria-hidden className="invisible mb-4 flex w-14 flex-col items-center md:mb-7 md:w-20">
-              <span className="font-mono text-2xl md:text-4xl">00</span>
-              <span className="text-[9px]">SEC</span>
-            </div>
-
-            <div className="flex items-start font-mono font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high">
-              <span className="text-[6.5rem] md:text-[11rem] xl:text-[13rem]">{hh}</span>
-              <span
-                className="text-[6.5rem] transition-opacity duration-200 md:text-[11rem] xl:text-[13rem]"
-                style={{ opacity: colonOn ? 1 : 0.25 }}
-              >
-                :
-              </span>
-              <span className="text-[6.5rem] md:text-[11rem] xl:text-[13rem]">{mm}</span>
-            </div>
-
-            {/* live seconds column */}
-            <div className="mb-4 flex w-14 flex-col items-center gap-1 md:mb-7 md:w-20">
-              <span className="font-mono text-2xl font-semibold tabular-nums text-primary md:text-4xl">
-                {ss}
-              </span>
-              <span className="label-mono text-[9px] tracking-[0.3em] text-text-low">SEC</span>
-            </div>
+          <div
+            className="flex items-center justify-center font-display font-semibold leading-none tracking-tight tabular-nums text-text-high"
+            style={{ textShadow: '0 4px 60px rgba(0,0,0,0.85)' }}
+          >
+            <span className="text-[7rem] md:text-[12rem] xl:text-[14rem]">{hh}</span>
+            <motion.span
+              animate={{ opacity: [1, 0.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              className="mx-1 -translate-y-[0.06em] text-[6rem] font-normal text-primary md:mx-2 md:text-[10rem] xl:text-[12rem]"
+            >
+              :
+            </motion.span>
+            <span className="text-[7rem] md:text-[12rem] xl:text-[14rem]">{mm}</span>
           </div>
 
-          {/* date with flanking rules */}
-          <div className="mt-5 flex items-center gap-4 md:mt-7">
-            <span className="h-px w-10 bg-white/15 md:w-16" />
-            <span className="label-mono text-xs tracking-[0.32em] text-text-medium md:text-sm">
-              {dateStr}
+          {/* seconds as a thin progress line filling over the minute */}
+          <div className="mt-6 flex w-56 items-center gap-3 md:mt-8 md:w-80">
+            <div className="relative h-px flex-1 overflow-hidden bg-white/12">
+              <div
+                className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-1000 ease-linear"
+                style={{ width: now ? `${(now.getSeconds() / 59) * 100}%` : '0%' }}
+              />
+            </div>
+            <span className="label-mono w-6 text-right text-[11px] tabular-nums tracking-widest text-primary">
+              {ss}
             </span>
-            <span className="h-px w-10 bg-white/15 md:w-16" />
           </div>
+
+          {/* date */}
+          <span className="label-mono mt-5 text-xs tracking-[0.32em] text-text-medium md:mt-6 md:text-sm">
+            {dateStr}
+          </span>
 
           {/* slideshow progress */}
           {!useVideo && (
