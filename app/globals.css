@@ -337,6 +337,22 @@
   z-index: 1;
 }
 
+/* Attract-mode promo ticker */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+.marquee-track {
+  animation: marquee-scroll 40s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
 /* Blinking terminal caret */
 @keyframes caret-blink {
   0%,

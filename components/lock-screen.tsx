@@ -20,12 +20,17 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
+import { AttractMode } from '@/components/attract-mode'
 import { MockQr } from '@/components/mock-qr'
+import { useIdle } from '@/hooks/use-idle'
 import { login } from '@/lib/mock/api'
 import { DEMO_USER } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
 
 type Mode = 'login' | 'register'
+
+/** Idle time before the attract mode kicks in (ms). */
+const IDLE_TIMEOUT_MS = 30_000
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -43,6 +48,7 @@ export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
   const toast = useStore((s) => s.toast)
   const now = useClock()
+  const idle = useIdle(IDLE_TIMEOUT_MS)
 
   const [mode, setMode] = useState<Mode>('login')
   const [showPass, setShowPass] = useState(false)
@@ -262,10 +268,20 @@ export function LockScreen() {
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={
-            shake ? { x: [0, -10, 10, -8, 8, -4, 4, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0, x: 0 }
+            shake
+              ? { x: [0, -10, 10, -8, 8, -4, 4, 0], opacity: 1, y: 0 }
+              : idle
+                ? { opacity: 0, y: 56, scale: 0.9, x: 0 }
+                : { opacity: 1, y: 0, x: 0, scale: 1 }
           }
-          transition={shake ? { duration: 0.5 } : { duration: 0.7, delay: 0.1, ease: 'easeOut' }}
-          className="hud-frame relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
+          transition={
+            shake
+              ? { duration: 0.5 }
+              : idle
+                ? { duration: 0.6, ease: 'easeIn' }
+                : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
+          }
+          className={`hud-frame relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* HUD corner ticks */}
           <span className="hud-c hud-tl" aria-hidden />
@@ -496,6 +512,9 @@ export function LockScreen() {
           <StationBadge />
         </div>
       </div>
+
+      {/* Idle attract mode overlay */}
+      <AnimatePresence>{idle && <AttractMode />}</AnimatePresence>
 
       {/* QR modal */}
       <AnimatePresence>
