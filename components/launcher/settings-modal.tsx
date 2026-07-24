@@ -173,7 +173,7 @@ export function SettingsModal() {
             role="dialog"
             aria-modal="true"
             aria-label="Settings"
-            className="relative z-10 flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-strong bg-surface-2 shadow-2xl"
+            className="tick-corners relative z-10 flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl"
             initial={{ scale: 0.95, y: 12 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 12 }}
@@ -181,9 +181,13 @@ export function SettingsModal() {
             {/* Header */}
             <div className="relative flex items-center justify-between border-b border-border px-5 py-4">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(229,53,43,0.12),transparent_60%)]" />
-              <h2 className="relative font-display text-lg font-black uppercase tracking-wide text-text-high">
-                Settings
-              </h2>
+              <div className="relative flex items-center gap-3">
+                <span className="label-mono text-[10px] text-primary">SYS</span>
+                <span className="h-3 w-px bg-border-strong" />
+                <h2 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
+                  Settings
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}

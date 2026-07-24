@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Coins, Lock, LogOut, Settings, User } from 'lucide-react'
+import { ChevronDown, Coins, Lock, LogOut, Settings, Timer, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -9,10 +9,10 @@ import { formatCoins, formatDuration } from '@/lib/format'
 import { useStore, type LauncherView } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const NAV: { id: LauncherView; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'games', label: 'Games' },
-  { id: 'shop', label: 'Shop' },
+const NAV: { id: LauncherView; label: string; index: string }[] = [
+  { id: 'home', label: 'Home', index: '01' },
+  { id: 'games', label: 'Games', index: '02' },
+  { id: 'shop', label: 'Shop', index: '03' },
 ]
 
 export function TopBar() {
@@ -48,81 +48,107 @@ export function TopBar() {
 
   return (
     <header className="glass sticky top-0 z-40 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-8">
-      <div className="flex items-center gap-7">
-        <button onClick={() => setView('home')} aria-label="IMBA home" className="transition-transform hover:scale-105">
+      <div className="flex items-center gap-8">
+        <button
+          onClick={() => setView('home')}
+          aria-label="IMBA home"
+          className="transition-transform hover:scale-[1.03]"
+        >
           <ImbaLogo size="sm" />
         </button>
         <nav className="hidden items-center gap-1 sm:flex">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={cn(
-                'relative rounded-full px-4 py-2 font-display text-sm font-bold uppercase tracking-wide transition-colors',
-                view === item.id ? 'text-text-high' : 'text-text-low hover:text-text-medium',
-              )}
-            >
-              {view === item.id && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 rounded-full border border-primary/40 bg-primary/12"
-                  style={{ boxShadow: '0 0 20px -4px rgba(229,53,43,0.5)' }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                />
-              )}
-              <span className="relative">{item.label}</span>
-            </button>
-          ))}
+          {NAV.map((item) => {
+            const active = view === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id)}
+                className={cn(
+                  'group relative flex items-center gap-2 px-3.5 py-2 transition-colors',
+                  active ? 'text-text-high' : 'text-text-low hover:text-text-medium',
+                )}
+              >
+                <span className="label-mono text-[9px] text-primary/70 tabular-nums">
+                  {item.index}
+                </span>
+                <span className="font-display text-sm font-semibold tracking-tight">
+                  {item.label}
+                </span>
+                {active && (
+                  <motion.span
+                    layoutId="nav-underline"
+                    className="absolute inset-x-2 -bottom-[21px] h-[2px] bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]"
+                    transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                  />
+                )}
+              </button>
+            )
+          })}
         </nav>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
+        {/* Session timer */}
         <motion.div
-          animate={critical ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+          animate={critical ? { scale: [1, 1.04, 1] } : { scale: 1 }}
           transition={{ duration: 1, repeat: critical ? Infinity : 0 }}
-          className="flex items-center gap-2 rounded-full border border-border bg-white/[0.03] px-3.5 py-1.5"
+          className="flex items-center gap-2.5 rounded-md border bg-black/30 px-3 py-1.5"
           style={{ borderColor: low ? timerColor : 'var(--border)' }}
         >
-          <span className="hidden text-[10px] font-medium uppercase tracking-wide text-text-low sm:inline">
-            Session
-          </span>
-          <span className="font-display text-sm font-bold tabular-nums" style={{ color: timerColor }}>
-            {formatDuration(seconds)}
-          </span>
+          <Timer size={14} style={{ color: timerColor }} />
+          <div className="flex flex-col leading-none">
+            <span className="label-mono hidden text-[8px] text-text-low sm:block">Session</span>
+            <span
+              className="font-display text-sm font-bold tabular-nums leading-tight"
+              style={{ color: timerColor }}
+            >
+              {formatDuration(seconds)}
+            </span>
+          </div>
         </motion.div>
 
-        <div className="flex items-center gap-1.5 rounded-full border border-warning/25 bg-warning/[0.08] px-3.5 py-1.5">
-          <Coins size={15} className="text-warning" />
-          <span className="font-display text-sm font-bold tabular-nums text-text-high">
-            {formatCoins(coins)}
-          </span>
+        {/* Coins */}
+        <div className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-1.5">
+          <Coins size={14} className="text-warning" />
+          <div className="flex flex-col leading-none">
+            <span className="label-mono hidden text-[8px] text-warning/70 sm:block">Coins</span>
+            <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
+              {formatCoins(coins)}
+            </span>
+          </div>
         </div>
 
+        {/* Avatar menu */}
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-full border border-border bg-white/[0.03] py-1 pl-1 pr-2 transition-colors hover:border-border-strong"
+            className="flex items-center gap-2 rounded-md border border-border bg-white/[0.03] py-1 pl-1 pr-2 transition-colors hover:border-border-strong"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-hover font-display text-xs font-bold text-primary-foreground shadow-[0_0_16px_-2px_rgba(229,53,43,0.7)]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-primary font-display text-xs font-bold text-primary-foreground shadow-[0_0_14px_-3px_rgba(229,53,43,0.8)]">
               {initials}
             </span>
-            <ChevronDown size={16} className="text-text-medium" />
+            <ChevronDown
+              size={15}
+              className={cn('text-text-medium transition-transform', menuOpen && 'rotate-180')}
+            />
           </button>
 
           <AnimatePresence>
             {menuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                className="glass-strong absolute right-0 top-12 w-56 overflow-hidden rounded-2xl p-1.5"
+                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                className="glass-strong absolute right-0 top-12 w-60 overflow-hidden rounded-lg p-1.5"
               >
-                <div className="mb-1 flex items-center gap-3 border-b border-border px-3 py-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-hover font-display text-xs font-bold text-primary-foreground shadow-[0_0_16px_-2px_rgba(229,53,43,0.7)]">
+                <div className="mb-1 flex items-center gap-3 border-b border-border px-3 py-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-[6px] bg-primary font-display text-xs font-bold text-primary-foreground shadow-[0_0_14px_-3px_rgba(229,53,43,0.8)]">
                     {initials}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-display text-sm font-bold text-text-high">{user?.nickname}</p>
+                    <p className="truncate font-display text-sm font-bold text-text-high">
+                      {user?.nickname}
+                    </p>
                     <p className="truncate text-xs text-text-low">{user?.email}</p>
                   </div>
                 </div>
@@ -209,7 +235,7 @@ function MenuItem({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5',
+        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5',
         danger ? 'text-danger' : 'text-text-high',
       )}
     >

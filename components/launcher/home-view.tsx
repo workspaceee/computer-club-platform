@@ -5,17 +5,21 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Coins,
   Gift,
+  type LucideIcon,
   Mouse,
   Play,
   Shirt,
   Sticker,
+  Timer,
+  Trophy,
   Zap,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { GameCover } from '@/components/game-cover'
-import { Icon3D, type Icon3DName } from '@/components/icon-3d'
+import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { fetchLeaderboard } from '@/lib/mock/api'
 import { PRIZES, TOP_GAMES } from '@/lib/mock/data'
@@ -23,20 +27,22 @@ import { formatCoins } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const PRIZE_ICONS: Record<string, React.ElementType> = {
+const PRIZE_ICONS: Record<string, LucideIcon> = {
   sticker: Sticker,
   clock: Clock,
   shirt: Shirt,
   mouse: Mouse,
 }
 
-function SectionHeader({ children }: { children: React.ReactNode }) {
+function SectionHeader({ index, children }: { index: string; children: React.ReactNode }) {
   return (
     <div className="mb-4 flex items-center gap-3">
-      <span className="h-4 w-1 rounded-full bg-primary shadow-[0_0_12px_rgba(229,53,43,0.8)]" />
-      <h2 className="font-display text-xl font-black uppercase tracking-wide text-text-high">
+      <span className="label-mono text-[10px] text-primary tabular-nums">{index}</span>
+      <span className="h-3 w-px bg-border-strong" />
+      <h2 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
         {children}
       </h2>
+      <span className="ml-1 h-px flex-1 bg-border" />
     </div>
   )
 }
@@ -47,7 +53,7 @@ export function HomeView() {
       <HeroCarousel />
       <QuickStats />
       <PromoBanner />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
         <PrizeLadder />
         <Leaderboard />
       </div>
@@ -81,20 +87,20 @@ function HeroCarousel() {
     <section>
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-text-medium">
-            Welcome back{user ? ',' : ''}{' '}
-            <span className="font-semibold text-text-high">{user?.nickname}</span>
+          <p className="label-mono mb-1 text-[10px] text-text-low">
+            Welcome back{user ? ' //' : ''}{' '}
+            <span className="text-primary">{user?.nickname}</span>
           </p>
-          <h1 className="font-display text-3xl font-black uppercase tracking-tight text-text-high md:text-4xl">
-            Ready to <span className="text-primary text-glow">dominate</span>?
+          <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
+            Ready to <span className="text-primary text-glow">dominate</span>
           </h1>
         </div>
-        <span className="hidden rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-display text-xs font-bold uppercase tracking-wide text-primary sm:inline">
-          Top 5 Now
+        <span className="label-mono hidden rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-[10px] text-primary sm:inline">
+          Top 5 Live
         </span>
       </div>
 
-      <div className="glass relative h-72 overflow-hidden rounded-3xl md:h-96">
+      <div className="glass tick-corners relative h-72 overflow-hidden rounded-xl md:h-96">
         <AnimatePresence custom={dir} mode="popLayout">
           <motion.div
             key={game.id}
@@ -106,10 +112,10 @@ function HeroCarousel() {
             className="absolute inset-0"
           >
             <GameCover game={game} className="h-full w-full" titleClassName="text-4xl md:text-6xl" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
               <div className="flex items-center gap-3">
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+                <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
                   {game.category}
                 </span>
                 <span className="flex items-center gap-1.5 text-sm font-medium text-white/80">
@@ -119,9 +125,9 @@ function HeroCarousel() {
               </div>
               <button
                 onClick={() => setLaunchGame(game.id)}
-                className="mt-4 flex w-fit items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-hover px-7 py-3 font-display font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-2px_rgba(229,53,43,0.7)] transition-all hover:scale-[1.03]"
+                className="mt-4 flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
               >
-                <Play size={18} fill="currentColor" />
+                <Play size={17} fill="currentColor" />
                 Play now
               </button>
             </div>
@@ -130,14 +136,14 @@ function HeroCarousel() {
 
         <button
           onClick={() => go(index - 1)}
-          className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-full p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
           aria-label="Previous game"
         >
           <ChevronLeft size={20} />
         </button>
         <button
           onClick={() => go(index + 1)}
-          className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
           aria-label="Next game"
         >
           <ChevronRight size={20} />
@@ -150,8 +156,10 @@ function HeroCarousel() {
               onClick={() => go(i)}
               aria-label={`Go to slide ${i + 1}`}
               className={cn(
-                'h-1.5 rounded-full transition-all',
-                i === index ? 'w-7 bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]' : 'w-1.5 bg-white/40',
+                'h-1 rounded-full transition-all',
+                i === index
+                  ? 'w-8 bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]'
+                  : 'w-1.5 bg-white/40',
               )}
             />
           ))}
@@ -166,10 +174,10 @@ function QuickStats() {
   const timeLabel = useStore((s) => s.timeBalanceLabel)
   const prizesUnlocked = PRIZES.filter((p) => coins >= p.coins).length
 
-  const stats: { icon: Icon3DName; value: string; label: string }[] = [
-    { icon: 'coin', value: formatCoins(coins), label: 'IMBA Coins' },
-    { icon: 'timer', value: timeLabel, label: 'Time balance' },
-    { icon: 'trophy', value: `${prizesUnlocked}/${PRIZES.length}`, label: 'Prizes unlocked' },
+  const stats: { icon: LucideIcon; value: string; label: string }[] = [
+    { icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' },
+    { icon: Timer, value: timeLabel, label: 'Time balance' },
+    { icon: Trophy, value: `${prizesUnlocked}/${PRIZES.length}`, label: 'Prizes unlocked' },
   ]
 
   return (
@@ -180,12 +188,14 @@ function QuickStats() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.08 }}
-          className="glass group flex items-center gap-4 rounded-2xl p-4 transition-colors hover:border-border-strong"
+          className="glass group flex items-center gap-4 rounded-lg p-4 transition-colors hover:border-border-strong"
         >
-          <Icon3D name={s.icon} size={52} float />
+          <IconTile icon={s.icon} variant="primary" size="lg" ticks />
           <div>
-            <p className="font-display text-2xl font-black leading-none text-text-high">{s.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-text-low">{s.label}</p>
+            <p className="font-display text-2xl font-bold leading-none tabular-nums text-text-high">
+              {s.value}
+            </p>
+            <p className="label-mono mt-1.5 text-[9px] text-text-low">{s.label}</p>
           </div>
         </motion.div>
       ))}
@@ -195,19 +205,19 @@ function QuickStats() {
 
 function PromoBanner() {
   return (
-    <section className="shimmer relative overflow-hidden rounded-3xl border border-primary/30 bg-[linear-gradient(110deg,rgba(229,53,43,0.28),rgba(229,53,43,0.04)_60%)] p-6 md:p-7">
-      <div className="pointer-events-none absolute -right-6 -top-6 opacity-90">
-        <Icon3D name="rocket" size={120} float glow={false} />
+    <section className="shimmer relative overflow-hidden rounded-xl border border-primary/30 bg-[linear-gradient(110deg,rgba(229,53,43,0.24),rgba(229,53,43,0.03)_62%)] p-6 md:p-7">
+      <div className="pointer-events-none absolute -right-8 -top-10 select-none font-display text-[9rem] font-bold leading-none text-primary/10">
+        2X
       </div>
       <div className="relative z-10 flex max-w-lg flex-col items-start gap-1">
-        <span className="rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-foreground">
+        <span className="label-mono rounded-md bg-primary px-2.5 py-1 text-[10px] text-primary-foreground">
           Happy Hours
         </span>
-        <h3 className="mt-2 font-display text-2xl font-black text-text-high md:text-3xl">
-          2x Coins until 18:00
+        <h3 className="mt-3 font-display text-2xl font-bold uppercase tracking-tight text-text-high md:text-3xl">
+          Double coins until 18:00
         </h3>
-        <p className="text-sm text-text-medium">
-          Every session earns double rewards. Stack them up and climb the prize ladder.
+        <p className="text-sm leading-relaxed text-text-medium">
+          Every session earns 2x rewards. Stack them up and climb the prize ladder.
         </p>
       </div>
     </section>
@@ -218,8 +228,8 @@ function PrizeLadder() {
   const coins = useStore((s) => s.coins)
   return (
     <section>
-      <SectionHeader>Prize Ladder</SectionHeader>
-      <div className="glass flex flex-col gap-2 rounded-3xl p-4">
+      <SectionHeader index="04">Prize Ladder</SectionHeader>
+      <div className="glass flex flex-col gap-2 rounded-xl p-4">
         {PRIZES.map((prize) => {
           const Icon = PRIZE_ICONS[prize.icon] ?? Gift
           const reached = coins >= prize.coins
@@ -227,26 +237,19 @@ function PrizeLadder() {
             <div
               key={prize.coins}
               className={cn(
-                'flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
+                'flex items-center gap-3 rounded-md border px-4 py-3 transition-colors',
                 reached ? 'border-primary/40 bg-primary/10' : 'border-border bg-black/20',
               )}
             >
-              <span
-                className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-xl',
-                  reached
-                    ? 'bg-gradient-to-br from-primary to-primary-hover text-primary-foreground shadow-[0_0_16px_-2px_rgba(229,53,43,0.7)]'
-                    : 'bg-white/5 text-text-low',
-                )}
-              >
-                <Icon size={18} />
-              </span>
+              <IconTile icon={Icon} size="md" variant={reached ? 'primary' : 'muted'} />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-text-high">{prize.reward}</p>
-                <p className="text-xs text-text-low">{formatCoins(prize.coins)} coins</p>
+                <p className="label-mono text-[9px] text-text-low tabular-nums">
+                  {formatCoins(prize.coins)} coins
+                </p>
               </div>
               {reached && (
-                <span className="rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-bold uppercase text-success">
+                <span className="label-mono rounded-md bg-success/15 px-2.5 py-1 text-[9px] text-success">
                   Unlocked
                 </span>
               )}
@@ -273,9 +276,9 @@ function Leaderboard() {
 
   return (
     <section>
-      <SectionHeader>Leaderboard</SectionHeader>
-      <div className="glass overflow-hidden rounded-3xl">
-        <div className="grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-text-low">
+      <SectionHeader index="05">Leaderboard</SectionHeader>
+      <div className="glass overflow-hidden rounded-xl">
+        <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
           <span>#</span>
           <span>Player</span>
           <span className="text-right">Hours</span>
@@ -297,19 +300,26 @@ function Leaderboard() {
               >
                 {row.rank <= 3 ? (
                   <span
-                    className="flex h-6 w-6 items-center justify-center rounded-md font-display text-xs font-black text-black"
+                    className="flex h-6 w-6 items-center justify-center rounded-[5px] font-display text-xs font-bold text-black"
                     style={{ background: RANK_GRADIENT[row.rank - 1] }}
                   >
                     {row.rank}
                   </span>
                 ) : (
-                  <span className="pl-1.5 font-display font-bold text-text-low">{row.rank}</span>
+                  <span className="pl-1.5 font-display font-bold text-text-low tabular-nums">
+                    {row.rank}
+                  </span>
                 )}
                 <span className="flex items-center gap-2 truncate">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/5 text-[10px] font-bold text-text-medium">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] bg-white/5 text-[10px] font-bold text-text-medium">
                     {row.nickname.slice(0, 2).toUpperCase()}
                   </span>
-                  <span className={cn('truncate font-medium', row.isCurrentUser ? 'text-primary' : 'text-text-high')}>
+                  <span
+                    className={cn(
+                      'truncate font-medium',
+                      row.isCurrentUser ? 'text-primary' : 'text-text-high',
+                    )}
+                  >
                     {row.nickname}
                     {row.isCurrentUser && ' (You)'}
                   </span>

@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
-import { Icon3D } from '@/components/icon-3d'
 import { MockQr } from '@/components/mock-qr'
 import { login } from '@/lib/mock/api'
 import { DEMO_USER } from '@/lib/mock/data'
@@ -176,18 +175,24 @@ export function LockScreen() {
 
       {/* center content */}
       <div className="relative z-10 flex w-full max-w-md flex-col items-center">
-        <Icon3D name="emblem" size={92} float priority className="mb-4" />
-        <h1 className="font-display text-4xl font-black tracking-tight text-text-high">
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          className="mb-4"
+        >
+          <ImbaLogo size="lg" showText={false} />
+        </motion.div>
+        <h1 className="font-display text-4xl font-bold uppercase tracking-tighter text-text-high">
           IMBA<span className="text-primary text-glow">.</span>SHELL
         </h1>
-        <p className="mb-6 mt-1 text-sm text-text-medium">
+        <p className="label-mono mb-6 mt-2 text-[10px] text-text-medium">
           Sign in to unlock your station
         </p>
 
         <motion.div
           animate={shake ? { x: [0, -10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
           transition={{ duration: 0.5 }}
-          className="glass-strong w-full rounded-3xl p-6"
+          className="glass-strong tick-corners w-full rounded-xl p-6"
         >
           <AnimatePresence mode="wait">
             {mode === 'login' ? (

@@ -1,10 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Play, Search, Star, Users } from 'lucide-react'
+import { Gamepad2, Play, Search, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GameCover } from '@/components/game-cover'
-import { Icon3D } from '@/components/icon-3d'
+import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { GAMES } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
@@ -87,16 +87,17 @@ export function GamesView() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Icon3D name="controller" size={56} float />
+          <IconTile icon={Gamepad2} variant="primary" size="xl" ticks />
           <div>
-            <h2 className="font-display text-2xl font-black uppercase tracking-tight text-text-high">
+            <p className="label-mono text-[10px] text-text-low">Library // 02</p>
+            <h2 className="font-display text-2xl font-bold uppercase tracking-tighter text-text-high">
               Game Library
             </h2>
             <p className="text-sm text-text-low">{GAMES.length} titles ready to launch</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="glass flex flex-1 items-center gap-2 rounded-full px-4 py-2.5 sm:w-64">
+          <div className="glass flex flex-1 items-center gap-2 rounded-md px-4 py-2.5 sm:w-64">
             <Search size={16} className="text-text-low" />
             <input
               value={rawQuery}
@@ -108,7 +109,7 @@ export function GamesView() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="glass rounded-full px-4 py-2.5 text-sm text-text-high outline-none"
+            className="glass rounded-md px-4 py-2.5 text-sm text-text-high outline-none"
           >
             <option value="popularity">Popularity</option>
             <option value="az">A–Z</option>
@@ -124,9 +125,9 @@ export function GamesView() {
             key={c}
             onClick={() => setCategory(c)}
             className={cn(
-              'rounded-full border px-4 py-1.5 text-sm font-medium transition-all',
+              'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all',
               category === c
-                ? 'border-primary bg-primary/15 text-text-high shadow-[0_0_16px_-4px_rgba(229,53,43,0.7)]'
+                ? 'border-primary bg-primary/15 text-primary shadow-[0_0_16px_-6px_rgba(229,53,43,0.8)]'
                 : 'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high',
             )}
           >
@@ -138,11 +139,11 @@ export function GamesView() {
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-64 w-full rounded-lg" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass flex flex-col items-center gap-2 rounded-3xl py-16 text-center">
+        <div className="glass flex flex-col items-center gap-2 rounded-xl py-16 text-center">
           <p className="font-display text-lg font-bold text-text-high">No games found</p>
           <p className="text-sm text-text-medium">Try a different search or category.</p>
         </div>
@@ -168,25 +169,25 @@ function GameCard({ game, players }: { game: Game; players: number }) {
   return (
     <motion.div
       whileHover={{ y: -6 }}
-      className="glass group relative overflow-hidden rounded-2xl transition-shadow hover:border-border-strong hover:shadow-[0_0_28px_-4px_rgba(229,53,43,0.4)]"
+      className="glass group relative overflow-hidden rounded-lg transition-shadow hover:border-border-strong hover:shadow-[0_0_28px_-8px_rgba(229,53,43,0.5)]"
     >
       <div className="relative">
         <GameCover game={game} className="h-40 w-full" />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
           <button
             onClick={() => setLaunchGame(game.id)}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-hover px-6 py-2.5 font-display font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-2px_rgba(229,53,43,0.8)] transition-transform hover:scale-105"
+            className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
           >
-            <Play size={16} fill="currentColor" />
+            <Play size={15} fill="currentColor" />
             Play
           </button>
         </div>
       </div>
       <div className="flex flex-col gap-1.5 p-3">
-        <span className="w-fit rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-medium">
+        <span className="label-mono w-fit rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
           {game.category}
         </span>
-        <h3 className="truncate text-sm font-semibold text-text-high">{game.name}</h3>
+        <h3 className="truncate font-display text-sm font-semibold text-text-high">{game.name}</h3>
         <div className="flex items-center justify-between text-xs">
           <span className="flex items-center gap-1 text-warning">
             <Star size={12} fill="currentColor" />
@@ -200,7 +201,7 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             className="flex items-center gap-1 tabular-nums"
           >
             <Users size={12} />
-            {players.toLocaleString()} playing
+            {players.toLocaleString()}
           </motion.span>
         </div>
       </div>

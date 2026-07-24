@@ -38,20 +38,22 @@ export function ConfirmDialog({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl border border-border bg-surface-2 p-6"
+            className="tick-corners w-full max-w-sm rounded-xl border border-border-strong bg-surface-2 p-6"
           >
-            <h3 className="font-display text-xl font-bold text-text-high">{title}</h3>
-            <p className="mt-2 text-sm text-text-medium">{message}</p>
+            <h3 className="font-display text-xl font-bold uppercase tracking-tight text-text-high">
+              {title}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-text-medium">{message}</p>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={onCancel}
-                className="flex-1 rounded-lg border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5"
+                className="flex-1 rounded-md border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5"
               >
                 {cancelLabel}
               </button>
               <button
                 onClick={onConfirm}
-                className="flex-1 rounded-lg py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground transition-all"
+                className="flex-1 rounded-md py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground transition-all"
                 style={{
                   background: danger ? 'var(--danger)' : 'var(--success)',
                 }}

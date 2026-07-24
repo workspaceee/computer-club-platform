@@ -33,12 +33,12 @@ export function CartDrawer() {
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 34 }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col border-l border-border bg-surface-2"
+              className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col border-l border-border-strong bg-surface-2"
             >
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <ShoppingCart size={18} className="text-primary" />
-                  <h3 className="font-display text-lg font-bold text-text-high">
+                  <h3 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
                     Your Cart
                   </h3>
                 </div>

@@ -81,12 +81,14 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-surface-2"
+            className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
           >
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <CreditCard size={18} className="text-primary" />
-                <h3 className="font-display text-lg font-bold text-text-high">Checkout</h3>
+                <h3 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
+                  Checkout
+                </h3>
               </div>
               <button
                 onClick={close}

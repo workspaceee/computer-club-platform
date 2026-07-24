@@ -69,7 +69,7 @@ export function GameLaunchModal() {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-surface-2"
+            className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
           >
             <div className="relative">
               <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
@@ -86,7 +86,7 @@ export function GameLaunchModal() {
             <div className="p-6">
               {!launching ? (
                 <>
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-low">
+                  <p className="label-mono mb-3 text-[10px] text-text-low">
                     Select account
                   </p>
                   <div className="flex flex-col gap-2">
