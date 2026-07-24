@@ -22,8 +22,9 @@ type Mode = 'login' | 'register'
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 function useClock() {
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
+    setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -135,15 +136,19 @@ export function LockScreen() {
     }, 4000)
   }
 
-  const timeStr = now.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  const dateStr = now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
+  const timeStr = now
+    ? now.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '--:--'
+  const dateStr = now
+    ? now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      })
+    : ''
 
   return (
     <div className="relative flex h-full min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-background px-4">
