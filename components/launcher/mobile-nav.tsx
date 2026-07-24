@@ -1,5 +1,6 @@
 "use client"
 
+import { motion } from "framer-motion"
 import { Home, Gamepad2, ShoppingBag, User } from "lucide-react"
 import { useStore, type LauncherView } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -16,21 +17,33 @@ export function MobileNav() {
   const setView = useStore((s) => s.setView)
 
   return (
-    <nav className="sticky bottom-0 z-40 flex items-center justify-around border-t border-border bg-background/90 px-2 py-1.5 backdrop-blur-xl sm:hidden">
-      {ITEMS.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          onClick={() => setView(id)}
-          aria-label={label}
-          className={cn(
-            "flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[10px] font-medium transition-colors",
-            view === id ? "text-primary" : "text-text-low",
-          )}
-        >
-          <Icon className="h-5 w-5" />
-          {label}
-        </button>
-      ))}
+    <nav className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 sm:hidden">
+      <div className="glass-strong mx-auto flex max-w-sm items-center justify-around rounded-2xl px-2 py-1.5">
+        {ITEMS.map(({ id, label, icon: Icon }) => {
+          const active = view === id
+          return (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              aria-label={label}
+              className={cn(
+                "relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-semibold transition-colors",
+                active ? "text-primary-foreground" : "text-text-low",
+              )}
+            >
+              {active && (
+                <motion.span
+                  layoutId="mobile-nav-pill"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-b from-primary to-primary-hover shadow-[0_0_18px_-2px_rgba(229,53,43,0.7)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                />
+              )}
+              <Icon className="relative h-5 w-5" />
+              <span className="relative">{label}</span>
+            </button>
+          )
+        })}
+      </div>
     </nav>
   )
 }

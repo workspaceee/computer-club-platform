@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Play, Search, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GameCover } from '@/components/game-cover'
+import { Icon3D } from '@/components/icon-3d'
 import { Skeleton } from '@/components/skeleton'
 import { GAMES } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
@@ -83,13 +84,19 @@ export function GamesView() {
   }, [category, query, sort, players])
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-xl font-black uppercase tracking-wide text-text-high">
-          Game Library
-        </h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Icon3D name="controller" size={56} float />
+          <div>
+            <h2 className="font-display text-2xl font-black uppercase tracking-tight text-text-high">
+              Game Library
+            </h2>
+            <p className="text-sm text-text-low">{GAMES.length} titles ready to launch</p>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 sm:w-64">
+          <div className="glass flex flex-1 items-center gap-2 rounded-full px-4 py-2.5 sm:w-64">
             <Search size={16} className="text-text-low" />
             <input
               value={rawQuery}
@@ -101,7 +108,7 @@ export function GamesView() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
-            className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-high outline-none"
+            className="glass rounded-full px-4 py-2.5 text-sm text-text-high outline-none"
           >
             <option value="popularity">Popularity</option>
             <option value="az">A–Z</option>
@@ -117,10 +124,10 @@ export function GamesView() {
             key={c}
             onClick={() => setCategory(c)}
             className={cn(
-              'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+              'rounded-full border px-4 py-1.5 text-sm font-medium transition-all',
               category === c
-                ? 'border-primary bg-primary/15 text-text-high'
-                : 'border-border bg-surface text-text-medium hover:text-text-high',
+                ? 'border-primary bg-primary/15 text-text-high shadow-[0_0_16px_-4px_rgba(229,53,43,0.7)]'
+                : 'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high',
             )}
           >
             {c}
@@ -135,7 +142,7 @@ export function GamesView() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface py-16 text-center">
+        <div className="glass flex flex-col items-center gap-2 rounded-3xl py-16 text-center">
           <p className="font-display text-lg font-bold text-text-high">No games found</p>
           <p className="text-sm text-text-medium">Try a different search or category.</p>
         </div>
@@ -161,14 +168,14 @@ function GameCard({ game, players }: { game: Game; players: number }) {
   return (
     <motion.div
       whileHover={{ y: -6 }}
-      className="group relative overflow-hidden rounded-2xl border border-border bg-surface transition-shadow hover:shadow-[0_0_24px_rgba(229,53,43,0.25)]"
+      className="glass group relative overflow-hidden rounded-2xl transition-shadow hover:border-border-strong hover:shadow-[0_0_28px_-4px_rgba(229,53,43,0.4)]"
     >
       <div className="relative">
         <GameCover game={game} className="h-40 w-full" />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
           <button
             onClick={() => setLaunchGame(game.id)}
-            className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 font-display font-bold uppercase tracking-wide text-primary-foreground shadow-lg transition-transform hover:scale-105"
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-hover px-6 py-2.5 font-display font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-2px_rgba(229,53,43,0.8)] transition-transform hover:scale-105"
           >
             <Play size={16} fill="currentColor" />
             Play

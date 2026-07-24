@@ -47,9 +47,9 @@ export function TopBar() {
   const initials = (user?.nickname ?? 'P').slice(0, 2).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/85 px-4 backdrop-blur-xl md:px-6">
-      <div className="flex items-center gap-6">
-        <button onClick={() => setView('home')} aria-label="IMBA home">
+    <header className="glass sticky top-0 z-40 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-8">
+      <div className="flex items-center gap-7">
+        <button onClick={() => setView('home')} aria-label="IMBA home" className="transition-transform hover:scale-105">
           <ImbaLogo size="sm" />
         </button>
         <nav className="hidden items-center gap-1 sm:flex">
@@ -58,36 +58,40 @@ export function TopBar() {
               key={item.id}
               onClick={() => setView(item.id)}
               className={cn(
-                'relative rounded-lg px-3 py-2 font-display text-sm font-bold uppercase tracking-wide transition-colors',
+                'relative rounded-full px-4 py-2 font-display text-sm font-bold uppercase tracking-wide transition-colors',
                 view === item.id ? 'text-text-high' : 'text-text-low hover:text-text-medium',
               )}
             >
-              {item.label}
               {view === item.id && (
                 <motion.span
-                  layoutId="nav-underline"
-                  className="absolute inset-x-2 -bottom-0.5 h-0.5 rounded-full bg-primary"
+                  layoutId="nav-pill"
+                  className="absolute inset-0 rounded-full border border-primary/40 bg-primary/12"
+                  style={{ boxShadow: '0 0 20px -4px rgba(229,53,43,0.5)' }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                 />
               )}
+              <span className="relative">{item.label}</span>
             </button>
           ))}
         </nav>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <motion.div
           animate={critical ? { scale: [1, 1.05, 1] } : { scale: 1 }}
           transition={{ duration: 1, repeat: critical ? Infinity : 0 }}
-          className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5"
+          className="flex items-center gap-2 rounded-full border border-border bg-white/[0.03] px-3.5 py-1.5"
           style={{ borderColor: low ? timerColor : 'var(--border)' }}
         >
-          <span className="text-[10px] font-medium uppercase tracking-wide text-text-low">Session</span>
+          <span className="hidden text-[10px] font-medium uppercase tracking-wide text-text-low sm:inline">
+            Session
+          </span>
           <span className="font-display text-sm font-bold tabular-nums" style={{ color: timerColor }}>
             {formatDuration(seconds)}
           </span>
         </motion.div>
 
-        <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5">
+        <div className="flex items-center gap-1.5 rounded-full border border-warning/25 bg-warning/[0.08] px-3.5 py-1.5">
           <Coins size={15} className="text-warning" />
           <span className="font-display text-sm font-bold tabular-nums text-text-high">
             {formatCoins(coins)}
@@ -97,9 +101,9 @@ export function TopBar() {
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg border border-border bg-surface py-1 pl-1 pr-2 transition-colors hover:border-border-strong"
+            className="flex items-center gap-2 rounded-full border border-border bg-white/[0.03] py-1 pl-1 pr-2 transition-colors hover:border-border-strong"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-display text-xs font-bold text-primary-foreground">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-hover font-display text-xs font-bold text-primary-foreground shadow-[0_0_16px_-2px_rgba(229,53,43,0.7)]">
               {initials}
             </span>
             <ChevronDown size={16} className="text-text-medium" />
@@ -111,11 +115,16 @@ export function TopBar() {
                 initial={{ opacity: 0, y: -8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                className="absolute right-0 top-12 w-52 overflow-hidden rounded-xl border border-border bg-surface-2 p-1.5 shadow-xl"
+                className="glass-strong absolute right-0 top-12 w-56 overflow-hidden rounded-2xl p-1.5"
               >
-                <div className="border-b border-border px-3 py-2">
-                  <p className="font-display text-sm font-bold text-text-high">{user?.nickname}</p>
-                  <p className="truncate text-xs text-text-low">{user?.email}</p>
+                <div className="mb-1 flex items-center gap-3 border-b border-border px-3 py-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-hover font-display text-xs font-bold text-primary-foreground shadow-[0_0_16px_-2px_rgba(229,53,43,0.7)]">
+                    {initials}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate font-display text-sm font-bold text-text-high">{user?.nickname}</p>
+                    <p className="truncate text-xs text-text-low">{user?.email}</p>
+                  </div>
                 </div>
                 <MenuItem
                   icon={<User size={16} />}

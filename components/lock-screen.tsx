@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
+import { Icon3D } from '@/components/icon-3d'
 import { MockQr } from '@/components/mock-qr'
 import { login } from '@/lib/mock/api'
 import { DEMO_USER } from '@/lib/mock/data'
@@ -151,15 +152,15 @@ export function LockScreen() {
     : ''
 
   return (
-    <div className="relative flex h-full min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-background px-4">
+    <div className="app-ambient relative flex h-full min-h-dvh w-full flex-col items-center justify-center overflow-hidden px-4">
       {/* animated grid + glow */}
-      <div className="imba-grid pointer-events-none absolute inset-0 opacity-70" />
+      <div className="hairline-grid pointer-events-none absolute inset-0 opacity-60" />
       <div className="pointer-events-none absolute left-1/2 top-1/3 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-primary/20 blur-[120px]" />
       <ParticleField />
 
       {/* top identity row */}
       <div className="absolute left-6 top-6 flex items-center gap-3">
-        <span className="rounded-lg border border-border bg-surface px-3 py-1.5 font-display text-sm font-bold tracking-wide text-text-high">
+        <span className="glass rounded-full px-3.5 py-1.5 font-display text-sm font-bold tracking-wide text-text-high">
           PC #17
         </span>
         <span className="flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
@@ -168,16 +169,16 @@ export function LockScreen() {
         </span>
       </div>
 
-      <div className="absolute right-6 top-6 flex items-center gap-2 text-text-medium">
+      <div className="glass absolute right-6 top-6 flex items-center gap-2 rounded-full px-3.5 py-1.5 text-text-medium">
         <ShieldCheck size={16} className="text-primary" />
         <span className="text-xs font-medium">Kernel Lock Active</span>
       </div>
 
       {/* center content */}
       <div className="relative z-10 flex w-full max-w-md flex-col items-center">
-        <ImbaLogo size="lg" showText={false} className="mb-4" />
+        <Icon3D name="emblem" size={92} float priority className="mb-4" />
         <h1 className="font-display text-4xl font-black tracking-tight text-text-high">
-          IMBA<span className="text-primary">.</span>SHELL
+          IMBA<span className="text-primary text-glow">.</span>SHELL
         </h1>
         <p className="mb-6 mt-1 text-sm text-text-medium">
           Sign in to unlock your station
@@ -186,7 +187,7 @@ export function LockScreen() {
         <motion.div
           animate={shake ? { x: [0, -10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full rounded-2xl border border-border bg-surface/80 p-6 shadow-2xl backdrop-blur-xl"
+          className="glass-strong w-full rounded-3xl p-6"
         >
           <AnimatePresence mode="wait">
             {mode === 'login' ? (
@@ -362,7 +363,7 @@ export function LockScreen() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-2 p-8"
+              className="glass-strong flex flex-col items-center gap-4 rounded-3xl p-8"
             >
               <MockQr />
               <p className="font-display text-lg font-bold text-text-high">Scan with IMBA app</p>
@@ -401,7 +402,7 @@ function Field({
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</label>
       <div
-        className="flex items-center gap-2 rounded-lg border bg-black/20 px-3 transition-colors focus-within:border-primary"
+        className="flex items-center gap-2 rounded-xl border bg-black/40 px-3.5 transition-all focus-within:border-primary focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.12)]"
         style={{ borderColor: error ? 'var(--danger)' : 'var(--border)' }}
       >
         <input

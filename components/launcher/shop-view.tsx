@@ -53,34 +53,48 @@ export function ShopView() {
   const list =
     tab === 'time' ? SHOP_TIME : tab === 'memberships' ? SHOP_MEMBERSHIPS : SHOP_ITEMS
 
+  const tabIcon: Record<Tab, Parameters<typeof Icon3D>[0]['name']> = {
+    time: 'timer',
+    memberships: 'crown',
+    items: 'bag',
+  }
+
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-xl font-black uppercase tracking-wide text-text-high">
-          Shop
-        </h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Icon3D name={tabIcon[tab]} size={56} float />
+          <div>
+            <h2 className="font-display text-2xl font-black uppercase tracking-tight text-text-high">
+              Shop
+            </h2>
+            <p className="text-sm text-text-low">Top up time, perks & merch</p>
+          </div>
+        </div>
         <button
           onClick={() => setCartOpen(true)}
-          className="relative flex w-fit items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-high transition-colors hover:border-border-strong"
+          className="glass relative flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-text-high transition-colors hover:border-border-strong"
         >
           <ShoppingCart size={16} />
           Cart
           {count > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground shadow-[0_0_12px_rgba(229,53,43,0.8)]">
               {count}
             </span>
           )}
         </button>
       </div>
 
-      <div className="flex w-fit gap-1 rounded-xl border border-border bg-surface p-1">
+      <div className="glass flex w-fit gap-1 rounded-full p-1">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              'rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
-              tab === t.id ? 'bg-primary text-primary-foreground' : 'text-text-medium hover:text-text-high',
+              'rounded-full px-5 py-2 text-sm font-semibold transition-all',
+              tab === t.id
+                ? 'bg-gradient-to-r from-primary to-primary-hover text-primary-foreground shadow-[0_0_18px_-2px_rgba(229,53,43,0.7)]'
+                : 'text-text-medium hover:text-text-high',
             )}
           >
             {t.label}
