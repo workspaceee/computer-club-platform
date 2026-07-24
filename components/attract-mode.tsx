@@ -38,11 +38,20 @@ const TICKER_ITEMS = [
 export function AttractMode() {
   const now = useClock()
   const ping = useLivePing()
+  const [slide, setSlide] = useState(0)
 
-  const timeStr = now
-    ? now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    : '--:--'
-  const secStr = now ? String(now.getSeconds()).padStart(2, '0') : '--'
+  const useVideo = ATTRACT_VIDEOS.length > 0
+
+  useEffect(() => {
+    if (useVideo) return
+    const t = setInterval(() => setSlide((i) => (i + 1) % ATTRACT_FRAMES.length), SLIDE_DURATION_MS)
+    return () => clearInterval(t)
+  }, [useVideo])
+
+  const hh = now ? String(now.getHours()).padStart(2, '0') : '--'
+  const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--'
+  const ss = now ? String(now.getSeconds()).padStart(2, '0') : '--'
+  const colonOn = now ? now.getSeconds() % 2 === 0 : true
   const dateStr = now
     ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
@@ -56,59 +65,131 @@ export function AttractMode() {
       aria-label="Idle screen. Move the mouse or press any key to unlock."
     >
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
-      {ATTRACT_VIDEOS.length > 0 ? <VideoPlaylist sources={ATTRACT_VIDEOS} /> : <KenBurnsSlideshow />}
+      {useVideo ? (
+        <VideoPlaylist sources={ATTRACT_VIDEOS} />
+      ) : (
+        <KenBurnsSlideshow index={slide} />
+      )}
 
-      {/* readability veil so the HUD stays legible over any footage */}
-      <div className="absolute inset-0 bg-black/40" />
+      {/* readability veils: base dim + radial scrim behind the clock + edge gradient */}
+      <div className="absolute inset-0 bg-black/35" />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(5,6,10,0.65) 0%, transparent 30%, transparent 62%, rgba(5,6,10,0.85) 100%)',
+            'radial-gradient(ellipse 62% 44% at 50% 47%, rgba(3,4,8,0.72) 0%, rgba(3,4,8,0.35) 55%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(3,4,8,0.8) 0%, transparent 26%, transparent 58%, rgba(3,4,8,0.92) 100%)',
         }}
       />
 
-      {/* ---------- ambient layer ---------- */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-between py-10">
-        {/* pulsing club logo */}
-        <motion.div
-          animate={{ opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          className="relative h-12 w-64 md:h-14 md:w-80"
-        >
-          <Image
-            src="/imba-logo-full.png"
-            alt="IMBA Cyber Club"
-            fill
-            sizes="320px"
-            className="object-contain drop-shadow-[0_0_32px_rgba(229,53,43,0.45)]"
-          />
-        </motion.div>
+      {/* subtle scanline texture for the CRT / broadcast feel */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0.8) 1px, transparent 1px, transparent 3px)',
+        }}
+      />
 
-        {/* giant terminal clock */}
+      {/* ---------- corner brackets (HUD frame) ---------- */}
+      <CornerBrackets />
+
+      {/* ---------- ambient layer ---------- */}
+      <div className="relative z-10 flex h-full flex-col items-center justify-between pb-16 pt-9 md:pb-20">
+        {/* top strip: logo + live status */}
+        <div className="flex w-full flex-col items-center gap-2.5">
+          <motion.div
+            animate={{ opacity: [0.85, 1, 0.85] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative h-12 w-64 md:h-14 md:w-80"
+          >
+            <Image
+              src="/imba-logo-full.png"
+              alt="IMBA Cyber Club"
+              fill
+              sizes="320px"
+              className="object-contain drop-shadow-[0_0_32px_rgba(229,53,43,0.45)]"
+            />
+          </motion.div>
+          <span className="label-mono flex items-center gap-2 text-[10px] tracking-[0.35em] text-text-low">
+            <motion.span
+              animate={{ opacity: [1, 0.25, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="h-1.5 w-1.5 rounded-full bg-primary"
+            />
+            NOW OPEN · 24/7
+          </span>
+        </div>
+
+        {/* giant terminal clock — optically centered, seconds mirrored by a spacer */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
-          className="flex flex-col items-center gap-3"
+          className="flex flex-col items-center"
         >
-          <div className="flex items-end gap-3">
-            <span className="font-mono text-[6rem] font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high md:text-[10rem] xl:text-[12rem]">
-              {timeStr}
-            </span>
-            <span className="mb-3 font-mono text-3xl font-semibold tabular-nums text-primary md:mb-5 md:text-5xl">
-              :{secStr}
-            </span>
+          <div className="flex items-end justify-center">
+            {/* invisible mirror of the seconds block keeps HH:MM dead-center */}
+            <div aria-hidden className="invisible mb-4 flex w-14 flex-col items-center md:mb-7 md:w-20">
+              <span className="font-mono text-2xl md:text-4xl">00</span>
+              <span className="text-[9px]">SEC</span>
+            </div>
+
+            <div className="flex items-start font-mono font-bold leading-[0.85] tracking-tighter tabular-nums text-text-high">
+              <span className="text-[6.5rem] md:text-[11rem] xl:text-[13rem]">{hh}</span>
+              <span
+                className="text-[6.5rem] transition-opacity duration-200 md:text-[11rem] xl:text-[13rem]"
+                style={{ opacity: colonOn ? 1 : 0.25 }}
+              >
+                :
+              </span>
+              <span className="text-[6.5rem] md:text-[11rem] xl:text-[13rem]">{mm}</span>
+            </div>
+
+            {/* live seconds column */}
+            <div className="mb-4 flex w-14 flex-col items-center gap-1 md:mb-7 md:w-20">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-primary md:text-4xl">
+                {ss}
+              </span>
+              <span className="label-mono text-[9px] tracking-[0.3em] text-text-low">SEC</span>
+            </div>
           </div>
-          <span className="label-mono text-sm tracking-[0.3em] text-text-medium md:text-base">
-            {dateStr}
-          </span>
+
+          {/* date with flanking rules */}
+          <div className="mt-5 flex items-center gap-4 md:mt-7">
+            <span className="h-px w-10 bg-white/15 md:w-16" />
+            <span className="label-mono text-xs tracking-[0.32em] text-text-medium md:text-sm">
+              {dateStr}
+            </span>
+            <span className="h-px w-10 bg-white/15 md:w-16" />
+          </div>
+
+          {/* slideshow progress */}
+          {!useVideo && (
+            <div className="mt-6 flex items-center gap-2">
+              {ATTRACT_FRAMES.map((_, i) => (
+                <span
+                  key={i}
+                  className={`h-0.5 rounded-full transition-all duration-500 ${
+                    i === slide ? 'w-8 bg-primary' : 'w-3 bg-white/20'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* wake hint */}
           <motion.span
-            animate={{ opacity: [0.4, 1, 0.4] }}
+            animate={{ opacity: [0.45, 1, 0.45] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="mt-8 flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-5 py-2.5 text-xs uppercase tracking-[0.2em] text-text-medium backdrop-blur-sm"
+            className="mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
           >
             <MousePointer2 size={13} className="text-primary" />
             Move mouse to unlock
@@ -116,7 +197,7 @@ export function AttractMode() {
         </motion.div>
 
         {/* bottom HUD: live station telemetry */}
-        <div className="flex flex-wrap items-center justify-center gap-3 px-4">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
           <HudChip dot label="PC #17" value="READY" accent />
           <HudChip icon={<Wifi size={13} />} label="Ping" value={`${ping} ms`} />
           <HudChip icon={<Gauge size={13} />} label="Display" value="240 Hz" />
@@ -126,8 +207,10 @@ export function AttractMode() {
       </div>
 
       {/* ---------- promo ticker ---------- */}
-      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-white/10 bg-black/60 backdrop-blur-md">
-        <div className="marquee flex overflow-hidden py-2.5">
+      <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
+        {/* thin accent rule above the ticker */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+        <div className="marquee flex overflow-hidden py-3">
           {[0, 1].map((copy) => (
             <div
               key={copy}
@@ -140,7 +223,7 @@ export function AttractMode() {
                   className="label-mono flex items-center gap-6 whitespace-nowrap px-6 text-[11px] tracking-[0.18em] text-text-medium"
                 >
                   {item}
-                  <span className="h-1 w-1 rounded-full bg-primary" />
+                  <span className="h-1 w-1 rotate-45 bg-primary" />
                 </span>
               ))}
             </div>
@@ -148,6 +231,22 @@ export function AttractMode() {
         </div>
       </div>
     </motion.div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Decorative HUD frame                                               */
+/* ------------------------------------------------------------------ */
+
+function CornerBrackets() {
+  const base = 'pointer-events-none absolute h-10 w-10 border-white/20 md:h-14 md:w-14'
+  return (
+    <div aria-hidden className="absolute inset-0 z-10 m-5 md:m-7">
+      <span className={`${base} left-0 top-0 border-l border-t`} />
+      <span className={`${base} right-0 top-0 border-r border-t`} />
+      <span className={`${base} bottom-0 left-0 border-b border-l`} />
+      <span className={`${base} bottom-0 right-0 border-b border-r`} />
+    </div>
   )
 }
 
@@ -178,14 +277,7 @@ function VideoPlaylist({ sources }: { sources: string[] }) {
   )
 }
 
-function KenBurnsSlideshow() {
-  const [index, setIndex] = useState(0)
-
-  useEffect(() => {
-    const t = setInterval(() => setIndex((i) => (i + 1) % ATTRACT_FRAMES.length), SLIDE_DURATION_MS)
-    return () => clearInterval(t)
-  }, [])
-
+function KenBurnsSlideshow({ index }: { index: number }) {
   return (
     <AnimatePresence>
       <motion.div
