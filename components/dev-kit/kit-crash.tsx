@@ -13,7 +13,7 @@
  * code path a real fault takes.
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { CrashScreen } from '@/components/crash-screen'
 import { Row, Spec } from '@/components/dev-kit/kit-shell'
 import { ErrorBoundary } from '@/components/error-boundary'
@@ -32,24 +32,22 @@ function Bomb({ armed }: { armed: boolean }) {
 /**
  * One armed boundary.
  *
- * The subtlety worth naming: the demo must disarm the bomb when the guest
- * presses retry, or the child would throw again instantly and the screen would
- * look frozen. It cannot disarm inside `onError` either — that runs while the
- * boundary is catching, and flipping state there changes `resetKey` and clears
- * the fallback in the same commit, so nothing would ever be visible.
+ * Two details this demo has to get right, both of them about *who* re-renders:
  *
- * A ref is the honest fix: the boundary's own `reset()` fires first, and the
- * disarm rides along on the re-render it triggers.
+ * - Disarming cannot happen in `onError`. That callback runs while the boundary
+ *   is catching, and a state flip there lands in the same commit that shows the
+ *   fallback — the crash screen would vanish before anyone saw it.
+ * - Disarming cannot be deferred to "the next render" either. `reset()` is a
+ *   `setState` on the *boundary*, so it re-renders the boundary alone; this
+ *   component never runs again and the already-created `<Bomb armed />` element
+ *   throws a second time the instant it is remounted.
+ *
+ * So retry has to do both jobs in the same event: disarm here, clear there.
+ * React batches the two updates, the subtree remounts unarmed, and recovery is
+ * genuine rather than staged.
  */
 function BoundaryDemo({ variant }: { variant: 'page' | 'section' }) {
   const [armed, setArmed] = useState(false)
-  // Read during the retry render only, so no state update races the boundary.
-  const disarmOnNextRender = useRef(false)
-
-  if (disarmOnNextRender.current && armed) {
-    disarmOnNextRender.current = false
-    setArmed(false)
-  }
 
   return (
     <>
@@ -65,7 +63,7 @@ function BoundaryDemo({ variant }: { variant: 'page' | 'section' }) {
             variant={variant}
             reference="SH-DEMO01"
             onRetry={() => {
-              disarmOnNextRender.current = true
+              setArmed(false)
               reset()
             }}
           />
