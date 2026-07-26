@@ -1,4 +1,4 @@
-import { formatEUR } from '@/lib/format'
+import { formatEur, toCents } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 /**
@@ -65,12 +65,13 @@ export function Money({
   className,
   ...props
 }: MoneyProps) {
-  const amount = fromCents ? value / 100 : value
+  // Everything downstream is integer cents (F3.6); euros are a caller convenience.
+  const cents = fromCents ? Math.round(value) : toCents(value)
   const isDebt = tone === 'debt'
   // A debt is always negative regardless of how the caller stores it.
-  const negative = isDebt || amount < 0
-  const sign = negative ? '−' : signed && amount > 0 ? '+' : ''
-  const body = formatEUR(amount, { decimals, symbol: !hideSymbol })
+  const negative = isDebt || cents < 0
+  const sign = negative ? '−' : signed && cents > 0 ? '+' : ''
+  const body = formatEur(cents, { decimals, symbol: !hideSymbol, absolute: true })
 
   return (
     <span

@@ -5,7 +5,8 @@ import { ChevronDown, Coins, Lock, LogOut, Settings, Timer, User } from 'lucide-
 import { useEffect, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { formatCoins, formatDuration } from '@/lib/format'
+import { formatCoins } from '@/lib/money'
+import { formatDuration } from '@/lib/time'
 import { useStore, type LauncherView } from '@/lib/store'
 import { cn } from '@/lib/utils'
 

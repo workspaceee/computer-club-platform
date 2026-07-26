@@ -23,7 +23,7 @@ import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { fetchLeaderboard } from '@/lib/mock/api'
 import { PRIZES, TOP_GAMES } from '@/lib/mock/data'
-import { formatCoins } from '@/lib/format'
+import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
