@@ -133,6 +133,8 @@ export const lt: Dictionary = {
     noFeatured: 'Rekomendacijų kol kas nėra',
     noFeaturedBody: 'Klubas dar neišrinko favoritų — atidarykite visą biblioteką.',
     openLibrary: 'Atidaryti biblioteką',
+    noAccounts: 'Laisvų paskyrų nėra',
+    noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
   },
 
   shop: {

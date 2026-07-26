@@ -20,10 +20,11 @@ import {
   Zap,
   ShoppingBag,
 } from 'lucide-react'
-import useSWR from 'swr'
+import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import { fetchAchievements, fetchActivity } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
@@ -122,13 +123,8 @@ export function ProfileView() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
 
   // `GET /api/loyalty/achievements` and `/api/loyalty/activity` (F3.4).
-  const { data: achievements, isLoading: achLoading } = useSWR(
-    'loyalty/achievements',
-    fetchAchievements,
-  )
-  const { data: activity, isLoading: activityLoading } = useSWR('loyalty/activity', () =>
-    fetchActivity(),
-  )
+  const achievements = useApi('loyalty/achievements', fetchAchievements)
+  const activity = useApi('loyalty/activity', () => fetchActivity())
 
   if (!user) return null
 
@@ -236,19 +232,27 @@ export function ProfileView() {
               </span>
             </div>
           </div>
-          {!achLoading && (achievements ?? []).length === 0 ? (
-            <EmptyState
-              icon={Trophy}
-              title={t('loyalty.noAchievements')}
-              description={t('loyalty.noAchievementsBody')}
-            />
-          ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {achLoading
-              ? Array.from({ length: 8 }).map((_, i) => (
+          <DataBoundary
+            state={achievements}
+            loading={
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
                   <Skeleton key={i} className="h-[124px] w-full" />
-                ))
-              : (achievements ?? []).map((a, i) => {
+                ))}
+              </div>
+            }
+            isEmpty={(rows) => rows.length === 0}
+            empty={
+              <EmptyState
+                icon={Trophy}
+                title={t('loyalty.noAchievements')}
+                description={t('loyalty.noAchievementsBody')}
+              />
+            }
+          >
+            {(rows) => (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {rows.map((a, i) => {
                   const Icon = ACH_ICONS[a.icon] ?? Award
                   return (
                     <motion.div
@@ -283,8 +287,9 @@ export function ProfileView() {
                     </motion.div>
                   )
                 })}
-          </div>
-          )}
+              </div>
+            )}
+          </DataBoundary>
         </section>
 
         {/* Activity timeline */}
@@ -292,23 +297,31 @@ export function ProfileView() {
           <h2 className="label-mono mb-3 text-[11px] text-text-high">
             {t('loyalty.activity')}
           </h2>
-          {!activityLoading && (activity ?? []).length === 0 ? (
-            <EmptyState
-              icon={Gamepad2}
-              title={t('loyalty.noActivity')}
-              description={t('loyalty.noActivityBody')}
-            />
-          ) : (
-          <ol className="relative flex flex-col">
-            <span className="absolute bottom-4 left-[15px] top-4 w-px bg-border" aria-hidden />
-            {activityLoading
-              ? Array.from({ length: 6 }).map((_, i) => (
+          <DataBoundary
+            state={activity}
+            loading={
+              <ol className="relative flex flex-col">
+                {Array.from({ length: 6 }).map((_, i) => (
                   <li key={i} className="flex items-center gap-3 py-2">
                     <Skeleton className="h-8 w-8 shrink-0" radius="md" />
                     <Skeleton className="h-3.5 flex-1" radius="sm" />
                   </li>
-                ))
-              : (activity ?? []).map((e, i) => {
+                ))}
+              </ol>
+            }
+            isEmpty={(rows) => rows.length === 0}
+            empty={
+              <EmptyState
+                icon={Gamepad2}
+                title={t('loyalty.noActivity')}
+                description={t('loyalty.noActivityBody')}
+              />
+            }
+          >
+            {(rows) => (
+              <ol className="relative flex flex-col">
+                <span className="absolute bottom-4 left-[15px] top-4 w-px bg-border" aria-hidden />
+                {rows.map((e, i) => {
                   const Icon = ACTIVITY_ICONS[e.type] ?? Gamepad2
                   return (
                     <motion.li
@@ -332,7 +345,9 @@ export function ProfileView() {
                     </motion.li>
                   )
                 })}
-          </ol>
+              </ol>
+            )}
+          </DataBoundary>
         </section>
       </div>
     </div>

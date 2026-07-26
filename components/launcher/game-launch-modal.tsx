@@ -1,11 +1,14 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2, UserX, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import useSWR from 'swr'
+import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useApi } from '@/hooks/use-api'
+import { useT } from '@/lib/i18n/provider'
 import { fetchGame, fetchHouseAccounts, launchGame, toApiError } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -13,22 +16,20 @@ import { cn } from '@/lib/utils'
 const LAUNCH_STEPS = ['Preparing account...', 'Injecting session...', 'Starting game...']
 
 export function GameLaunchModal() {
+  const { t } = useT()
   const launchGameId = useStore((s) => s.launchGameId)
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const toast = useStore((s) => s.toast)
 
   // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
   // conditional on the modal being open, so nothing is fetched while it is shut.
-  const { data: game } = useSWR(launchGameId ? ['game', launchGameId] : null, () =>
+  const { data: game } = useApi(launchGameId ? ['game', launchGameId] : null, () =>
     fetchGame(launchGameId as string),
   )
-  const { data: accounts } = useSWR(
-    launchGameId ? 'catalog/house-accounts' : null,
-    fetchHouseAccounts,
-  )
+  const accounts = useApi(launchGameId ? 'catalog/house-accounts' : null, fetchHouseAccounts)
 
   const open = launchGameId !== null
-  const houseAccounts = accounts ?? []
+  const houseAccounts = accounts.data ?? []
 
   const [account, setAccount] = useState<string | null>(null)
   const [remember, setRemember] = useState(false)
@@ -124,12 +125,31 @@ export function GameLaunchModal() {
                   <p className="label-mono mb-3 text-[10px] text-text-low">
                     Select account
                   </p>
-                  <div className="flex flex-col gap-2">
-                    {houseAccounts.length === 0 &&
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <Skeleton key={i} className="h-[58px] w-full" />
-                      ))}
-                    {houseAccounts.map((acc) => {
+                  <DataBoundary
+                    state={accounts}
+                    errorBare
+                    errorSize="sm"
+                    loading={
+                      <div className="flex flex-col gap-2">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className="h-[58px] w-full" />
+                        ))}
+                      </div>
+                    }
+                    isEmpty={(rows) => rows.length === 0}
+                    empty={
+                      <EmptyState
+                        bare
+                        size="sm"
+                        icon={UserX}
+                        title={t('games.noAccounts')}
+                        description={t('games.noAccountsBody')}
+                      />
+                    }
+                  >
+                    {(rows) => (
+                      <div className="flex flex-col gap-2">
+                        {rows.map((acc) => {
                       const disabled = acc.status === 'in-use'
                       const selected = account === acc.id
                       return (
@@ -164,8 +184,10 @@ export function GameLaunchModal() {
                           </span>
                         </button>
                       )
-                    })}
-                  </div>
+                        })}
+                      </div>
+                    )}
+                  </DataBoundary>
 
                   <label className="mt-4 flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
                     <input

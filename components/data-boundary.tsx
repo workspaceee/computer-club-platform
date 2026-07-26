@@ -45,8 +45,15 @@ function bodyKey(code: ApiErrorCode): TKey {
   return code === 'network' || code === 'timeout' ? 'errors.networkBody' : 'errors.genericBody'
 }
 
+/**
+ * Only the failure/recovery slice of `ApiState` is needed here. Taking the
+ * narrow shape (instead of `ApiState<unknown>`) keeps it assignable from an
+ * `ApiState<T>` of any payload type — `mutate` is invariant in `T`.
+ */
+type ApiFailure = Pick<ApiState<unknown>, 'error' | 'retry' | 'retrying'>
+
 interface ApiErrorStateProps {
-  state: ApiState<unknown>
+  state: ApiFailure
   size?: 'sm' | 'md'
   bare?: boolean
   className?: string
