@@ -1,13 +1,13 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Coins, Lock, LogOut, Settings, Timer } from 'lucide-react'
+import { ChevronDown, Coins, Lock, LogOut, Receipt, Settings, Timer } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { formatCoins } from '@/lib/money'
+import { formatCoins, formatEur, toCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { useStore } from '@/lib/store'
+import { cartTotal, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { cn } from '@/lib/utils'
@@ -20,11 +20,18 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   const primary = nav.filter((item) => item.slot === 'primary')
   const menu = nav.filter((item) => item.slot === 'menu')
 
+  const isGuest = surface === 'guest'
+
   const view = useStore((s) => s.view)
   const setView = useStore((s) => s.setView)
   const seconds = useStore((s) => s.sessionSeconds)
   const coins = useStore((s) => s.coins)
   const user = useStore((s) => s.user)
+  const guest = useStore((s) => s.guest)
+  const cart = useStore((s) => s.cart)
+  // What the guest owes so far. The legacy cart still carries float prices, so
+  // it goes through `toCents` before display to keep one money formatter.
+  const tabTotal = cartTotal(cart)
   const lockPc = useStore((s) => s.lockPc)
   const logout = useStore((s) => s.logout)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
@@ -48,7 +55,10 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   const critical = seconds <= 5 * 60
   const timerColor = critical ? 'var(--danger)' : low ? 'var(--warning)' : 'var(--text-high)'
 
-  const initials = (user?.nickname ?? 'P').slice(0, 2).toUpperCase()
+  // Guests have no profile, so the shell identifies them by their tab label.
+  const displayName = user?.nickname ?? guest?.label ?? t('guest.badge')
+  const secondaryLine = user?.email ?? (isGuest ? t('guest.limits') : null)
+  const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
     <header className="glass sticky top-0 z-40 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-8">
@@ -115,18 +125,33 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           </div>
         </motion.div>
 
-        {/* Coins */}
-        <div className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-1.5">
-          <Coins size={14} className="text-warning" />
-          <div className="flex flex-col leading-none">
-            <span className="label-mono hidden text-[8px] text-warning/70 sm:block">
-              {t('wallet.coinBalance')}
-            </span>
-            <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
-              {formatCoins(coins)}
-            </span>
+        {/* Coins for members, the open tab for guests — a guest never earns
+            coins, so showing a zero balance would be a lie (F6.2). */}
+        {isGuest ? (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-white/[0.03] px-3 py-1.5">
+            <Receipt size={14} className="text-text-medium" />
+            <div className="flex flex-col leading-none">
+              <span className="label-mono hidden text-[8px] text-text-low sm:block">
+                {t('guest.tab')}
+              </span>
+              <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
+                {formatEur(toCents(tabTotal))}
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-1.5">
+            <Coins size={14} className="text-warning" />
+            <div className="flex flex-col leading-none">
+              <span className="label-mono hidden text-[8px] text-warning/70 sm:block">
+                {t('wallet.coinBalance')}
+              </span>
+              <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
+                {formatCoins(coins)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Avatar menu */}
         <div ref={menuRef} className="relative">
@@ -157,9 +182,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-display text-sm font-bold text-text-high">
-                      {user?.nickname}
+                      {displayName}
                     </p>
-                    <p className="truncate text-xs text-text-low">{user?.email}</p>
+                    {secondaryLine && (
+                      <p className="text-xs leading-snug text-text-low">{secondaryLine}</p>
+                    )}
                   </div>
                 </div>
                 {menu.map(({ id, icon: Icon, labelKey }) => (
@@ -191,7 +218,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                 />
                 <MenuItem
                   icon={<LogOut size={16} />}
-                  label={t('common.logout')}
+                  label={isGuest ? t('guest.endSession') : t('common.logout')}
                   danger
                   onClick={() => {
                     setConfirm('logout')
@@ -219,9 +246,9 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
       />
       <ConfirmDialog
         open={confirm === 'logout'}
-        title={t('session.logoutConfirmTitle')}
-        message={t('session.logoutConfirmBody')}
-        confirmLabel={t('common.logout')}
+        title={isGuest ? t('guest.endConfirmTitle') : t('session.logoutConfirmTitle')}
+        message={isGuest ? t('guest.endConfirmBody') : t('session.logoutConfirmBody')}
+        confirmLabel={isGuest ? t('guest.endSession') : t('common.logout')}
         danger
         onConfirm={() => {
           setConfirm(null)

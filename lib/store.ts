@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { resolveView, type LauncherView, type Screen } from '@/lib/launcher-nav'
+import { resolveView, surfaceOf, type LauncherView, type Screen } from '@/lib/launcher-nav'
 import type { ShopItem } from '@/lib/types/catalog'
 import type { CartItem } from '@/lib/types/order'
 import type { UserProfile } from '@/lib/types/user'
@@ -60,10 +60,23 @@ const DEFAULT_SETTINGS: Settings = {
 
 const SESSION_LENGTH = 2 * 60 * 60 // 2h in seconds
 
+/**
+ * Walk-in identity for the `guest` surface (F6.2).
+ *
+ * A guest has no `UserProfile` — no XP, no coins, no wallet — only a label for
+ * the shell and an open tab the bar settles at the counter (MVP §8.2).
+ */
+export interface GuestIdentity {
+  guestId: string
+  label: string
+}
+
 interface StoreState {
   screen: Screen
   view: LauncherView
   user: UserProfile | null
+  /** Set only while `screen === 'guest'`. Mutually exclusive with `user`. */
+  guest: GuestIdentity | null
 
   sessionSeconds: number
   timerRunning: boolean
@@ -84,6 +97,8 @@ interface StoreState {
 
   // auth / session lifecycle
   loginSuccess: (user: UserProfile) => void
+  /** Walk-in check-in: opens the `guest` surface instead of the member one. */
+  guestSuccess: (guest: GuestIdentity) => void
   logout: () => void
   lockPc: () => void
   resumeSession: () => void
@@ -124,6 +139,7 @@ export const useStore = create<StoreState>((set, get) => ({
   screen: 'lock',
   view: 'home',
   user: null,
+  guest: null,
 
   sessionSeconds: SESSION_LENGTH,
   timerRunning: false,
@@ -145,16 +161,33 @@ export const useStore = create<StoreState>((set, get) => ({
   loginSuccess: (user) =>
     set((s) => ({
       user,
+      guest: null,
       screen: 'launcher',
       view: 'home',
       timerRunning: true,
       coins: user.coins ?? s.coins,
     })),
 
+  // Walk-in check-in. A guest has no profile and no coin balance — the bar runs
+  // on an open tab instead, so the loyalty economy stays members-only (F6.2).
+  guestSuccess: (guest) =>
+    set({
+      guest,
+      user: null,
+      screen: 'guest',
+      view: 'home',
+      timerRunning: true,
+      sessionSeconds: SESSION_LENGTH,
+      sessionExpired: false,
+      coins: 0,
+      cart: [],
+    }),
+
   logout: () =>
     set({
       screen: 'lock',
       user: null,
+      guest: null,
       timerRunning: false,
       sessionSeconds: SESSION_LENGTH,
       sessionExpired: false,
@@ -175,9 +208,11 @@ export const useStore = create<StoreState>((set, get) => ({
       cartOpen: false,
     }),
 
+  // Unlocking returns to the surface the session started on, so a guest who
+  // locked the station does not come back as a member.
   resumeSession: () =>
     set((s) => ({
-      screen: 'launcher',
+      screen: s.guest ? 'guest' : 'launcher',
       timerRunning: s.sessionSeconds > 0,
     })),
 
@@ -188,6 +223,7 @@ export const useStore = create<StoreState>((set, get) => ({
       sessionExpired: false,
       screen: 'lock',
       user: null,
+      guest: null,
       sessionSeconds: SESSION_LENGTH,
       cart: [],
       view: 'home',
@@ -195,8 +231,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   // Navigation goes through the surface map so a guest can never land on a
   // member-only section, even from a stale deep link or a keyboard shortcut.
-  setView: (view) =>
-    set((s) => ({ view: resolveView(s.screen === 'guest' ? 'guest' : 'launcher', view) })),
+  setView: (view) => set((s) => ({ view: resolveView(surfaceOf(s.screen), view) })),
 
   tick: () => {
     const { sessionSeconds, timerRunning } = get()

@@ -314,6 +314,11 @@ export const lt: Dictionary = {
     badge: 'Svečias',
     limits: 'Svečiai negauna patirties, monetų ir Battle Pass apdovanojimų.',
     createAccount: 'Sukurti profilį',
+    startedToast: 'Prisiregistravote kaip {label}. Užsakymai keliauja į sąskaitą.',
+    tab: 'Atvira sąskaita',
+    endSession: 'Baigti svečio seansą',
+    endConfirmTitle: 'Baigti svečio seansą?',
+    endConfirmBody: 'Atviras sąskaitą apmokėkite bare. Seanso duomenys nesaugomi.',
   },
 
   agent: {

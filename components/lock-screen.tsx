@@ -16,6 +16,7 @@ import {
   Sparkles,
   User,
   UserCog,
+  UserRound,
   Wifi,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -29,6 +30,7 @@ import type { TKey } from '@/lib/i18n/types'
 import {
   ApiError,
   confirmQrChallenge,
+  continueAsGuest,
   login,
   loginAsDemo,
   register,
@@ -55,6 +57,7 @@ function useClock() {
 
 export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
+  const guestSuccess = useStore((s) => s.guestSuccess)
   const toast = useStore((s) => s.toast)
   const now = useClock()
   const idle = useIdle(IDLE_TIMEOUT_MS)
@@ -175,6 +178,20 @@ export function LockScreen() {
 
   const demoAdmin = () => {
     toast('info', t('auth.adminSeparateApp'))
+  }
+
+  // Walk-in check-in. `guestCheckoutEnabled` can be off, so the failure path is
+  // a normal API error, not a silently dead button.
+  const startGuest = async () => {
+    setLoading(true)
+    try {
+      const { guestId, label } = await continueAsGuest()
+      toast('info', t('guest.startedToast', { label }))
+      guestSuccess({ guestId, label })
+    } catch (err) {
+      setLoading(false)
+      reportError(err)
+    }
   }
 
   const startQr = async () => {
@@ -490,6 +507,18 @@ export function LockScreen() {
                       label={t('auth.admin')}
                     />
                   </div>
+
+                  {/* Walk-in check-in — opens the guest surface of the same
+                      launcher shell, not a separate app (F6.2 / F6.8). */}
+                  <button
+                    type="button"
+                    onClick={startGuest}
+                    disabled={loading}
+                    className="mt-1 flex items-center justify-center gap-2 rounded-sm py-1.5 text-xs font-medium text-text-low transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+                  >
+                    <UserRound size={14} />
+                    {t('guest.continueAsGuest')}
+                  </button>
                 </motion.form>
               ) : (
                 <motion.form
