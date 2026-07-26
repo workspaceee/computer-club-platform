@@ -8,7 +8,7 @@ import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { GAMES } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
-import type { Game, GameCategory } from '@/lib/types'
+import type { Game, GameCategory } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
 
 const CATEGORIES: (GameCategory | 'All')[] = [

@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { IconTile } from '@/components/icon-tile'
 import { SHOP_ITEMS, SHOP_MEMBERSHIPS, SHOP_TIME } from '@/lib/mock/data'
 import { cartCount, useStore } from '@/lib/store'
-import type { ShopItem } from '@/lib/types'
+import type { ShopItem } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
 
 type Tab = 'time' | 'memberships' | 'items'
