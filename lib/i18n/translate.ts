@@ -18,10 +18,9 @@ import { en } from '@/lib/i18n/dictionaries/en'
 import { lt } from '@/lib/i18n/dictionaries/lt'
 import { ru } from '@/lib/i18n/dictionaries/ru'
 import {
+  DEFAULT_LANG,
   type Dictionary,
-  isLang,
   type Lang,
-  LANG_STORAGE_KEY,
   type TKey,
   type TVars,
 } from '@/lib/i18n/types'
@@ -53,18 +52,25 @@ export function translate(lang: Lang, key: TKey, vars?: TVars): string {
 }
 
 /**
- * Device-level language choice (F2.5), or `null` when nothing is stored or
- * storage is unavailable (private mode throws on access).
+ * The language the current session is running in, mirrored out of the provider.
  *
- * Callers must apply this in an effect, never during render: the server has no
- * localStorage and would disagree with the first client paint.
+ * Deliberately in-memory and NOT persisted to localStorage. A club station is a
+ * shared machine: whatever the previous guest picked must not greet the next one
+ * — the station always boots English (`DEFAULT_LANG`) and returns to English on
+ * logout. Persisting the choice is what made a Russian launcher outlive the
+ * guest who chose it.
+ *
+ * The only reader is the crash screen (F6.5), which renders outside the
+ * provider and would otherwise have to fall back to English mid-session.
  */
-export function readStoredLang(): Lang | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const stored = window.localStorage.getItem(LANG_STORAGE_KEY)
-    return isLang(stored) ? stored : null
-  } catch {
-    return null
-  }
+let sessionLang: Lang = DEFAULT_LANG
+
+/** Called by `I18nProvider` whenever the active language changes. */
+export function setSessionLang(lang: Lang): void {
+  sessionLang = lang
+}
+
+/** The active language for non-React callers on the failure path. */
+export function readSessionLang(): Lang {
+  return sessionLang
 }

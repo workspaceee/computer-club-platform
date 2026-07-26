@@ -160,9 +160,12 @@ function HeroCarousel() {
             transition={{ duration: 0.4 }}
             className="absolute inset-0"
           >
-            <GameCover game={game} className="h-full w-full" titleClassName="text-4xl md:text-6xl" />
+            {/* `hideTitle`: the hero writes the name itself, one line below, so
+                the cover must not anchor a second title to the same bottom edge —
+                that is what put a 60px game name on top of "Play now". */}
+            <GameCover game={game} className="h-full w-full" hideTitle />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+            <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
               <div className="flex items-center gap-3">
                 <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
                   {game.category}
@@ -172,9 +175,14 @@ function HeroCarousel() {
                   {game.players.toLocaleString()} playing
                 </span>
               </div>
+              {/* The hero's own heading. `pr-28` keeps a long name clear of the
+                  slide dots parked in the bottom-right corner. */}
+              <h2 className="max-w-2xl pr-28 font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:text-5xl">
+                {game.name}
+              </h2>
               <button
                 onClick={() => setLaunchGame(game.id)}
-                className="mt-4 flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
+                className="flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
               >
                 <Play size={17} fill="currentColor" />
                 Play now

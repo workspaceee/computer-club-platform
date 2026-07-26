@@ -26,7 +26,7 @@ import { AlertTriangle, Clock, LifeBuoy, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMaybeT } from '@/lib/i18n/provider'
-import { readStoredLang, translate } from '@/lib/i18n/translate'
+import { readSessionLang, translate } from '@/lib/i18n/translate'
 import { DEFAULT_LANG, type Lang, type TKey, type TVars } from '@/lib/i18n/types'
 
 export interface CrashScreenProps {
@@ -56,15 +56,14 @@ export interface CrashScreenProps {
  * Language for the crash screen.
  *
  * Starts at `DEFAULT_LANG` so the server render and the first client paint
- * agree, then upgrades to the stored preference in an effect. A guest who set
+ * agree, then upgrades to the session language in an effect. A guest who set
  * the station to Lithuanian should not be dropped into English at the worst
  * possible moment.
  */
 function useCrashLang(): Lang {
   const [lang, setLang] = useState<Lang>(DEFAULT_LANG)
   useEffect(() => {
-    const stored = readStoredLang()
-    if (stored) setLang(stored)
+    setLang(readSessionLang())
   }, [])
   return lang
 }
