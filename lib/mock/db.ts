@@ -116,8 +116,9 @@ const clubSettings: ClubSettings = {
   guestCheckoutEnabled: true,
   bookingEnabled: true,
   barOrdersEnabled: true,
-  // Cards stay off until a real PSP is wired in Stage 4.
-  cardPaymentsEnabled: false,
+  // The in-app card form is part of the demo, so the switch is on; the charge
+  // itself is mocked until a real PSP is wired in Stage 4.
+  cardPaymentsEnabled: true,
   warningThresholds: { notice: 30, warning: 10, critical: 3 },
   bookingGraceMinutes: 15,
 }

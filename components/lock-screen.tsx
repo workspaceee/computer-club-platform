@@ -112,9 +112,11 @@ export function LockScreen() {
     }
     setLoading(true)
     try {
-      const user = await login({ identifier, password })
-      toast('success', t('auth.welcomeBackToast', { name: user.nickname }))
-      loginSuccess(user)
+      // The endpoint returns a session (`profile` + token + role); the shell only
+      // needs the profile.
+      const { profile } = await login({ identifier, password })
+      toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
+      loginSuccess(profile)
     } catch (err) {
       setLoading(false)
       triggerShake()

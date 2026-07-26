@@ -1,115 +1,37 @@
-// Isolated mock data-access layer. Swap these implementations for real
-// FastAPI + MongoDB calls later without touching any UI code.
-import {
-  ACHIEVEMENTS,
-  ACTIVITY,
-  DEMO_USER,
-  GAMES,
-  HOUSE_ACCOUNTS,
-  LEADERBOARD,
-  PRIZES,
-  SHOP_ITEMS,
-  SHOP_MEMBERSHIPS,
-  SHOP_TIME,
-  TOP_GAMES,
-} from '@/lib/mock/data'
-import type { Game, HouseAccount, ShopItem } from '@/lib/types/catalog'
-import type {
-  Achievement,
-  ActivityEvent,
-  LeaderboardEntry,
-  Prize,
-} from '@/lib/types/loyalty'
-import type { UserProfile } from '@/lib/types/user'
+// MOCK ONLY — the public face of the mock backend (F3.4).
+//
+// Every screen imports from `@/lib/mock/api` and nothing else: the domain
+// modules under `lib/mock/api/*` are an implementation detail, and `lib/mock/db`
+// is off limits to the UI entirely. When the real backend lands, this file
+// becomes a thin wrapper over `fetch` and no component changes.
+//
+// Domains:
+//   client    transport, `ApiError`, fault injection (`mockFaults`)
+//   auth      sign-in, register, guest, QR handshake
+//   profile   profile, wallet, preferences, privacy
+//   session   the live session: heartbeat, pause, extend, end
+//   catalog   games, club, zones, seats, occupancy
+//   shop      products, cart quoting, orders, tab, passes, wallet ledger
+//   loyalty   coins, quests, battle pass, rewards, leaderboard
+//   social    friends, requests, parties
+//   events    tournaments and bookings
+//   support   notifications and help threads
+export {
+  ApiError,
+  isApiError,
+  mockFaults,
+  serverTime,
+  toApiError,
+  type ApiErrorCode,
+  type FaultConfig,
+} from '@/lib/mock/api/client'
 
-function delay<T>(value: T, min = 300, max = 800): Promise<T> {
-  const ms = Math.floor(min + Math.random() * (max - min))
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms))
-}
-
-export function fetchGames(): Promise<Game[]> {
-  return delay(GAMES)
-}
-
-export function fetchTopGames(): Promise<Game[]> {
-  return delay(TOP_GAMES)
-}
-
-export function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  return delay(LEADERBOARD, 200, 400)
-}
-
-export function fetchPrizes(): Promise<Prize[]> {
-  return delay(PRIZES)
-}
-
-export function fetchHouseAccounts(): Promise<HouseAccount[]> {
-  return delay(HOUSE_ACCOUNTS, 200, 500)
-}
-
-export function fetchShopTime(): Promise<ShopItem[]> {
-  return delay(SHOP_TIME)
-}
-
-export function fetchShopMemberships(): Promise<ShopItem[]> {
-  return delay(SHOP_MEMBERSHIPS)
-}
-
-export function fetchShopItems(): Promise<ShopItem[]> {
-  return delay(SHOP_ITEMS)
-}
-
-export function fetchAchievements(): Promise<Achievement[]> {
-  return delay(ACHIEVEMENTS)
-}
-
-export function fetchActivity(): Promise<ActivityEvent[]> {
-  return delay(ACTIVITY)
-}
-
-export function fetchProfile(): Promise<UserProfile> {
-  return delay(DEMO_USER, 200, 500)
-}
-
-export interface LoginPayload {
-  identifier: string
-  password: string
-}
-
-/**
- * Machine-readable failure reasons. The API never returns display copy — the UI
- * maps the code to a dictionary key, so errors are localized like everything
- * else (F2.2, `errors` namespace).
- */
-export type ApiErrorCode = 'invalidCredentials' | 'network' | 'unauthorized' | 'generic'
-
-export class ApiError extends Error {
-  constructor(public readonly code: ApiErrorCode) {
-    super(code)
-    this.name = 'ApiError'
-  }
-}
-
-/** Any password except literal "fail" succeeds after a mock delay. */
-export function login({ identifier, password }: LoginPayload): Promise<UserProfile> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (password.toLowerCase() === 'fail') {
-        reject(new ApiError('invalidCredentials'))
-        return
-      }
-      const nickname = identifier.includes('@')
-        ? identifier.split('@')[0]
-        : identifier || 'Player'
-      resolve({ ...DEMO_USER, nickname, email: identifier })
-    }, 2000)
-  })
-}
-
-export function launchGame(): Promise<void> {
-  return delay(undefined, 3000, 3000)
-}
-
-export function processPayment(): Promise<void> {
-  return delay(undefined, 2000, 2000)
-}
+export * from '@/lib/mock/api/auth'
+export * from '@/lib/mock/api/catalog'
+export * from '@/lib/mock/api/events'
+export * from '@/lib/mock/api/loyalty'
+export * from '@/lib/mock/api/profile'
+export * from '@/lib/mock/api/session'
+export * from '@/lib/mock/api/shop'
+export * from '@/lib/mock/api/social'
+export * from '@/lib/mock/api/support'

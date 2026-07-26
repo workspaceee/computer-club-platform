@@ -4,7 +4,9 @@ import confetti from 'canvas-confetti'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, CreditCard, Loader2, Lock, X } from 'lucide-react'
 import { useState } from 'react'
-import { processPayment } from '@/lib/mock/api'
+import { useT } from '@/lib/i18n/provider'
+import type { TKey } from '@/lib/i18n/types'
+import { checkoutCart, toApiError } from '@/lib/mock/api'
 import { cartTotal, useStore } from '@/lib/store'
 
 interface CheckoutModalProps {
@@ -15,6 +17,7 @@ interface CheckoutModalProps {
 const onlyDigits = (v: string) => v.replace(/\D/g, '')
 
 export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
+  const { t } = useT()
   const cart = useStore((s) => s.cart)
   const checkout = useStore((s) => s.checkout)
   const toast = useStore((s) => s.toast)
@@ -50,7 +53,19 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   const pay = async () => {
     if (!valid) return
     setStatus('processing')
-    await processPayment()
+    try {
+      // The basket posts ids and quantities only — the server prices it, charges
+      // the card and turns passes into minutes plus bar items into an order.
+      await checkoutCart(
+        cart.map((item) => ({ productId: item.id, qty: item.qty })),
+        'card',
+      )
+    } catch (err) {
+      setStatus('form')
+      // The API returns a code, the UI decides the wording (F2.2).
+      toast('error', t(`errors.${toApiError(err).code}` as TKey))
+      return
+    }
     setStatus('done')
     confetti({
       particleCount: 140,

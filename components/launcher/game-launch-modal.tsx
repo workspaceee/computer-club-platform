@@ -46,10 +46,16 @@ export function GameLaunchModal() {
   }
 
   const handleLaunch = async () => {
+    if (!game) return
     setLaunching(true)
     setStep(0)
-    await launchGame()
-    toast('success', `${game?.name} launched! Minimizing...`)
+    // The endpoint answers in a few hundred ms, but the agent's own steps are the
+    // slow part — wait for both so the checklist is never cut short.
+    await Promise.all([
+      launchGame(game.id),
+      new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
+    ])
+    toast('success', `${game.name} launched! Minimizing...`)
     setLaunching(false)
     setLaunchGame(null)
   }

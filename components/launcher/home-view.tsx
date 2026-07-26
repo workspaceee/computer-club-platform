@@ -268,7 +268,8 @@ const RANK_GRADIENT = [
 ]
 
 function Leaderboard() {
-  const { data, isLoading } = useSWR('leaderboard', fetchLeaderboard, {
+  // Wrapped so SWR's key is not passed through as the query object.
+  const { data, isLoading } = useSWR('leaderboard', () => fetchLeaderboard({ limit: 10 }), {
     refreshInterval: 10000,
   })
 
