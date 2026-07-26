@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { overlayZ } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
 import type { Toast } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -102,7 +103,21 @@ export function Toaster() {
       role={hasError ? 'alert' : 'status'}
       aria-live={hasError ? 'assertive' : 'polite'}
       aria-relevant="additions"
-      className="pointer-events-none fixed right-4 top-4 z-[100] flex w-80 flex-col gap-2"
+      // Bottom-right, not top-right (F6.4). The column used to start at
+      // `top-4`, which is inside the top bar — so a toast covered the very chip
+      // it was talking about ("+150 coins" landing on top of the coin balance,
+      // "tab updated" on top of the tab). The frame owns the top-right corner;
+      // transient feedback owns the bottom-right one. `bottom-24` clears the
+      // fixed mobile bar on narrow screens, where covering the navigation would
+      // be worse than covering content.
+      //
+      // Newest last in the column: the queue is oldest → newest, so with a
+      // bottom anchor the freshest message is the one nearest the corner the
+      // eye is drawn to, and older ones drift upward out of the way.
+      className={cn(
+        'pointer-events-none fixed bottom-24 right-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 sm:bottom-4',
+        overlayZ.toast,
+      )}
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => (

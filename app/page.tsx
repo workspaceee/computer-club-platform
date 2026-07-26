@@ -3,11 +3,10 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useStore } from "@/lib/store"
 import { surfaceOf } from "@/lib/launcher-nav"
+import { GlobalOverlays } from "@/components/app-shell"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { LockScreen } from "@/components/lock-screen"
 import { Launcher } from "@/components/launcher/launcher"
-import { SessionManager } from "@/components/session-manager"
-import { Toaster } from "@/components/toaster"
 
 export default function Page() {
   const screen = useStore((s) => s.screen)
@@ -50,8 +49,10 @@ export default function Page() {
         )}
       </AnimatePresence>
 
-      <SessionManager />
-      <Toaster />
+      {/* Dialogs, drawers, toasts and the end-of-visit takeover live here — one
+          mount above both screens, so nothing is a child of the screen
+          transition and the lock screen has an overlay host too (F6.4). */}
+      <GlobalOverlays />
     </ErrorBoundary>
   )
 }
