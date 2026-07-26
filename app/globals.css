@@ -32,6 +32,18 @@
   --color-text-medium: var(--text-medium);
   --color-text-low: var(--text-low);
 
+  /* Loyalty accents — deliberately reuse existing hue families
+     (gold = warning temperature, blue = info) so no new colour
+     group enters the palette. See docs/DESIGN.md §1. */
+  --color-xp: var(--xp);
+  --color-coin: var(--coin);
+  --color-debt: var(--debt);
+
+  /* Zone identity — used only for zone chips/labels, never as surface fills. */
+  --color-zone-vip: var(--zone-vip);
+  --color-zone-standard: var(--zone-standard);
+  --color-zone-ps5: var(--zone-ps5);
+
   --color-muted: var(--surface-2);
   --color-muted-foreground: var(--text-medium);
   --color-card: var(--panel);
@@ -75,6 +87,20 @@
   --text-high: rgba(255, 255, 255, 0.94);
   --text-medium: rgba(255, 255, 255, 0.56);
   --text-low: rgba(255, 255, 255, 0.34);
+
+  /* ---- Loyalty accents ----
+     xp   → info blue (progress / levels)
+     coin → gold, same warm temperature as --warning (club currency)
+     debt → danger alias (open tab, negative balance) */
+  --xp: #6bb1e4;
+  --coin: #f5c542;
+  --debt: #e5352b;
+
+  /* ---- Zone identity ----
+     Gold reads premium, steel reads default, blue reads console. */
+  --zone-vip: #f5c542;
+  --zone-standard: #868d95;
+  --zone-ps5: #6bb1e4;
 }
 
 @layer base {
@@ -462,6 +488,70 @@
 }
 .marquee:hover .marquee-track {
   animation-play-state: paused;
+}
+
+/* ---------- Primitive support (F1) ---------- */
+
+/* Signature bevelled CTA corner. Reserved for the single primary action
+   on a screen — no other element in the product uses this shape. */
+@utility cut-corner {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%
+  );
+}
+
+/* Urgency pulse for countdowns at the danger threshold (<= 5 min). */
+@keyframes urgency-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(229, 53, 43, 0.55);
+  }
+  50% {
+    opacity: 0.72;
+    text-shadow: 0 0 18px rgba(229, 53, 43, 0.85);
+  }
+}
+.urgency-pulse {
+  animation: urgency-pulse 1.4s ease-in-out infinite;
+}
+
+/* Global motion damping.
+   `data-reduce-motion` is set on <html> from the user's "Reduce animations"
+   setting; the media query covers the OS-level preference. Decorative,
+   infinite animations stop — functional transitions stay. */
+:root[data-reduce-motion='true'] .neon-ring::before,
+:root[data-reduce-motion='true'] .neon-ring::after,
+:root[data-reduce-motion='true'] .neon-text,
+:root[data-reduce-motion='true'] .neon-logo,
+:root[data-reduce-motion='true'] .imba-grid,
+:root[data-reduce-motion='true'] .shimmer::after,
+:root[data-reduce-motion='true'] .pulse-glow,
+:root[data-reduce-motion='true'] .scanline::before,
+:root[data-reduce-motion='true'] .marquee-track,
+:root[data-reduce-motion='true'] .caret-blink,
+:root[data-reduce-motion='true'] .urgency-pulse {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-ring::before,
+  .neon-ring::after,
+  .neon-text,
+  .neon-logo,
+  .imba-grid,
+  .shimmer::after,
+  .pulse-glow,
+  .scanline::before,
+  .marquee-track,
+  .caret-blink,
+  .urgency-pulse {
+    animation: none !important;
+  }
 }
 
 /* Blinking terminal caret */

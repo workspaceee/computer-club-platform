@@ -1,58 +1,146 @@
-import { Button as ButtonPrimitive } from '@base-ui/react/button'
-import { cva, type VariantProps } from 'class-variance-authority'
+'use client'
 
+import { cva, type VariantProps } from 'class-variance-authority'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/**
+ * The single button of the product (F1.4).
+ *
+ * Variants map onto the tactical palette from docs/DESIGN.md §1 — one red
+ * accent, three status colours, everything else steel. Every variant carries a
+ * mandatory focus ring so the launcher stays fully keyboard operable.
+ */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  [
+    'group/button relative inline-flex shrink-0 select-none items-center justify-center gap-2',
+    'font-display font-bold uppercase tracking-[0.14em] whitespace-nowrap',
+    'border transition-all duration-200 outline-none',
+    // Mandatory, always-visible focus ring (§0.4 accessibility rule).
+    'focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    'active:translate-y-px',
+    'disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none',
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0",
+  ],
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
-        outline:
-          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        primary:
+          'border-transparent bg-primary text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.45)] hover:bg-primary-hover hover:shadow-[0_0_36px_-4px_rgba(229,53,43,0.65)]',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+          'border-border bg-white/[0.04] text-text-high hover:border-primary/55 hover:bg-primary/10 hover:text-text-high hover:shadow-[0_0_20px_-6px_rgba(229,53,43,0.45)]',
         ghost:
-          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
-        destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'border-transparent bg-transparent text-text-medium hover:bg-white/[0.06] hover:text-text-high',
+        danger:
+          'border-danger/40 bg-danger/15 text-danger hover:border-danger/70 hover:bg-danger/25 hover:text-text-high focus-visible:ring-danger/70',
+        success:
+          'border-success/40 bg-success/15 text-success hover:border-success/70 hover:bg-success/25 focus-visible:ring-success/70',
       },
       size: {
-        default:
-          'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: 'h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-        icon: 'size-8',
-        'icon-xs':
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        'icon-sm':
-          'size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg',
-        'icon-lg': 'size-9',
+        sm: 'h-8 rounded-sm px-3 text-[11px] [&_svg]:size-3.5',
+        md: 'h-10 rounded-md px-4 text-xs [&_svg]:size-4',
+        lg: 'h-12 rounded-md px-5 text-sm [&_svg]:size-[18px]',
+        xl: 'h-14 rounded-lg px-7 text-base [&_svg]:size-5',
       },
+      /** Full-width block button (forms, drawers). */
+      block: { true: 'w-full', false: '' },
+      /**
+       * Signature bevelled corner + sheen. Reserved for the ONE primary action
+       * on a screen — docs/DESIGN.md §4 forbids this shape anywhere else.
+       */
+      cut: { true: 'cut-corner overflow-hidden', false: '' },
     },
     defaultVariants: {
-      variant: 'default',
-      size: 'default',
+      variant: 'primary',
+      size: 'md',
+      block: false,
+      cut: false,
     },
   },
 )
 
-function Button({
+type ButtonProps = Omit<React.ComponentProps<'button'>, 'children'> &
+  VariantProps<typeof buttonVariants> & {
+    /** Swaps content for a spinner and blocks interaction. */
+    loading?: boolean
+    /** Icon before the label. */
+    iconLeft?: React.ReactNode
+    /** Icon after the label. */
+    iconRight?: React.ReactNode
+    children?: React.ReactNode
+  }
+
+export function Button({
   className,
-  variant = 'default',
-  size = 'default',
+  variant,
+  size,
+  block,
+  cut,
+  loading = false,
+  disabled,
+  iconLeft,
+  iconRight,
+  children,
+  type = 'button',
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
-    <ButtonPrimitive
+    <button
+      type={type}
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn(buttonVariants({ variant, size, block, cut }), className)}
       {...props}
-    />
+    >
+      {/* Sheen sweep — only meaningful on the bevelled CTA. */}
+      {cut && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover/button:translate-x-full"
+        />
+      )}
+
+      {loading ? (
+        <>
+          <Loader2 className="animate-spin" aria-hidden />
+          <span className="sr-only">Loading</span>
+        </>
+      ) : (
+        <>
+          {iconLeft}
+          {children}
+          {iconRight}
+        </>
+      )}
+    </button>
   )
 }
 
-export { Button, buttonVariants }
+/**
+ * Compact square button for icon-only actions (close, back, stepper).
+ * Keeps an accessible name mandatory via the required `label` prop.
+ */
+export function IconButton({
+  label,
+  className,
+  variant = 'ghost',
+  size = 'md',
+  children,
+  ...props
+}: Omit<ButtonProps, 'iconLeft' | 'iconRight' | 'block' | 'cut'> & { label: string }) {
+  const box = { sm: 'size-8', md: 'size-10', lg: 'size-12', xl: 'size-14' }[size ?? 'md']
+  return (
+    <Button
+      variant={variant}
+      size={size}
+      aria-label={label}
+      className={cn('px-0', box, className)}
+      {...props}
+    >
+      {children}
+    </Button>
+  )
+}
+
+export { buttonVariants }
