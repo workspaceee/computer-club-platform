@@ -376,7 +376,6 @@ export const lt: Dictionary = {
 
     tabItemAdded: '{item} įrašyta į jūsų sąskaitą',
     tabRecalculated: 'Jūsų sąskaita atnaujinta',
-    tabTesting: '',
     tabTotal: 'Sąskaitos suma {amount}',
     tabSettled: 'Sąskaita apmokėta — mokėti nieko nebereikia',
     tabVoid: 'Sąskaitą anuliavo darbuotojas',
