@@ -2,7 +2,6 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Chakra_Petch, Inter, Manrope } from 'next/font/google'
 import { I18nProvider } from '@/lib/i18n/provider'
-import { I18nProvider } from '@/lib/i18n/provider'
 import './globals.css'
 
 const inter = Inter({

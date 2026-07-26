@@ -13,16 +13,14 @@ import {
   SHOP_TIME,
   TOP_GAMES,
 } from '@/lib/mock/data'
+import type { Game, HouseAccount, ShopItem } from '@/lib/types/catalog'
 import type {
   Achievement,
   ActivityEvent,
-  Game,
-  HouseAccount,
   LeaderboardEntry,
   Prize,
-  ShopItem,
-  UserProfile,
-} from '@/lib/types'
+} from '@/lib/types/loyalty'
+import type { UserProfile } from '@/lib/types/user'
 
 function delay<T>(value: T, min = 300, max = 800): Promise<T> {
   const ms = Math.floor(min + Math.random() * (max - min))

@@ -8,7 +8,6 @@ import {
   EyeOff,
   Fingerprint,
   Gauge,
-  Globe,
   Loader2,
   Lock,
   Mail,
@@ -82,6 +81,14 @@ export function LockScreen() {
     return e
   }, [identifier, password, t])
 
+  const registerErrors = useMemo(() => {
+    const e: Record<string, string> = {}
+    if (rEmail && !emailOk(rEmail)) e.email = t('errors.invalidEmail')
+    if (rPass && rPass.length < 6) e.password = t('errors.tooShort', { min: 6 })
+    if (rConfirm && rConfirm !== rPass) e.confirm = t('errors.passwordsMismatch')
+    return e
+  }, [rEmail, rPass, rConfirm, t])
+
   const passStrength = useMemo(() => {
     let s = 0
     if (rPass.length >= 6) s++
@@ -120,7 +127,7 @@ export function LockScreen() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(true)
-    if (!rUser || !emailOk(rEmail) || rPass.length < 6 || rPass !== rConfirm) {
+    if (!rUser || !rEmail || !rPass || Object.keys(registerErrors).length > 0) {
       triggerShake()
       return
     }
@@ -161,6 +168,16 @@ export function LockScreen() {
     setTouched(false)
   }
 
+  // Headline is split in two so the accent word can be highlighted where the
+  // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
+  const headline = useMemo(
+    () =>
+      mode === 'login'
+        ? { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
+        : { lead: t('auth.join'), accent: t('auth.joinHi') },
+    [mode, t],
+  )
+
   // Clock and date follow the active language's locale (F2.4).
   const timeStr = now ? formatTime(now) : '--:--'
   const secStr = now ? String(now.getSeconds()).padStart(2, '0') : '--'
@@ -199,8 +216,8 @@ export function LockScreen() {
       />
       <ParticleField />
 
-      {/* =================== Language switcher =================== */}
-      <LangSwitcher lang={lang} setLang={setLang} label={t.language} />
+      {/* =================== Language switcher (F2.4) =================== */}
+      <LangSwitcher showLabel className="absolute right-4 top-4 z-30 lg:right-6 lg:top-6" />
 
       {/* =================== LEFT — station identity =================== */}
       <div className="relative z-10 hidden flex-1 flex-col justify-between p-10 lg:flex xl:p-14">
@@ -230,7 +247,7 @@ export function LockScreen() {
         >
           <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
             <span className="h-px w-8 bg-primary/60" />
-            {t.localTime}
+            {t('auth.localTime')}
           </span>
           <div className="flex items-end gap-3">
             <span className="neon-text font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
@@ -251,10 +268,15 @@ export function LockScreen() {
           className="flex flex-wrap items-center gap-3"
         >
           <StationBadge />
-          <Telemetry icon={<Wifi size={13} />} label="Ping" value="4 ms" />
-          <Telemetry icon={<Gauge size={13} />} label="Display" value="240 Hz" />
-          <Telemetry icon={<Cpu size={13} />} label="GPU" value="RTX 4080" />
-          <Telemetry icon={<Activity size={13} />} label="Status" value="Optimal" accent />
+          <Telemetry icon={<Wifi size={13} />} label={t('auth.ping')} value="4 ms" />
+          <Telemetry icon={<Gauge size={13} />} label={t('auth.display')} value="240 Hz" />
+          <Telemetry icon={<Cpu size={13} />} label={t('auth.gpu')} value="RTX 4080" />
+          <Telemetry
+            icon={<Activity size={13} />}
+            label={t('auth.status')}
+            value={t('auth.optimal')}
+            accent
+          />
         </motion.div>
       </div>
 
@@ -309,11 +331,11 @@ export function LockScreen() {
             <div className="flex items-center justify-between">
               <span className="label-mono flex items-center gap-2 text-[10px] text-primary">
                 <ShieldCheck size={12} />
-                {t.accessTerminal}
+                {t('auth.accessTerminal')}
               </span>
               <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                PC-17 · {t.online}
+                PC-17 · {t('common.online')}
               </span>
             </div>
 
@@ -327,26 +349,18 @@ export function LockScreen() {
                 className="mt-5"
               >
                 <h1 className="font-display text-[2.1rem] font-bold uppercase leading-[0.95] tracking-tight text-text-high text-balance">
-                  {mode === 'login' ? (
+                  {headline.lead}
+                  {/* RU/LT keep the accent word empty — the headline stays one phrase. */}
+                  {headline.accent && (
                     <>
-                      {t.welcome}
-                      {t.welcomeHi && (
-                        <>
-                          {' '}
-                          <span className="text-glow text-primary">{t.welcomeHi}</span>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {t.join}{' '}
-                      <span className="text-glow text-primary">{t.joinHi}</span>
+                      {' '}
+                      <span className="text-glow text-primary">{headline.accent}</span>
                     </>
                   )}
                   <span className="caret-blink ml-1 font-normal text-primary">_</span>
                 </h1>
                 <p className="mt-2.5 text-sm leading-relaxed text-text-medium">
-                  {mode === 'login' ? t.loginSub : t.registerSub}
+                  {mode === 'login' ? t('auth.loginSub') : t('auth.registerSub')}
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -370,7 +384,9 @@ export function LockScreen() {
                       transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
                     />
                   )}
-                  <span className="relative z-[1]">{m === 'login' ? t.signIn : t.register}</span>
+                  <span className="relative z-[1]">
+                    {m === 'login' ? t('auth.signIn') : t('auth.register')}
+                  </span>
                 </button>
               ))}
             </div>
@@ -390,46 +406,58 @@ export function LockScreen() {
                   className="flex flex-col gap-4"
                 >
                   <Field
-                    label={t.userOrEmail}
+                    label={t('auth.userOrEmail')}
                     icon={<User size={15} />}
                     value={identifier}
                     onChange={setIdentifier}
-                    placeholder="player@imba.club"
+                    placeholder={t('auth.userOrEmailPlaceholder')}
                     error={touched ? loginErrors.identifier : undefined}
                     autoFocus
                   />
                   <Field
-                    label={t.password}
+                    label={t('auth.password')}
                     icon={<Lock size={15} />}
                     type={showPass ? 'text' : 'password'}
                     value={password}
                     onChange={setPassword}
-                    placeholder="Type 'fail' to test errors"
+                    placeholder={t('auth.passwordPlaceholder')}
                     error={touched ? loginErrors.password : undefined}
                     trailing={
                       <button
                         type="button"
                         onClick={() => setShowPass((v) => !v)}
                         className="text-text-low transition-colors hover:text-text-high"
-                        aria-label={showPass ? 'Hide password' : 'Show password'}
+                        aria-label={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
                       >
                         {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     }
                   />
 
-                  <PrimaryButton loading={loading} label={t.unlock} />
+                  <PrimaryButton loading={loading} label={t('auth.unlock')} />
 
                   <div className="my-1 flex items-center gap-3 text-text-low">
                     <span className="h-px flex-1 bg-border" />
-                    <span className="label-mono text-[10px]">{t.orContinue}</span>
+                    <span className="label-mono text-[10px]">{t('auth.orContinue')}</span>
                     <span className="h-px flex-1 bg-border" />
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <SecondaryButton onClick={startQr} icon={<QrCode size={16} />} label={t.qrLogin} />
-                    <SecondaryButton onClick={demoLogin} icon={<Sparkles size={16} />} label={t.demo} />
-                    <SecondaryButton onClick={demoAdmin} icon={<UserCog size={16} />} label={t.admin} />
+                    <SecondaryButton
+                      onClick={startQr}
+                      icon={<QrCode size={16} />}
+                      label={t('auth.qrLogin')}
+                    />
+                    <SecondaryButton
+                      onClick={demoLogin}
+                      icon={<Sparkles size={16} />}
+                      label={t('auth.demo')}
+                    />
+                    <SecondaryButton
+                      onClick={demoAdmin}
+                      icon={<UserCog size={16} />}
+                      label={t('auth.admin')}
+                    />
                   </div>
                 </motion.form>
               ) : (
@@ -443,30 +471,30 @@ export function LockScreen() {
                   className="flex flex-col gap-4"
                 >
                   <Field
-                    label={t.username}
+                    label={t('auth.username')}
                     icon={<User size={15} />}
                     value={rUser}
                     onChange={setRUser}
-                    placeholder="ProGamer"
+                    placeholder={t('auth.usernamePlaceholder')}
                     autoFocus
                   />
                   <Field
-                    label={t.email}
+                    label={t('auth.email')}
                     icon={<Mail size={15} />}
                     value={rEmail}
                     onChange={setREmail}
-                    placeholder="you@imba.club"
-                    error={touched && rEmail && !emailOk(rEmail) ? 'Enter a valid email' : undefined}
+                    placeholder={t('auth.emailPlaceholder')}
+                    error={touched ? registerErrors.email : undefined}
                   />
                   <div>
                     <Field
-                      label={t.password}
+                      label={t('auth.password')}
                       icon={<Lock size={15} />}
                       type="password"
                       value={rPass}
                       onChange={setRPass}
-                      placeholder={t.minChars}
-                      error={touched && rPass && rPass.length < 6 ? 'Minimum 6 characters' : undefined}
+                      placeholder={t('auth.minChars')}
+                      error={touched ? registerErrors.password : undefined}
                     />
                     {rPass && (
                       <div className="mt-2 flex gap-1">
@@ -490,16 +518,16 @@ export function LockScreen() {
                     )}
                   </div>
                   <Field
-                    label={t.confirmPassword}
+                    label={t('auth.confirmPassword')}
                     icon={<Fingerprint size={15} />}
                     type="password"
                     value={rConfirm}
                     onChange={setRConfirm}
-                    placeholder={t.repeat}
-                    error={touched && rConfirm && rConfirm !== rPass ? 'Passwords do not match' : undefined}
+                    placeholder={t('auth.repeat')}
+                    error={touched ? registerErrors.confirm : undefined}
                   />
 
-                  <PrimaryButton loading={loading} label={t.createAccount} />
+                  <PrimaryButton loading={loading} label={t('auth.createAccount')} />
                 </motion.form>
               )}
             </AnimatePresence>
@@ -509,9 +537,11 @@ export function LockScreen() {
           <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
               <Lock size={10} className="text-success" />
-              {t.encrypted}
+              {t('auth.encrypted')}
             </span>
-            <span className="label-mono text-[9px] text-text-low">IMBA-SHELL v2.4</span>
+            <span className="label-mono text-[9px] text-text-low">
+              {t('common.shell')} v2.4
+            </span>
           </div>
         </motion.div>
 
@@ -541,10 +571,12 @@ export function LockScreen() {
               className="glass-strong flex flex-col items-center gap-4 rounded-3xl p-8"
             >
               <MockQr />
-              <p className="font-display text-lg font-bold text-text-high">Scan with IMBA app</p>
+              <p className="font-display text-lg font-bold text-text-high">
+                {t('auth.scanWithApp')}
+              </p>
               <p className="flex items-center gap-2 text-sm text-text-medium">
                 <Loader2 size={14} className="animate-spin text-primary" />
-                Waiting for confirmation...
+                {t('auth.waitingConfirmation')}
               </p>
             </motion.div>
           </motion.div>
@@ -554,53 +586,15 @@ export function LockScreen() {
   )
 }
 
-function LangSwitcher({
-  lang,
-  setLang,
-  label,
-}: {
-  lang: Lang
-  setLang: (l: Lang) => void
-  label: string
-}) {
-  return (
-    <div className="absolute right-4 top-4 z-30 flex items-center gap-2 lg:right-6 lg:top-6">
-      <span className="hidden items-center gap-1.5 text-text-low sm:flex">
-        <Globe size={13} className="text-primary" />
-        <span className="label-mono text-[9px]">{label}</span>
-      </span>
-      <div className="relative flex rounded-full border border-white/10 bg-[#0a0b10]/80 p-1 backdrop-blur-xl">
-        {LANGS.map((l) => (
-          <button
-            key={l.code}
-            type="button"
-            onClick={() => setLang(l.code)}
-            aria-pressed={lang === l.code}
-            className={`relative rounded-full px-3 py-1 font-display text-[11px] font-bold tracking-widest transition-colors ${
-              lang === l.code ? 'text-primary-foreground' : 'text-text-low hover:text-text-medium'
-            }`}
-          >
-            {lang === l.code && (
-              <motion.span
-                layoutId="lang-pill"
-                className="absolute inset-0 rounded-full bg-primary shadow-[0_0_18px_rgba(229,53,43,0.5)]"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-              />
-            )}
-            <span className="relative z-[1]">{l.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function StationBadge() {
+  const { t } = useT()
   return (
-  <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
-  <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
       <span className="font-display text-sm font-bold tracking-wide text-text-high">PC #17</span>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-success">Ready</span>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-success">
+        {t('auth.stationReady')}
+      </span>
     </span>
   )
 }

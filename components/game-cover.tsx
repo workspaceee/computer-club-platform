@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { Game } from '@/lib/types'
+import type { Game } from '@/lib/types/catalog'
 
 interface GameCoverProps {
   game: Game

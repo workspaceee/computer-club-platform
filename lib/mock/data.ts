@@ -1,13 +1,11 @@
+import type { Game, HouseAccount, ShopItem } from '@/lib/types/catalog'
 import type {
   Achievement,
   ActivityEvent,
-  Game,
-  HouseAccount,
   LeaderboardEntry,
   Prize,
-  ShopItem,
-  UserProfile,
-} from '@/lib/types'
+} from '@/lib/types/loyalty'
+import type { UserProfile } from '@/lib/types/user'
 
 export const GAMES: Game[] = [
   { id: 'cs2', name: 'Counter-Strike 2', category: 'Shooter', rating: 4.8, players: 1234, cover: ['#f0a500', '#3a2c00'], launcher: 'Steam' },

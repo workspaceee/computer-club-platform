@@ -1,7 +1,9 @@
 'use client'
 
 import { create } from 'zustand'
-import type { CartItem, ShopItem, UserProfile } from '@/lib/types'
+import type { ShopItem } from '@/lib/types/catalog'
+import type { CartItem } from '@/lib/types/order'
+import type { UserProfile } from '@/lib/types/user'
 
 export type Screen = 'lock' | 'launcher'
 export type LauncherView = 'home' | 'games' | 'shop' | 'profile'
