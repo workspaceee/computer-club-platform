@@ -10,7 +10,10 @@ interface SliderProps extends Omit<React.ComponentProps<'input'>, 'type' | 'valu
   min?: number
   max?: number
   step?: number
-  /** Unit appended to the readout chip, e.g. "%" or " Hz". */
+  /**
+   * Unit appended to the readout chip, e.g. "%" or " Hz". Empty by default —
+   * a percent sign on a 1–10 sensitivity slider would be a lie.
+   */
   suffix?: string
   /** Hide the value chip next to the label. */
   hideValue?: boolean
@@ -30,7 +33,7 @@ export function Slider({
   min = 0,
   max = 100,
   step = 1,
-  suffix = '%',
+  suffix = '',
   hideValue = false,
   className,
   id,

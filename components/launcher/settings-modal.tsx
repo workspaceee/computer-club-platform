@@ -254,6 +254,7 @@ export function SettingsModal() {
                         <Slider
                           id="brightness"
                           label="Brightness"
+                          suffix="%"
                           value={settings.brightness}
                           onChange={(v) => updateSettings({ brightness: v })}
                         />
@@ -270,18 +271,21 @@ export function SettingsModal() {
                         <Slider
                           id="master"
                           label="Master volume"
+                          suffix="%"
                           value={settings.masterVolume}
                           onChange={(v) => updateSettings({ masterVolume: v })}
                         />
                         <Slider
                           id="game"
                           label="Game volume"
+                          suffix="%"
                           value={settings.gameVolume}
                           onChange={(v) => updateSettings({ gameVolume: v })}
                         />
                         <Slider
                           id="chat"
                           label="Chat volume"
+                          suffix="%"
                           value={settings.chatVolume}
                           onChange={(v) => updateSettings({ chatVolume: v })}
                         />
