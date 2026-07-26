@@ -28,7 +28,9 @@ import { TimerOff } from 'lucide-react'
 import { useEffect } from 'react'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
+import { overlayZ } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 export function SessionManager() {
   const { t } = useT()
@@ -84,7 +86,15 @@ export function SessionManager() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center backdrop-blur"
+          // The end of the visit is the top rung and the only one allowed there:
+          // it must cover a half-finished checkout, an open cart and any dialog,
+          // because none of them mean anything once the clock has run out (F6.4).
+          // `min-h-svh` rather than `h-full` so the message centres against the
+          // space that actually exists on a short window.
+          className={cn(
+            'fixed inset-0 flex min-h-svh flex-col items-center justify-center gap-4 overflow-y-auto bg-black/85 px-6 py-10 text-center backdrop-blur',
+            overlayZ.blocking,
+          )}
         >
           <motion.div
             initial={{ scale: 0.8 }}

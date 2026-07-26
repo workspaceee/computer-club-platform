@@ -28,9 +28,28 @@
  * The scrim is `fixed`, not `absolute`: an absolute scrim is only as tall as the
  * scroll content, so scrolling a tall dialog would drag the dim edge along with
  * it and reveal the live page underneath.
+ *
+ * ---
+ *
+ * And the reason the geometry alone was not enough: **everything here is
+ * portalled to `document.body`.**
+ *
+ * The confirmation that lost its title is rendered by `TopBar`, and the top bar
+ * carries `glass` — i.e. `backdrop-filter`. A `backdrop-filter` (like `filter`,
+ * `transform` and `contain`) makes the element a *containing block for fixed
+ * descendants*, so `fixed inset-0` inside the header did not mean "the viewport",
+ * it meant "the 64px-tall bar". The dialog was being clipped to the height of the
+ * header, which is why only a sliver of its top edge was ever visible and why no
+ * amount of `items-center` / `max-h` tuning could rescue it.
+ *
+ * That also makes the `z` ladder honest: a nested overlay competes only inside
+ * its parent's stacking context, so a `z-70` dialog under a `z-40` bar would lose
+ * to it. From the body, the rungs in `lib/overlay.ts` mean what they say.
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { overlayZ, type OverlayLayer } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
@@ -61,7 +80,15 @@ export function Overlay({
 }: OverlayProps) {
   const reduced = useReducedMotion()
 
-  return (
+  // `document` does not exist during the server render, and going straight to a
+  // portal on the first client render would be a hydration mismatch. Mounting on
+  // the next tick costs nothing here because an overlay is never part of the
+  // first paint — it only ever appears in response to something the guest did.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -99,6 +126,7 @@ export function Overlay({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

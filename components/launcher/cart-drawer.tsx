@@ -4,7 +4,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
+import { overlayZ } from '@/lib/overlay'
 import { cartTotal, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 export function CartDrawer() {
   const cart = useStore((s) => s.cart)
@@ -25,7 +27,10 @@ export function CartDrawer() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setCartOpen(false)}
-            className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm"
+            // The cart used to outrank every dialog at `z-80`, which is exactly
+            // backwards: it raises the checkout dialog, so it has to sit *under*
+            // it. Both now read their rung from the ladder (F6.4).
+            className={cn('fixed inset-0 bg-black/60 backdrop-blur-sm', overlayZ.drawer)}
           >
             <motion.aside
               initial={{ x: '100%' }}

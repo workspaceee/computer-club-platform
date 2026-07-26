@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
+import { overlayZ } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
 /**
@@ -24,7 +25,9 @@ export function MobileNav({ surface = 'launcher' }: { surface?: LauncherSurface 
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 px-3 pb-3 sm:hidden"
+      // Same `frame` rung as the top bar — they are one piece of chrome, and any
+      // overlay is allowed to cover both (F6.4).
+      className={cn('fixed inset-x-0 bottom-0 px-3 pb-3 sm:hidden', overlayZ.frame)}
       aria-label={t('nav.landmark')}
     >
       <div className="glass-strong mx-auto flex max-w-sm items-center justify-around rounded-lg p-1">
