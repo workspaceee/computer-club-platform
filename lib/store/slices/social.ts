@@ -61,6 +61,10 @@ export const createSocialSlice: SliceCreator<SocialSlice> = (set, get) => ({
 
   receivePartyInvite: (event) => {
     if (get().guest) return
+    // Prune on arrival — the only moment the list changes. Without this call
+    // `prunePartyInvites` would be an action nobody invokes, and the inbox would
+    // keep offering parties whose `expiresAt` has already passed.
+    get().prunePartyInvites()
     set((s) => ({
       partyInvites: [
         ...s.partyInvites.filter((i) => i.partyId !== event.partyId),
