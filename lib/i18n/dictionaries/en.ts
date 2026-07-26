@@ -328,6 +328,136 @@ export const en = {
     panelKeyboardHint: 'Repeat delay and layouts.',
   },
 
+  // Everything the club pushes at the player (F4). The bus never sends prose —
+  // it sends an event name, a level and numbers (`lib/realtime/events.ts`), and
+  // the copy is resolved here. One key per event of MVP §7, plus the connection
+  // banner (F4.5) and the code→word tables (reasons, statuses, reward types) the
+  // payloads refer to.
+  realtime: {
+    // Connection banner. The countdown never stops while this is up: club time
+    // runs from `expiresAt`, not from the socket.
+    offlineTitle: 'No connection to the club',
+    offlineBody: 'Your time keeps running. The screen catches up as soon as the link is back.',
+    offlineHint: 'Call staff if this does not clear in a minute.',
+    connecting: 'Connecting to the club…',
+    reconnecting: 'Reconnecting…',
+    retryIn: 'Next try in {n} s',
+    retryNow: 'Retry now',
+    // plural: one | other
+    attempts: '{n} failed attempt|{n} failed attempts',
+    restoredTitle: 'Connection restored',
+    restoredBody: 'You are back in sync with the club.',
+
+    // time.added — `secondsAdded` is signed, so removal has its own line.
+    timeAdded: '{n} min added to your session',
+    timeAddedStaff: 'Staff put {n} min on your session',
+    timeRemoved: '{n} min taken off your session',
+    timeLeftNow: '{time} left',
+    reasonGrant: 'Gift from the club',
+    reasonPass: 'From your pass',
+    reasonExtend: 'Session extended',
+    reasonGift: 'Sent by a friend',
+    reasonCorrection: 'Correction by staff',
+    reasonCompensation: 'Compensation',
+
+    // time.warning — level arrives resolved from the club's thresholds.
+    warningNotice: '{time} of session time left',
+    warningWarning: 'Only {time} left',
+    warningCritical: '{time} left — save your game',
+    warningBody: 'Top up in the shop or at the counter to keep playing.',
+
+    // session.*
+    sessionPaused: 'Session paused',
+    sessionPausedBody: 'The timer is stopped at {time}.',
+    sessionResumed: 'Session resumed',
+    sessionResumedBody: '{time} back on the clock.',
+    sessionEnded: 'Session closed',
+    closedByUser: 'You ended the session.',
+    closedByStaff: 'Staff closed this session.',
+    closedBySystem: 'The club closed this session.',
+    closedByTimeout: 'Your paid time ran out.',
+    sessionEndedTab: 'Settle {amount} at the counter.',
+    sessionEndedDebt: 'Unpaid time: {time}.',
+    sessionMoved: 'Move to {station}',
+    sessionMovedBody: 'Staff moved your session. Take your things to {station}.',
+
+    // order.status
+    orderNew: 'Order received',
+    orderAccepted: 'Order accepted',
+    orderPreparing: 'Your order is being prepared',
+    orderDelivering: 'On the way to your station',
+    orderDelivered: 'Order delivered',
+    orderCancelled: 'Order cancelled',
+    orderEta: 'About {n} min',
+    orderTotal: 'Total {amount}',
+
+    // tab.updated
+    tabItemAdded: '{item} added to your tab',
+    tabRecalculated: 'Your tab was updated',
+    tabTotal: 'Tab total {amount}',
+    tabSettled: 'Tab settled — nothing left to pay',
+    tabVoid: 'Tab cancelled by staff',
+
+    // pass.granted
+    passGranted: '{name} activated',
+    passGrantedBody: '{n} min added to your balance.',
+    passBonus: '+{n} min bonus',
+
+    // wallet.updated
+    walletTopup: 'Balance topped up',
+    walletSpend: 'Payment taken',
+    walletRefund: 'Refunded to your balance',
+    walletReward: 'Reward credited',
+    walletSettle: 'Tab paid from your balance',
+    walletGift: 'A gift landed in your wallet',
+    walletBalance: 'Balance {amount} · {coins}',
+
+    // message.received
+    messageFromStaff: 'Message from {name}',
+    messageFromSystem: 'Message from the club',
+    messageReply: 'Reply in Help',
+
+    // broadcast
+    broadcastAck: 'Got it',
+    broadcastFrom: 'Club announcement',
+
+    // quest.completed
+    questCompleted: 'Quest complete',
+    questReward: '+{coins} · +{xp} XP',
+
+    // battlepass.tier
+    tierUnlocked: 'Battle Pass level {level} unlocked',
+    trackFree: 'Free track',
+    trackPaid: 'Premium track',
+    rewardTime: '{n} min of play',
+    rewardProduct: 'A drink or a snack',
+    rewardMerch: 'Club merch',
+    rewardCoins: '{n} coins',
+    rewardCosmetic: 'A profile cosmetic',
+
+    // tournament.call
+    tournamentCheckIn: 'Check in for {name}',
+    tournamentCheckInBody: '{game} starts in {n} min.',
+    tournamentStarting: '{name} is starting',
+    tournamentSeat: 'Your match is on {station}.',
+    tournamentFinished: '{name} has finished',
+    tournamentCancelled: '{name} was cancelled',
+
+    // booking.reminder
+    bookingSoon: 'Your booking starts in {n} min',
+    bookingSeat: '{zone} · {station}',
+    bookingZoneOnly: '{zone} — seat assigned at the counter',
+    bookingCheckIn: 'Check in now to keep the seat',
+
+    // friend.request
+    friendRequest: '{name} wants to be friends',
+    friendRequestBody: 'Level {level} player.',
+
+    // party.invite
+    partyInvite: '{name} invited you to a party',
+    partyInviteBody: 'They are playing {game}.',
+  },
+
   errors: {
     generic: 'Something went wrong',
     genericBody: 'The action did not go through. Try again in a moment.',
