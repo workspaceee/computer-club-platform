@@ -79,7 +79,17 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <RealtimeContext.Provider value={channel}>
-      {children}
+      {/* The banner is fixed, so without this offset it would sit on top of the
+          first thing on the page — a header, or worse, a running countdown.
+          Padding animates instead of snapping so the shift reads as the strip
+          pushing the page down rather than the layout breaking. */}
+      <div
+        className={`transition-[padding-top] duration-240 ease-out ${
+          channel.offline ? 'pt-22' : 'pt-0'
+        }`}
+      >
+        {children}
+      </div>
       <OfflineBanner {...channel} />
     </RealtimeContext.Provider>
   )
