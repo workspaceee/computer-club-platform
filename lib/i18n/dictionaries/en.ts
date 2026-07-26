@@ -133,6 +133,10 @@ export const en = {
     playersOnline: '{n} playing|{n} playing',
     noResults: 'No games found',
     noResultsBody: 'Try a different name or clear the category filter.',
+    clearFilters: 'Clear filters',
+    noFeatured: 'No featured games',
+    noFeaturedBody: 'The club has not picked highlights yet — browse the full library.',
+    openLibrary: 'Open library',
   },
 
   shop: {
@@ -153,6 +157,8 @@ export const en = {
     catDrinks: 'Drinks',
     catTime: 'Time',
     catGear: 'Gear',
+    sectionEmpty: 'Nothing in this section',
+    sectionEmptyBody: 'The club is restocking. Try another tab or ask at the counter.',
   },
 
   wallet: {
@@ -184,6 +190,20 @@ export const en = {
     tierRegular: 'Regular',
     tierVeteran: 'Veteran',
     tierElite: 'Elite',
+    achievements: 'Achievements',
+    noAchievements: 'No achievements yet',
+    noAchievementsBody: 'Play a session and the first badges start unlocking.',
+    activity: 'Recent activity',
+    noActivity: 'No activity yet',
+    noActivityBody: 'Sessions, purchases and unlocks show up here.',
+    prizeLadder: 'Prize Ladder',
+    noRewards: 'No rewards on the ladder',
+    noRewardsBody: 'The club is preparing a new prize ladder — check back soon.',
+    leaderboard: 'Leaderboard',
+    noLeaderboard: 'Leaderboard is empty',
+    noLeaderboardBody: 'Be the first to log hours this week.',
+    unlocked: 'Unlocked',
+    prizesUnlocked: 'Prizes unlocked',
   },
 
   social: {

@@ -3,10 +3,13 @@
 import { motion } from 'framer-motion'
 import { Gamepad2, Play, Search, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import useSWR from 'swr'
+import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useApi } from '@/hooks/use-api'
+import { useT } from '@/lib/i18n/provider'
 import { fetchGames, type GameSort } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { Game, GameCategory } from '@/lib/types/catalog'
@@ -37,6 +40,7 @@ const SORT_PARAM: Record<Sort, GameSort> = {
 }
 
 export function GamesView() {
+  const { t } = useT()
   const [rawQuery, setRawQuery] = useState('')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All')
@@ -51,7 +55,7 @@ export function GamesView() {
 
   // `GET /api/games` — search, category and sort are query params, so the screen
   // never filters the whole library itself (F3.4).
-  const { data, isLoading } = useSWR(
+  const library = useApi(
     ['games', query, category, sort],
     () =>
       fetchGames({
@@ -62,8 +66,8 @@ export function GamesView() {
     { keepPreviousData: true },
   )
 
-  const items = useMemo(() => data?.items ?? [], [data])
-  const total = data?.total ?? 0
+  const items = useMemo(() => library.data?.items ?? [], [library.data])
+  const total = library.data?.total ?? 0
 
   // Seed a live counter for every title the endpoint returned.
   useEffect(() => {
@@ -155,25 +159,46 @@ export function GamesView() {
         ))}
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="glass flex flex-col items-center gap-2 rounded-xl py-16 text-center">
-          <p className="font-display text-lg font-bold text-text-high">No games found</p>
-          <p className="text-sm text-text-medium">Try a different search or category.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {filtered.map((game) => (
-            <GameCard key={game.id} game={game} players={players[game.id] ?? game.players} />
-          ))}
-        </div>
-      )}
+      <DataBoundary
+        state={library}
+        loading={
+          <Grid>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 w-full rounded-lg" />
+            ))}
+          </Grid>
+        }
+        isEmpty={(page) => page.items.length === 0}
+        empty={
+          <EmptyState
+            icon={Gamepad2}
+            title={t('games.noResults')}
+            description={t('games.noResultsBody')}
+            actionLabel={
+              rawQuery || category !== 'All' ? t('games.clearFilters') : undefined
+            }
+            onAction={() => {
+              setRawQuery('')
+              setCategory('All')
+            }}
+          />
+        }
+      >
+        {() => (
+          <Grid>
+            {filtered.map((game) => (
+              <GameCard key={game.id} game={game} players={players[game.id] ?? game.players} />
+            ))}
+          </Grid>
+        )}
+      </DataBoundary>
     </div>
+  )
+}
+
+function Grid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{children}</div>
   )
 }
 

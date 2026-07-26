@@ -129,6 +129,10 @@ export const ru: Dictionary = {
     playersOnline: '{n} играет|{n} играют|{n} играют',
     noResults: 'Игры не найдены',
     noResultsBody: 'Попробуйте другое название или сбросьте фильтр категории.',
+    clearFilters: 'Сбросить фильтры',
+    noFeatured: 'Подборки пока нет',
+    noFeaturedBody: 'Клуб ещё не выбрал избранное — откройте полную библиотеку.',
+    openLibrary: 'Открыть библиотеку',
   },
 
   shop: {
@@ -149,6 +153,8 @@ export const ru: Dictionary = {
     catDrinks: 'Напитки',
     catTime: 'Время',
     catGear: 'Девайсы',
+    sectionEmpty: 'В этом разделе пусто',
+    sectionEmptyBody: 'Клуб пополняет запасы. Откройте другую вкладку или спросите на стойке.',
   },
 
   wallet: {
@@ -180,6 +186,20 @@ export const ru: Dictionary = {
     tierRegular: 'Постоянный',
     tierVeteran: 'Ветеран',
     tierElite: 'Элита',
+    achievements: 'Достижения',
+    noAchievements: 'Достижений пока нет',
+    noAchievementsBody: 'Проведите сессию — первые награды начнут открываться.',
+    activity: 'Последняя активность',
+    noActivity: 'Активности пока нет',
+    noActivityBody: 'Сессии, покупки и открытия появятся здесь.',
+    prizeLadder: 'Лестница призов',
+    noRewards: 'На лестнице нет призов',
+    noRewardsBody: 'Клуб готовит новую лестницу призов — заходите позже.',
+    leaderboard: 'Лидерборд',
+    noLeaderboard: 'Лидерборд пуст',
+    noLeaderboardBody: 'Станьте первым, кто наберёт часы на этой неделе.',
+    unlocked: 'Открыто',
+    prizesUnlocked: 'Призов открыто',
   },
 
   social: {

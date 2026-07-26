@@ -23,6 +23,8 @@ import {
 import useSWR from 'swr'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useT } from '@/lib/i18n/provider'
 import { fetchAchievements, fetchActivity } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 
@@ -114,6 +116,7 @@ function XpRing({ pct, initials, level }: { pct: number; initials: string; level
 }
 
 export function ProfileView() {
+  const { t } = useT()
   const user = useStore((s) => s.user)
   const coins = useStore((s) => s.coins)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
@@ -221,7 +224,9 @@ export function ProfileView() {
         {/* Achievements */}
         <section className="lg:col-span-3">
           <div className="mb-3 flex items-end justify-between gap-4">
-            <h2 className="label-mono text-[11px] text-text-high">Achievements</h2>
+            <h2 className="label-mono text-[11px] text-text-high">
+              {t('loyalty.achievements')}
+            </h2>
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${achPct}%` }} />
@@ -231,6 +236,13 @@ export function ProfileView() {
               </span>
             </div>
           </div>
+          {!achLoading && (achievements ?? []).length === 0 ? (
+            <EmptyState
+              icon={Trophy}
+              title={t('loyalty.noAchievements')}
+              description={t('loyalty.noAchievementsBody')}
+            />
+          ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {achLoading
               ? Array.from({ length: 8 }).map((_, i) => (
@@ -272,11 +284,21 @@ export function ProfileView() {
                   )
                 })}
           </div>
+          )}
         </section>
 
         {/* Activity timeline */}
         <section className="lg:col-span-2">
-          <h2 className="label-mono mb-3 text-[11px] text-text-high">Recent activity</h2>
+          <h2 className="label-mono mb-3 text-[11px] text-text-high">
+            {t('loyalty.activity')}
+          </h2>
+          {!activityLoading && (activity ?? []).length === 0 ? (
+            <EmptyState
+              icon={Gamepad2}
+              title={t('loyalty.noActivity')}
+              description={t('loyalty.noActivityBody')}
+            />
+          ) : (
           <ol className="relative flex flex-col">
             <span className="absolute bottom-4 left-[15px] top-4 w-px bg-border" aria-hidden />
             {activityLoading
