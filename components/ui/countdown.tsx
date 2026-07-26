@@ -1,6 +1,6 @@
 'use client'
 
-import { formatDuration } from '@/lib/format'
+import { formatDuration } from '@/lib/time'
 import { cn } from '@/lib/utils'
 
 /** Colour thresholds from docs/PLAN.md F1.17, in seconds. */
