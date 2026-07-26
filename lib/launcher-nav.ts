@@ -187,3 +187,11 @@ export const canOpen = (surface: LauncherSurface, id: LauncherView): boolean =>
  */
 export const resolveView = (surface: LauncherSurface, id: LauncherView): LauncherView =>
   canOpen(surface, id) ? id : 'home'
+
+/**
+ * The shell surface a screen renders. `lock` has no launcher frame, so it maps
+ * to the member surface — the only caller is navigation state that outlives the
+ * lock screen (a paused session keeps its section).
+ */
+export const surfaceOf = (screen: Screen): LauncherSurface =>
+  screen === 'guest' ? 'guest' : 'launcher'

@@ -10,6 +10,7 @@ import { GamesView } from '@/components/launcher/games-view'
 import { ShopView } from '@/components/launcher/shop-view'
 import { ProfileView } from '@/components/launcher/profile-view'
 import { PendingView } from '@/components/launcher/pending-view'
+import { GuestNotice } from '@/components/launcher/guest-notice'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { SettingsModal } from '@/components/launcher/settings-modal'
@@ -36,6 +37,8 @@ export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }
       <div className="hairline-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
       <TopBar surface={surface} />
 
+      {surface === 'guest' && <GuestNotice />}
+
       <main className="flex-1 pb-24 sm:pb-10">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">
           <AnimatePresence mode="wait">
@@ -50,7 +53,7 @@ export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }
                 <PendingView view={active} />
               ) : (
                 <>
-                  {active === 'home' && <HomeView />}
+                  {active === 'home' && <HomeView surface={surface} />}
                   {active === 'games' && <GamesView />}
                   {active === 'shop' && <ShopView />}
                   {active === 'profile' && <ProfileView />}

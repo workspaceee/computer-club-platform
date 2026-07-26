@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion"
 import { useStore } from "@/lib/store"
+import { surfaceOf } from "@/lib/launcher-nav"
 import { LockScreen } from "@/components/lock-screen"
 import { Launcher } from "@/components/launcher/launcher"
 import { SessionManager } from "@/components/session-manager"
@@ -38,7 +39,7 @@ export default function Page() {
           >
             {/* Members and PostPaid guests share one shell; the surface only
                 decides which sections the navigation offers (F6.2). */}
-            <Launcher surface={screen === 'guest' ? 'guest' : 'launcher'} />
+            <Launcher surface={surfaceOf(screen)} />
           </motion.div>
         )}
       </AnimatePresence>

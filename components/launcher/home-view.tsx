@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
+import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
@@ -49,14 +50,24 @@ function SectionHeader({ index, children }: { index: string; children: React.Rea
   )
 }
 
-export function HomeView() {
+/**
+ * Home (F6.2).
+ *
+ * The loyalty economy — coins, the prize ladder and the double-coins promo — is
+ * members-only, so the guest surface omits those blocks entirely rather than
+ * rendering them at zero. Games, the session clock and the leaderboard are the
+ * same for everyone.
+ */
+export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }) {
+  const isGuest = surface === 'guest'
+
   return (
     <div className="flex flex-col gap-10">
       <HeroCarousel />
-      <QuickStats />
-      <PromoBanner />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-        <PrizeLadder />
+      <QuickStats showLoyalty={!isGuest} />
+      {!isGuest && <PromoBanner />}
+      <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
+        {!isGuest && <PrizeLadder />}
         <Leaderboard />
       </div>
     </div>
@@ -66,6 +77,7 @@ export function HomeView() {
 function HeroCarousel() {
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const user = useStore((s) => s.user)
+  const guest = useStore((s) => s.guest)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
 
@@ -121,9 +133,11 @@ function HeroCarousel() {
     <section>
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
+          {/* A guest has no profile to welcome "back", so the shell greets the
+              tab label instead of an empty name (F6.2). */}
           <p className="label-mono mb-1 text-[10px] text-text-low">
-            Welcome back{user ? ' //' : ''}{' '}
-            <span className="text-primary">{user?.nickname}</span>
+            {user ? 'Welcome back //' : guest ? `${t('guest.badge')} //` : 'Welcome'}{' '}
+            <span className="text-primary">{user?.nickname ?? guest?.label}</span>
           </p>
           <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
             Ready to <span className="text-primary text-glow">dominate</span>
@@ -203,7 +217,7 @@ function HeroCarousel() {
   )
 }
 
-function QuickStats() {
+function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
   const coins = useStore((s) => s.coins)
   const timeLabel = useStore((s) => s.timeBalanceLabel)
   // Same SWR key as the prize ladder below, so the row is fetched once.
@@ -211,14 +225,31 @@ function QuickStats() {
   const ladder = prizes.data ?? []
   const prizesUnlocked = ladder.filter((p) => coins >= p.coins).length
 
+  // A guest has no coin balance and no ladder progress, so those tiles are
+  // dropped instead of showing zeros the player can never move.
   const stats: { icon: LucideIcon; value: string; label: string }[] = [
-    { icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' },
+    ...(showLoyalty
+      ? [{ icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' }]
+      : []),
     { icon: Timer, value: timeLabel, label: 'Time balance' },
-    { icon: Trophy, value: `${prizesUnlocked}/${ladder.length}`, label: 'Prizes unlocked' },
+    ...(showLoyalty
+      ? [
+          {
+            icon: Trophy,
+            value: `${prizesUnlocked}/${ladder.length}`,
+            label: 'Prizes unlocked',
+          },
+        ]
+      : []),
   ]
 
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <section
+      className={cn(
+        'grid grid-cols-1 gap-4',
+        showLoyalty ? 'sm:grid-cols-3' : 'sm:max-w-sm',
+      )}
+    >
       {stats.map((s, i) => (
         <motion.div
           key={s.label}

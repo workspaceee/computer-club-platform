@@ -319,6 +319,11 @@ export const en = {
     badge: 'Guest',
     limits: 'Guests cannot collect XP, coins or Battle Pass rewards.',
     createAccount: 'Create a profile',
+    startedToast: 'Checked in as {label}. Anything you order goes on your tab.',
+    tab: 'Open tab',
+    endSession: 'End guest session',
+    endConfirmTitle: 'End the guest session?',
+    endConfirmBody: 'Settle the open tab at the bar. Nothing from this session is saved.',
   },
 
   // PC-side surfaces served by the station agent (F5.4). Every string here
