@@ -78,12 +78,26 @@ export interface LoginPayload {
   password: string
 }
 
+/**
+ * Machine-readable failure reasons. The API never returns display copy — the UI
+ * maps the code to a dictionary key, so errors are localized like everything
+ * else (F2.2, `errors` namespace).
+ */
+export type ApiErrorCode = 'invalidCredentials' | 'network' | 'unauthorized' | 'generic'
+
+export class ApiError extends Error {
+  constructor(public readonly code: ApiErrorCode) {
+    super(code)
+    this.name = 'ApiError'
+  }
+}
+
 /** Any password except literal "fail" succeeds after a mock delay. */
 export function login({ identifier, password }: LoginPayload): Promise<UserProfile> {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (password.toLowerCase() === 'fail') {
-        reject(new Error('Invalid credentials. Please try again.'))
+        reject(new ApiError('invalidCredentials'))
         return
       }
       const nickname = identifier.includes('@')

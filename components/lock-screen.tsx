@@ -22,108 +22,16 @@ import {
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
+import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
 import { useIdle } from '@/hooks/use-idle'
-import { login } from '@/lib/mock/api'
+import { useT } from '@/lib/i18n/provider'
+import type { TKey } from '@/lib/i18n/types'
+import { ApiError, login } from '@/lib/mock/api'
 import { DEMO_USER } from '@/lib/mock/data'
 import { useStore } from '@/lib/store'
 
 type Mode = 'login' | 'register'
-type Lang = 'en' | 'ru' | 'lt'
-
-const LANGS: { code: Lang; label: string }[] = [
-  { code: 'en', label: 'EN' },
-  { code: 'ru', label: 'RU' },
-  { code: 'lt', label: 'LT' },
-]
-
-/** Login-screen copy per language. */
-const T: Record<Lang, Record<string, string>> = {
-  en: {
-    localTime: 'Local time',
-    accessTerminal: 'Access Terminal',
-    online: 'Online',
-    welcome: 'Welcome',
-    welcomeHi: 'back',
-    join: 'Join the',
-    joinHi: 'club',
-    loginSub: 'Authenticate to unlock your station and start the session.',
-    registerSub: 'Create your IMBA player profile in under a minute.',
-    signIn: 'Sign in',
-    register: 'Register',
-    userOrEmail: 'Username or email',
-    password: 'Password',
-    username: 'Username',
-    email: 'Email',
-    confirmPassword: 'Confirm password',
-    unlock: 'Unlock Station',
-    createAccount: 'Create Account',
-    orContinue: 'or continue with',
-    qrLogin: 'QR Login',
-    demo: 'Demo',
-    admin: 'Admin',
-    encrypted: 'Encrypted session',
-    minChars: 'Min 6 characters',
-    repeat: 'Repeat password',
-    language: 'Language',
-  },
-  ru: {
-    localTime: 'Местное время',
-    accessTerminal: 'Терминал доступа',
-    online: 'В сети',
-    welcome: 'С возвращением',
-    welcomeHi: '',
-    join: 'Вступай в',
-    joinHi: 'клуб',
-    loginSub: 'Авторизуйтесь, чтобы разблокировать станцию и начать сессию.',
-    registerSub: 'Создайте профиль игрока IMBA меньше чем за минуту.',
-    signIn: 'Вход',
-    register: 'Регистрация',
-    userOrEmail: 'Имя пользователя или e-mail',
-    password: 'Пароль',
-    username: 'Имя пользователя',
-    email: 'E-mail',
-    confirmPassword: 'Подтвердите пароль',
-    unlock: 'Разблокировать',
-    createAccount: 'Создать аккаунт',
-    orContinue: 'или войти через',
-    qrLogin: 'QR-вход',
-    demo: 'Демо',
-    admin: 'Админ',
-    encrypted: 'Шифрованная сессия',
-    minChars: 'Минимум 6 символов',
-    repeat: 'Повторите пароль',
-    language: 'Язык',
-  },
-  lt: {
-    localTime: 'Vietos laikas',
-    accessTerminal: 'Prieigos terminalas',
-    online: 'Prisijungęs',
-    welcome: 'Sveiki sugrįžę',
-    welcomeHi: '',
-    join: 'Prisijunk prie',
-    joinHi: 'klubo',
-    loginSub: 'Prisijunkite, kad atrakintumėte stotį ir pradėtumėte sesiją.',
-    registerSub: 'Sukurkite IMBA žaidėjo profilį greičiau nei per minutę.',
-    signIn: 'Prisijungti',
-    register: 'Registruotis',
-    userOrEmail: 'Vartotojo vardas arba el. paštas',
-    password: 'Slaptažodis',
-    username: 'Vartotojo vardas',
-    email: 'El. paštas',
-    confirmPassword: 'Pakartokite slaptažodį',
-    unlock: 'Atrakinti stotį',
-    createAccount: 'Sukurti paskyrą',
-    orContinue: 'arba tęskite su',
-    qrLogin: 'QR prisijungimas',
-    demo: 'Demo',
-    admin: 'Administratorius',
-    encrypted: 'Šifruota sesija',
-    minChars: 'Mažiausiai 6 simboliai',
-    repeat: 'Pakartokite slaptažodį',
-    language: 'Kalba',
-  },
-}
 
 /** Idle time before the attract mode kicks in (ms). */
 const IDLE_TIMEOUT_MS = 30_000
@@ -146,9 +54,9 @@ export function LockScreen() {
   const now = useClock()
   const idle = useIdle(IDLE_TIMEOUT_MS)
 
+  const { t, lang, formatTime, formatFullDate } = useT()
+
   const [mode, setMode] = useState<Mode>('login')
-  const [lang, setLang] = useState<Lang>('en')
-  const t = T[lang]
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -169,10 +77,10 @@ export function LockScreen() {
   const loginErrors = useMemo(() => {
     const e: Record<string, string> = {}
     if (identifier && identifier.includes('@') && !emailOk(identifier))
-      e.identifier = 'Enter a valid email address'
-    if (password && password.length < 6) e.password = 'Minimum 6 characters'
+      e.identifier = t('errors.invalidEmail')
+    if (password && password.length < 6) e.password = t('errors.tooShort', { min: 6 })
     return e
-  }, [identifier, password])
+  }, [identifier, password, t])
 
   const passStrength = useMemo(() => {
     let s = 0
@@ -198,12 +106,14 @@ export function LockScreen() {
     setLoading(true)
     try {
       const user = await login({ identifier, password })
-      toast('success', `Welcome back, ${user.nickname}!`)
+      toast('success', t('auth.welcomeBackToast', { name: user.nickname }))
       loginSuccess(user)
     } catch (err) {
       setLoading(false)
       triggerShake()
-      toast('error', (err as Error).message)
+      // The API returns a code, the UI decides the wording (F2.2).
+      const code = err instanceof ApiError ? err.code : 'generic'
+      toast('error', t(`errors.${code}` as TKey))
     }
   }
 
@@ -216,28 +126,32 @@ export function LockScreen() {
     }
     setLoading(true)
     setTimeout(() => {
-      toast('success', 'Account created! Signing you in...')
-      setTimeout(() => loginSuccess({ ...DEMO_USER, nickname: rUser, email: rEmail }), 900)
+      toast('success', t('auth.accountCreated'))
+      // A brand-new profile keeps the language picked on this station.
+      setTimeout(
+        () => loginSuccess({ ...DEMO_USER, nickname: rUser, email: rEmail, lang }),
+        900,
+      )
     }, 1500)
   }
 
   const demoLogin = () => {
     setLoading(true)
     setTimeout(() => {
-      toast('info', 'Entering demo mode')
+      toast('info', t('auth.enteringDemo'))
       loginSuccess({ ...DEMO_USER, nickname: 'DemoPlayer' })
     }, 600)
   }
 
   const demoAdmin = () => {
-    toast('info', 'Admin Panel is a separate app (out of scope for this prototype).')
+    toast('info', t('auth.adminSeparateApp'))
   }
 
   const startQr = () => {
     setQrOpen(true)
     setTimeout(() => {
       setQrOpen(false)
-      toast('success', 'QR verified via IMBA app!')
+      toast('success', t('auth.qrVerified'))
       loginSuccess({ ...DEMO_USER, nickname: 'MobileScan' })
     }, 4000)
   }
@@ -247,13 +161,10 @@ export function LockScreen() {
     setTouched(false)
   }
 
-  const timeStr = now
-    ? now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    : '--:--'
+  // Clock and date follow the active language's locale (F2.4).
+  const timeStr = now ? formatTime(now) : '--:--'
   const secStr = now ? String(now.getSeconds()).padStart(2, '0') : '--'
-  const dateStr = now
-    ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-    : ''
+  const dateStr = now ? formatFullDate(now) : ''
 
   return (
     <div className="relative flex h-full min-h-dvh w-full overflow-hidden bg-black">

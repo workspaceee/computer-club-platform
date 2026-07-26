@@ -1,3 +1,5 @@
+import type { Lang } from '@/lib/i18n/types'
+
 export type GameCategory =
   | 'Shooter'
   | 'MOBA'
@@ -71,6 +73,8 @@ export interface ActivityEvent {
 export interface UserProfile {
   nickname: string
   email: string
+  /** Interface language stored on the member profile — applied on sign-in (F2.5). */
+  lang?: Lang
   level: number
   xp: number
   xpMax: number
