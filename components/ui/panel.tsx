@@ -29,7 +29,7 @@ const panelVariants = cva('relative', {
 })
 
 interface PanelProps
-  extends React.ComponentProps<'section'>,
+  extends Omit<React.ComponentProps<'section'>, 'title'>,
     VariantProps<typeof panelVariants> {
   /** Optional panel title, rendered in the header strip. */
   title?: React.ReactNode

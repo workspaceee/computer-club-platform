@@ -80,23 +80,23 @@
 
 ## F1. Дизайн-система и UI-примитивы
 
-- [ ] **F1.1** Аудит токенов в `app/globals.css`: добавить недостающие — `--color-xp`, `--color-coin`, `--color-debt`, `--color-zone-vip`, `--color-zone-standard`, `--color-zone-ps5`. Держать общее число смысловых цветов в рамках (1 primary + нейтрали + 4 статуса + акценты лояльности)
-- [ ] **F1.2** `components/ui/panel.tsx` — базовая панель (`glass` / `glass-strong` / `flat`), с опциональным заголовком и правым слотом действий
-- [ ] **F1.3** `components/ui/section-header.tsx` — вынести `SectionHeader` из `home-view.tsx` в общий примитив (нумерация `01`, линия, uppercase-заголовок, подзаголовок, слот действия)
-- [ ] **F1.4** `components/ui/button.tsx` — расширить существующий: варианты `primary / secondary / ghost / danger / success`, размеры `sm / md / lg / xl`, состояния `loading / disabled`, обязат����льный фокус-ринг
-- [ ] **F1.5** `components/ui/field.tsx` — вынести `Field` из `lock-screen.tsx`: label, иконка, trailing-слот, ошибка, hint. Один инпут на весь продукт
-- [ ] **F1.6** `components/ui/segmented.tsx` — сегментированный переключатель с `layoutId`-пиллом (из lock-screen и settings-modal)
-- [ ] **F1.7** `components/ui/slider.tsx`, `components/ui/toggle.tsx`, `components/ui/select.tsx` — вынести из `settings-modal.tsx` в примитивы
-- [ ] **F1.8** `components/ui/modal.tsx` — единый модал: оверлей, `Esc`, клик вне, focus trap, блокировка скролла, размеры `sm/md/lg/full`, анимация входа
-- [ ] **F1.9** `components/ui/drawer.tsx` — единый выдвижной панель (справа/снизу) на базе того же ядра, что модал
-- [ ] **F1.10** `components/ui/badge.tsx` — статусный бейдж (`success/warning/danger/info/neutral`), варианты `solid/soft/outline`
-- [ ] **F1.11** `components/ui/stat-tile.tsx` — плитка метрики (иконка, лейбл, значение, дельта, подпись)
-- [ ] **F1.12** `components/ui/progress.tsx` — линейный прогресс + `components/ui/ring-progress.tsx` (кольцо XP из profile-view)
-- [ ] **F1.13** `components/ui/tooltip.tsx` — подсказка с задержкой, доступная с клавиатуры
-- [ ] **F1.14** `components/ui/empty-state.tsx` — пустое состояние (иконка, заголовок, текст, CTA)
-- [ ] **F1.15** `components/ui/error-state.tsx` — состояние ошибки с кнопкой «Повторить»
-- [ ] **F1.16** `components/skeleton.tsx` — привести к общему API, добавить пресеты `card / row / tile / text`
-- [ ] **F1.17** `components/ui/countdown.tsx` — таймер обратного отсчёта на `font-clock` (размеры `sm/md/xl`), с порогами цвета: `>15 мин` нейтральный, `≤15 мин` warning, `≤5 мин` danger + пульсация
+- [x] **F1.1** Аудит токенов в `app/globals.css`: добавить недостающие — `--color-xp`, `--color-coin`, `--color-debt`, `--color-zone-vip`, `--color-zone-standard`, `--color-zone-ps5`. Держать общее число смысловых цветов в рамках (1 primary + нейтрали + 4 статуса + акценты лояльности)
+- [x] **F1.2** `components/ui/panel.tsx` — базовая панель (`glass` / `glass-strong` / `flat`), с опциональным заголовком и правым слотом действий
+- [x] **F1.3** `components/ui/section-header.tsx` — вынести `SectionHeader` из `home-view.tsx` в общий примитив (нумерация `01`, линия, uppercase-заголовок, подзаголовок, слот действия)
+- [x] **F1.4** `components/ui/button.tsx` — расширить существующий: варианты `primary / secondary / ghost / danger / success`, размеры `sm / md / lg / xl`, состояния `loading / disabled`, обязат����льный фокус-ринг
+- [x] **F1.5** `components/ui/field.tsx` — вынести `Field` из `lock-screen.tsx`: label, иконка, trailing-слот, ошибка, hint. Один инпут на весь продукт
+- [x] **F1.6** `components/ui/segmented.tsx` — сегментированный переключатель с `layoutId`-пиллом (из lock-screen и settings-modal)
+- [x] **F1.7** `components/ui/slider.tsx`, `components/ui/toggle.tsx`, `components/ui/select.tsx` — вынести из `settings-modal.tsx` в примитивы
+- [x] **F1.8** `components/ui/modal.tsx` — единый модал: оверлей, `Esc`, клик вне, focus trap, блокировка скролла, размеры `sm/md/lg/full`, анимация входа
+- [x] **F1.9** `components/ui/drawer.tsx` — единый выдвижной панель (справа/снизу) на базе того же ядра, что модал
+- [x] **F1.10** `components/ui/badge.tsx` — статусный бейдж (`success/warning/danger/info/neutral`), варианты `solid/soft/outline`
+- [x] **F1.11** `components/ui/stat-tile.tsx` — плитка метрики (иконка, лейбл, значение, дельта, подпись)
+- [x] **F1.12** `components/ui/progress.tsx` — линейный прогресс + `components/ui/ring-progress.tsx` (кольцо XP из profile-view)
+- [x] **F1.13** `components/ui/tooltip.tsx` — подсказка с задержкой, доступная с клавиатуры
+- [x] **F1.14** `components/ui/empty-state.tsx` — пустое состояние (иконка, заголовок, текст, CTA)
+- [x] **F1.15** `components/ui/error-state.tsx` — состояние ошибки с кнопкой «Повторить»
+- [x] **F1.16** `components/skeleton.tsx` — привести к общему API, добавить пресеты `card / row / tile / text`
+- [x] **F1.17** `components/ui/countdown.tsx` — таймер обратного отсчёта на `font-clock` (размеры `sm/md/xl`), с порогами цвета: `>15 мин` нейтральный, `≤15 мин` warning, `≤5 мин` danger + пульсация
 - [ ] **F1.18** `components/ui/money.tsx` — отображение суммы в EUR с правильным форматированием и вариантом «долг» (красный, знак минус)
 - [ ] **F1.19** `components/ui/avatar.tsx` — аватар с инициалами, рамкой уровня и индикатором онлайна
 - [ ] **F1.20** `components/toaster.tsx` — доработать: 4 вида (`success/error/info/warning`), иконка, авто-скрытие, очередь максимум 3, кнопка закрытия, `role="status"`
