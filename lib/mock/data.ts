@@ -114,6 +114,9 @@ export const ACTIVITY: ActivityEvent[] = [
 export const DEMO_USER: UserProfile = {
   nickname: 'DemoPlayer',
   email: 'demo@imba.club',
+  // Member profiles carry their own interface language (F2.5). The demo member
+  // is a Russian speaker, so signing in switches the shell to RU.
+  lang: 'ru',
   level: 12,
   xp: 6400,
   xpMax: 10000,

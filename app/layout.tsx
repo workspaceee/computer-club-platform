@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Chakra_Petch, Inter, Manrope } from 'next/font/google'
+import { I18nProvider } from '@/lib/i18n/provider'
+import { I18nProvider } from '@/lib/i18n/provider'
 import './globals.css'
 
 const inter = Inter({
@@ -51,7 +53,8 @@ export default function RootLayout({
       className={`${inter.variable} ${manrope.variable} ${chakraPetch.variable} bg-background`}
     >
       <body className="antialiased bg-background text-foreground">
-        {children}
+        {/* `lang` above is the SSR default (EN); I18nProvider updates it on the client. */}
+        <I18nProvider>{children}</I18nProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
