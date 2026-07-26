@@ -27,6 +27,7 @@ import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
+import { formatDurationParts } from '@/lib/time'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -218,8 +219,15 @@ function HeroCarousel() {
 }
 
 function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
+  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  const timeLabel = useStore((s) => s.timeBalanceLabel)
+  // The tile reads the same derived clock as the top bar (F6.3). It used to
+  // render a hardcoded `2h 00m` from the store, which meant the number never
+  // moved — and a walk-in guest was shown a prepaid balance the club had not
+  // sold them.
+  const seconds = useStore((s) => s.sessionSeconds)
+  const postpaid = useStore((s) => s.billingMode) === 'postpaid'
+  const { hours, minutes } = formatDurationParts(seconds)
   // Same SWR key as the prize ladder below, so the row is fetched once.
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
   const ladder = prizes.data ?? []
@@ -231,7 +239,13 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
     ...(showLoyalty
       ? [{ icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' }]
       : []),
-    { icon: Timer, value: timeLabel, label: 'Time balance' },
+    {
+      icon: Timer,
+      value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
+      // Postpaid time is not a balance: it is time already used and billed, so
+      // the tile has to be labelled as such.
+      label: postpaid ? t('session.sessionTime') : t('session.timeBalance'),
+    },
     ...(showLoyalty
       ? [
           {
