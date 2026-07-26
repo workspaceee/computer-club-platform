@@ -2,6 +2,19 @@ import type { Lang } from '@/lib/i18n/types'
 import type { Cents, Currency, ID } from './common'
 import type { PrivacySettings } from './user'
 
+/**
+ * `clubs` — the tenant row. Everything else in the model hangs off `clubId`, so
+ * the client keeps it around even though a single launcher only ever sees one
+ * club. The editable part lives in `ClubSettings` below.
+ */
+export interface Club {
+  id: ID
+  name: string
+  timezone: string
+  currency: Currency
+  defaultLocale: Lang
+}
+
 /** FPS/ping overlay configuration (`user_preferences.overlay_json`). */
 export interface OverlaySettings {
   enabled: boolean

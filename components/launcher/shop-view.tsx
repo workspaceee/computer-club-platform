@@ -6,15 +6,18 @@ import {
   Coffee,
   Cookie,
   Crown,
+  CupSoda,
   type LucideIcon,
   Medal,
   Moon,
+  Pizza,
   Plus,
   Shield,
   Shirt,
   ShoppingBag,
   ShoppingCart,
   Timer,
+  UtensilsCrossed,
 } from 'lucide-react'
 import { useState } from 'react'
 import { IconTile } from '@/components/icon-tile'
@@ -31,19 +34,33 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'items', label: 'Physical Items', icon: ShoppingBag },
 ]
 
+/** Exact matches first, then the prefix rules below. */
 const ICONS: Record<string, LucideIcon> = {
-  'time-1h': Clock,
-  'time-3h': Clock,
-  'time-5h': Timer,
-  'time-night': Moon,
+  'pass-night': Moon,
+  'pass-weekend': Clock,
   'mem-bronze': Shield,
   'mem-silver': Medal,
   'mem-gold': Crown,
-  'item-energy': Coffee,
-  'item-snack': Cookie,
-  'item-tshirt': Shirt,
-  'item-mousepad': ShoppingBag,
-  'item-cap': ShoppingBag,
+}
+
+/**
+ * Catalogue ids are namespaced by category (`drink-`, `merch-`, …), so one
+ * prefix rule covers every product the club adds later without touching the UI.
+ */
+const ICON_PREFIXES: [prefix: string, icon: LucideIcon][] = [
+  ['pass-', Timer],
+  ['drink-', CupSoda],
+  ['coffee-', Coffee],
+  ['snack-', Cookie],
+  ['food-', Pizza],
+  ['combo-', UtensilsCrossed],
+  ['merch-', Shirt],
+]
+
+function iconFor(id: string): LucideIcon {
+  const exact = ICONS[id]
+  if (exact) return exact
+  return ICON_PREFIXES.find(([prefix]) => id.startsWith(prefix))?.[1] ?? ShoppingBag
 }
 
 export function ShopView() {
@@ -112,7 +129,7 @@ export function ShopView() {
 function ProductCard({ item }: { item: ShopItem }) {
   const addToCart = useStore((s) => s.addToCart)
   const toast = useStore((s) => s.toast)
-  const Icon = ICONS[item.id] ?? ShoppingBag
+  const Icon = iconFor(item.id)
   const isBest = item.tag === 'Best Value'
   const isPopular = item.tag === 'Popular'
 
