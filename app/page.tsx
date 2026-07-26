@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useStore } from "@/lib/store"
 import { surfaceOf } from "@/lib/launcher-nav"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { LockScreen } from "@/components/lock-screen"
 import { Launcher } from "@/components/launcher/launcher"
 import { SessionManager } from "@/components/session-manager"
@@ -12,7 +13,12 @@ export default function Page() {
   const screen = useStore((s) => s.screen)
 
   return (
-    <>
+    /* Shell-level boundary (F6.5). A throw in the lock screen or the launcher
+       frame lands on the product crash screen instead of blanking the station.
+       `resetKey` is the screen, so signing out of a broken launcher clears the
+       fault by itself. Section-level throws never reach here — the inner
+       boundary in `launcher.tsx` absorbs them and keeps the frame alive. */
+    <ErrorBoundary variant="page" resetKey={screen}>
       <AnimatePresence mode="wait">
         {screen === "lock" ? (
           <motion.div
@@ -46,6 +52,6 @@ export default function Page() {
 
       <SessionManager />
       <Toaster />
-    </>
+    </ErrorBoundary>
   )
 }

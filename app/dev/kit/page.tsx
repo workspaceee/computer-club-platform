@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { KitCrash } from '@/components/dev-kit/kit-crash'
 import { KitData } from '@/components/dev-kit/kit-data'
 import { KitSurfaces } from '@/components/dev-kit/kit-surfaces'
 import { Toaster } from '@/components/toaster'
@@ -75,9 +76,12 @@ export default function DevKitPage() {
 
         <KitSurfaces />
         <KitData />
+        {/* Not an F1 primitive, but the only place the crash screen can be
+            reviewed without breaking the real shell (F6.5). */}
+        <KitCrash />
 
         <footer className="border-t border-border pt-6 text-xs text-text-low">
-          F1.1 – F1.22 · docs/DESIGN.md is the written counterpart to this page.
+          F1.1 – F1.22 · F6.5 · docs/DESIGN.md is the written counterpart to this page.
         </footer>
       </main>
 

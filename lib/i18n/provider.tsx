@@ -20,11 +20,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { en } from '@/lib/i18n/dictionaries/en'
-import { lt } from '@/lib/i18n/dictionaries/lt'
-import { ru } from '@/lib/i18n/dictionaries/ru'
+import {
+  DICTIONARIES,
+  interpolate,
+  lookup,
+  readStoredLang,
+} from '@/lib/i18n/translate'
 import {
   DEFAULT_LANG,
-  type Dictionary,
   isLang,
   type Lang,
   LANG_STORAGE_KEY,
@@ -34,8 +37,6 @@ import {
   type TVars,
 } from '@/lib/i18n/types'
 import { useStore } from '@/lib/store'
-
-const DICTIONARIES: Record<Lang, Dictionary> = { en, ru, lt }
 
 interface I18nValue {
   lang: Lang
@@ -57,20 +58,6 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null)
 
-/** Read `namespace.key` out of a dictionary. */
-function lookup(dict: Dictionary, key: string): string | undefined {
-  const [ns, leaf] = key.split('.') as [keyof Dictionary, string]
-  const namespace = dict[ns] as Record<string, string> | undefined
-  return namespace?.[leaf]
-}
-
-function interpolate(template: string, vars?: TVars): string {
-  if (!vars) return template
-  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-    name in vars ? String(vars[name]) : match,
-  )
-}
-
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   // Server and first client render always agree on DEFAULT_LANG; the stored
   // preference is applied after hydration to avoid a markup mismatch.
@@ -87,14 +74,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // 1. device preference
+  // 1. device preference — applied after hydration, never during render.
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(LANG_STORAGE_KEY)
-      if (isLang(stored)) setLangState(stored)
-    } catch {
-      // ignore
-    }
+    const stored = readStoredLang()
+    if (stored) setLangState(stored)
   }, [])
 
   // 2. member profile language wins right after sign-in
@@ -176,4 +159,17 @@ export function useT(): I18nValue {
   const ctx = useContext(I18nContext)
   if (!ctx) throw new Error('useT() must be used inside <I18nProvider>')
   return ctx
+}
+
+/**
+ * Same context, but `null` instead of a throw when the provider is missing.
+ *
+ * Only for code that runs on the failure path, where throwing would replace one
+ * crash with another: the crash screen (F6.5) renders both inside the shell
+ * (context available) and from `app/global-error.tsx`, which discards the root
+ * layout — and therefore the provider — entirely. Product code must keep using
+ * `useT()` so a missing provider stays a loud wiring bug.
+ */
+export function useMaybeT(): I18nValue | null {
+  return useContext(I18nContext)
 }

@@ -425,4 +425,21 @@ export const lt: Dictionary = {
     blockedByPolicy: 'Negalima apmokėtos sesijos metu',
     agentFailed: 'Stoties agentas pranešė apie klaidą',
   },
+
+  // Avarijos ekranas (F6.5). Tonas — ramus ir operatyvinis: žaidėjas sumokėjo
+  // už minutes, todėl pirmiausia turi perskaityti, kad laikas neprarastas.
+  crash: {
+    eyebrow: 'Aplinkos klaida',
+    title: 'Sąsaja',
+    titleAccent: 'sustojo',
+    body: 'Netikėta klaida nutraukė paleidyklės darbą. Užsakymas nepateiktas, pinigai nenuskaityti.',
+    timeSafe: 'Sesijos laiką skaičiuoja klubo serveris ir jis toliau eina — sąsajos perkrovimas neatima jūsų minučių.',
+    callStaff: 'Jei tai kartojasi, pakvieskite administratorių prie baro ir pasakykite žemiau esantį kodą.',
+    retry: 'Bandyti dar kartą',
+    reload: 'Perkrauti sąsają',
+    reference: 'Klaidos kodas',
+    details: 'Techninė informacija',
+    sectionTitle: 'Šis skyrius neįsikėlė',
+    sectionBody: 'Likusi paleidyklės dalis veikia kaip įprasta. Atnaujinkite skyrių arba atidarykite kitą.',
+  },
 }

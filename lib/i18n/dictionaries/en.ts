@@ -437,4 +437,32 @@ export const en = {
     blockedByPolicy: 'Not allowed during a paid session',
     agentFailed: 'The station agent reported an error',
   },
+
+  /**
+   * Crash screen (F6.5) — the copy shown when the shell itself throws, not when
+   * a request fails. `errors.*` describes a failed *action* and lives next to a
+   * retry button; these strings describe a broken *interface* and must answer
+   * three questions in the first two seconds: what happened, is my money and
+   * time safe, what do I press.
+   *
+   * Reassurance is not decoration here. The player paid for minutes that are
+   * still ticking on the server, so the screen says so explicitly — otherwise a
+   * crash reads as "I just lost my session".
+   */
+  crash: {
+    eyebrow: 'Shell fault',
+    title: 'Interface',
+    titleAccent: 'stopped',
+    body: 'An unexpected error interrupted the launcher. No order was placed and nothing was charged.',
+    timeSafe: 'Your session time is counted by the club server and keeps running — restarting the interface costs you no minutes.',
+    callStaff: 'If this keeps coming back, call the admin at the counter and read them the code below.',
+    retry: 'Try again',
+    reload: 'Restart interface',
+    reference: 'Fault code',
+    details: 'Technical details',
+    // A single failed section inside a working shell — the frame, the clock and
+    // the navigation are all still alive, so the copy must not imply a restart.
+    sectionTitle: 'This section failed to load',
+    sectionBody: 'The rest of the launcher works as usual. Reload the section or open another one.',
+  },
 } as const
