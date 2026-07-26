@@ -112,6 +112,27 @@ export const NATIVE_PANEL_TARGETS = [
 ] as const satisfies readonly NativePanelTarget[]
 
 /* ------------------------------------------------------------------ *
+ * GPU (NVIDIA) profiles
+ * ------------------------------------------------------------------ */
+
+/**
+ * A one-click GPU preset the agent applies through the vendor driver, so a
+ * player never has to walk the NVIDIA Control Panel tree. `settings` is a
+ * key/value summary for display; keys are dictionary keys, not prose.
+ */
+export interface NvidiaProfile {
+  id: ID
+  /** Dictionary key, e.g. `esports` — the label is never sent by the agent. */
+  nameKey: string
+  /** Ordered summary rows, e.g. `[{ key: 'latency', value: 'ultra' }]`. */
+  settings: readonly { key: string; value: string }[]
+  /** `true` for the profile currently active on the driver. */
+  active: boolean
+  /** Presets the club marks as recommended for competitive play. */
+  recommended: boolean
+}
+
+/* ------------------------------------------------------------------ *
  * Capabilities and identity
  * ------------------------------------------------------------------ */
 
@@ -124,6 +145,8 @@ export interface AgentCapabilities {
   displayModes: boolean
   brightness: boolean
   telemetry: boolean
+  /** `false` on AMD builds and consoles — no driver presets to offer. */
+  nvidiaProfiles: boolean
   /** Lock/unlock the Windows session from the launcher. */
   workstationLock: boolean
   /** Reboot the seat — admin/staff flows only. */
@@ -291,6 +314,17 @@ export interface AgentBridge {
   /** Panel brightness, `0`–`100`. Rejects `unsupported` on fixed-output panels. */
   setBrightness(percent: number): Promise<number>
 
+  /* -- gpu profiles -------------------------------------------------- */
+
+  /** Driver presets available on this GPU. `[]` when `nvidiaProfiles` is false. */
+  getNvidiaProfiles(): Promise<NvidiaProfile[]>
+
+  /**
+   * Applies a preset by id and returns the refreshed list. Rejects
+   * `unsupported` on non-NVIDIA seats and `invalidValue` for unknown ids.
+   */
+  applyNvidiaProfile(profileId: ID): Promise<NvidiaProfile[]>
+
   /* -- native panels ------------------------------------------------ */
 
   /**
@@ -329,6 +363,7 @@ export const NO_AGENT_CAPABILITIES: AgentCapabilities = {
   displayModes: false,
   brightness: false,
   telemetry: false,
+  nvidiaProfiles: false,
   workstationLock: false,
   restart: false,
   nativePanels: [],
