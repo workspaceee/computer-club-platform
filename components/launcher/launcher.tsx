@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/lib/store'
 import { navItem, resolveView, type LauncherSurface } from '@/lib/launcher-nav'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { TopBar } from '@/components/launcher/top-bar'
 import { MobileNav } from '@/components/launcher/mobile-nav'
 import { HomeView } from '@/components/launcher/home-view'
@@ -49,16 +50,24 @@ export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
               transition={{ duration: reduceMotion ? 0 : 0.2 }}
             >
-              {pendingTask ? (
-                <PendingView view={active} />
-              ) : (
-                <>
-                  {active === 'home' && <HomeView surface={surface} />}
-                  {active === 'games' && <GamesView />}
-                  {active === 'shop' && <ShopView />}
-                  {active === 'profile' && <ProfileView />}
-                </>
-              )}
+              {/* Section-level boundary (F6.5). A render fault in one view must
+                  not cost the player the session clock, the lock button and the
+                  navigation they need to get out — so the frame outside this
+                  boundary stays mounted and only the content becomes a card.
+                  `resetKey={active}` means switching sections clears the fault
+                  without any explicit retry. */}
+              <ErrorBoundary variant="section" resetKey={active}>
+                {pendingTask ? (
+                  <PendingView view={active} />
+                ) : (
+                  <>
+                    {active === 'home' && <HomeView surface={surface} />}
+                    {active === 'games' && <GamesView />}
+                    {active === 'shop' && <ShopView />}
+                    {active === 'profile' && <ProfileView />}
+                  </>
+                )}
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </div>
