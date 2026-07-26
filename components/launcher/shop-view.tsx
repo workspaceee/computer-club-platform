@@ -20,8 +20,10 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { useState } from 'react'
+import useSWR from 'swr'
 import { IconTile } from '@/components/icon-tile'
-import { SHOP_ITEMS, SHOP_MEMBERSHIPS, SHOP_TIME } from '@/lib/mock/data'
+import { Skeleton } from '@/components/skeleton'
+import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
 import { cartCount, useStore } from '@/lib/store'
 import type { ShopItem } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
@@ -33,6 +35,13 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'memberships', label: 'Memberships', icon: Crown },
   { id: 'items', label: 'Physical Items', icon: ShoppingBag },
 ]
+
+/** One endpoint per tab — the shop grid never slices a single big catalogue. */
+const TAB_ENDPOINTS: Record<Tab, () => Promise<ShopItem[]>> = {
+  time: fetchShopTime,
+  memberships: fetchShopMemberships,
+  items: fetchShopItems,
+}
 
 /** Exact matches first, then the prefix rules below. */
 const ICONS: Record<string, LucideIcon> = {
@@ -69,7 +78,8 @@ export function ShopView() {
   const setCartOpen = useStore((s) => s.setCartOpen)
   const count = cartCount(cart)
 
-  const list = tab === 'time' ? SHOP_TIME : tab === 'memberships' ? SHOP_MEMBERSHIPS : SHOP_ITEMS
+  const { data, isLoading } = useSWR(['shop', tab], () => TAB_ENDPOINTS[tab]())
+  const list = data ?? []
   const activeTab = TABS.find((t) => t.id === tab)!
 
   return (
@@ -118,9 +128,11 @@ export function ShopView() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((item) => (
-          <ProductCard key={item.id} item={item} />
-        ))}
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[152px] w-full" />
+            ))
+          : list.map((item) => <ProductCard key={item.id} item={item} />)}
       </div>
     </div>
   )

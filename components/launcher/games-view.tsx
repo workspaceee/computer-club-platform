@@ -3,10 +3,11 @@
 import { motion } from 'framer-motion'
 import { Gamepad2, Play, Search, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import { GameCover } from '@/components/game-cover'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
-import { GAMES } from '@/lib/mock/data'
+import { fetchGames, type GameSort } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { Game, GameCategory } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
@@ -25,21 +26,22 @@ const CATEGORIES: (GameCategory | 'All')[] = [
 
 type Sort = 'popularity' | 'az' | 'rating' | 'online'
 
+/** UI sort → the `sort` query param the endpoint understands. */
+const SORT_PARAM: Record<Sort, GameSort> = {
+  popularity: 'popular',
+  az: 'name',
+  rating: 'rating',
+  // The live counter is a client-side simulation, so the server sorts by
+  // popularity and the fluctuating value is applied on top below.
+  online: 'popular',
+}
+
 export function GamesView() {
   const [rawQuery, setRawQuery] = useState('')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All')
   const [sort, setSort] = useState<Sort>('popularity')
-  const [loading, setLoading] = useState(true)
-  const [players, setPlayers] = useState<Record<string, number>>(() =>
-    Object.fromEntries(GAMES.map((g) => [g.id, g.players])),
-  )
-
-  // simulate initial load
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 700)
-    return () => clearTimeout(t)
-  }, [])
+  const [players, setPlayers] = useState<Record<string, number>>({})
 
   // debounce search
   useEffect(() => {
@@ -47,14 +49,45 @@ export function GamesView() {
     return () => clearTimeout(t)
   }, [rawQuery])
 
+  // `GET /api/games` — search, category and sort are query params, so the screen
+  // never filters the whole library itself (F3.4).
+  const { data, isLoading } = useSWR(
+    ['games', query, category, sort],
+    () =>
+      fetchGames({
+        search: query,
+        category: category === 'All' ? 'all' : category,
+        sort: SORT_PARAM[sort],
+      }),
+    { keepPreviousData: true },
+  )
+
+  const items = useMemo(() => data?.items ?? [], [data])
+  const total = data?.total ?? 0
+
+  // Seed a live counter for every title the endpoint returned.
+  useEffect(() => {
+    if (items.length === 0) return
+    setPlayers((prev) => {
+      const next = { ...prev }
+      let added = false
+      for (const g of items) {
+        if (next[g.id] === undefined) {
+          next[g.id] = g.players
+          added = true
+        }
+      }
+      return added ? next : prev
+    })
+  }, [items])
+
   // live player counters fluctuate every 5s
   useEffect(() => {
     const t = setInterval(() => {
       setPlayers((prev) => {
-        const next = { ...prev }
-        for (const g of GAMES) {
-          const delta = Math.floor(Math.random() * 21) - 10
-          next[g.id] = Math.max(50, next[g.id] + delta)
+        const next: Record<string, number> = {}
+        for (const [id, value] of Object.entries(prev)) {
+          next[id] = Math.max(50, value + Math.floor(Math.random() * 21) - 10)
         }
         return next
       })
@@ -63,25 +96,11 @@ export function GamesView() {
   }, [])
 
   const filtered = useMemo(() => {
-    let list = GAMES.filter(
-      (g) =>
-        (category === 'All' || g.category === category) &&
-        g.name.toLowerCase().includes(query.toLowerCase()),
+    if (sort !== 'online') return items
+    return [...items].sort(
+      (a, b) => (players[b.id] ?? b.players) - (players[a.id] ?? a.players),
     )
-    list = [...list].sort((a, b) => {
-      switch (sort) {
-        case 'az':
-          return a.name.localeCompare(b.name)
-        case 'rating':
-          return b.rating - a.rating
-        case 'online':
-          return (players[b.id] ?? 0) - (players[a.id] ?? 0)
-        default:
-          return b.players - a.players
-      }
-    })
-    return list
-  }, [category, query, sort, players])
+  }, [items, players, sort])
 
   return (
     <div className="flex flex-col gap-6">
@@ -93,7 +112,7 @@ export function GamesView() {
             <h2 className="font-display text-2xl font-bold uppercase tracking-tighter text-text-high">
               Game Library
             </h2>
-            <p className="text-sm text-text-low">{GAMES.length} titles ready to launch</p>
+            <p className="text-sm text-text-low">{total} titles ready to launch</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -136,7 +155,7 @@ export function GamesView() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-64 w-full rounded-lg" />

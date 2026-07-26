@@ -21,8 +21,7 @@ import useSWR from 'swr'
 import { GameCover } from '@/components/game-cover'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
-import { fetchLeaderboard } from '@/lib/mock/api'
-import { PRIZES, TOP_GAMES } from '@/lib/mock/data'
+import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -66,14 +65,20 @@ function HeroCarousel() {
   const user = useStore((s) => s.user)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
-  const count = TOP_GAMES.length
+
+  // `GET /api/games/featured` — the curated hero row (F3.4).
+  const { data, isLoading } = useSWR('games/featured', fetchFeaturedGames)
+  const slides = useMemo(() => data ?? [], [data])
+  const count = slides.length
 
   const go = (next: number) => {
+    if (count === 0) return
     setDir(next > index || (index === count - 1 && next === 0) ? 1 : -1)
     setIndex((next + count) % count)
   }
 
   useEffect(() => {
+    if (count === 0) return
     const t = setInterval(() => {
       setDir(1)
       setIndex((i) => (i + 1) % count)
@@ -81,7 +86,19 @@ function HeroCarousel() {
     return () => clearInterval(t)
   }, [count])
 
-  const game = TOP_GAMES[index]
+  const game = count > 0 ? slides[index % count] : null
+
+  if (isLoading || !game) {
+    return (
+      <section>
+        <div className="mb-4 flex flex-col gap-2">
+          <Skeleton className="h-3 w-32" radius="sm" />
+          <Skeleton className="h-10 w-72" radius="sm" />
+        </div>
+        <Skeleton className="h-72 w-full rounded-xl md:h-96" />
+      </section>
+    )
+  }
 
   return (
     <section>
@@ -150,7 +167,7 @@ function HeroCarousel() {
         </button>
 
         <div className="absolute bottom-6 right-8 flex gap-1.5">
-          {TOP_GAMES.map((g, i) => (
+          {slides.map((g, i) => (
             <button
               key={g.id}
               onClick={() => go(i)}
@@ -172,12 +189,15 @@ function HeroCarousel() {
 function QuickStats() {
   const coins = useStore((s) => s.coins)
   const timeLabel = useStore((s) => s.timeBalanceLabel)
-  const prizesUnlocked = PRIZES.filter((p) => coins >= p.coins).length
+  // Same SWR key as the prize ladder below, so the row is fetched once.
+  const { data: prizes } = useSWR('loyalty/rewards/featured', fetchFeaturedRewards)
+  const ladder = prizes ?? []
+  const prizesUnlocked = ladder.filter((p) => coins >= p.coins).length
 
   const stats: { icon: LucideIcon; value: string; label: string }[] = [
     { icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' },
     { icon: Timer, value: timeLabel, label: 'Time balance' },
-    { icon: Trophy, value: `${prizesUnlocked}/${PRIZES.length}`, label: 'Prizes unlocked' },
+    { icon: Trophy, value: `${prizesUnlocked}/${ladder.length}`, label: 'Prizes unlocked' },
   ]
 
   return (
@@ -226,36 +246,43 @@ function PromoBanner() {
 
 function PrizeLadder() {
   const coins = useStore((s) => s.coins)
+  const { data, isLoading } = useSWR('loyalty/rewards/featured', fetchFeaturedRewards)
+  const prizes = data ?? []
+
   return (
     <section>
       <SectionHeader index="04">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
-        {PRIZES.map((prize) => {
-          const Icon = PRIZE_ICONS[prize.icon] ?? Gift
-          const reached = coins >= prize.coins
-          return (
-            <div
-              key={prize.coins}
-              className={cn(
-                'flex items-center gap-3 rounded-md border px-4 py-3 transition-colors',
-                reached ? 'border-primary/40 bg-primary/10' : 'border-border bg-black/20',
-              )}
-            >
-              <IconTile icon={Icon} size="md" variant={reached ? 'primary' : 'muted'} />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-text-high">{prize.reward}</p>
-                <p className="label-mono text-[9px] text-text-low tabular-nums">
-                  {formatCoins(prize.coins)} coins
-                </p>
-              </div>
-              {reached && (
-                <span className="label-mono rounded-md bg-success/15 px-2.5 py-1 text-[9px] text-success">
-                  Unlocked
-                </span>
-              )}
-            </div>
-          )
-        })}
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-[62px] w-full" radius="md" />
+            ))
+          : prizes.map((prize) => {
+              const Icon = PRIZE_ICONS[prize.icon] ?? Gift
+              const reached = coins >= prize.coins
+              return (
+                <div
+                  key={prize.coins}
+                  className={cn(
+                    'flex items-center gap-3 rounded-md border px-4 py-3 transition-colors',
+                    reached ? 'border-primary/40 bg-primary/10' : 'border-border bg-black/20',
+                  )}
+                >
+                  <IconTile icon={Icon} size="md" variant={reached ? 'primary' : 'muted'} />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-text-high">{prize.reward}</p>
+                    <p className="label-mono text-[9px] text-text-low tabular-nums">
+                      {formatCoins(prize.coins)} coins
+                    </p>
+                  </div>
+                  {reached && (
+                    <span className="label-mono rounded-md bg-success/15 px-2.5 py-1 text-[9px] text-success">
+                      Unlocked
+                    </span>
+                  )}
+                </div>
+              )
+            })}
       </div>
     </section>
   )

@@ -26,8 +26,14 @@ import { MockQr } from '@/components/mock-qr'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import { ApiError, login } from '@/lib/mock/api'
-import { DEMO_USER } from '@/lib/mock/data'
+import {
+  ApiError,
+  confirmQrChallenge,
+  login,
+  loginAsDemo,
+  register,
+  requestQrChallenge,
+} from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 
 type Mode = 'login' | 'register'
@@ -120,10 +126,14 @@ export function LockScreen() {
     } catch (err) {
       setLoading(false)
       triggerShake()
-      // The API returns a code, the UI decides the wording (F2.2).
-      const code = err instanceof ApiError ? err.code : 'generic'
-      toast('error', t(`errors.${code}` as TKey))
+      reportError(err)
     }
+  }
+
+  /** Turns any thrown value into the localized copy for its code (F2.2). */
+  const reportError = (err: unknown) => {
+    const code = err instanceof ApiError ? err.code : 'generic'
+    toast('error', t(`errors.${code}` as TKey))
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -134,35 +144,54 @@ export function LockScreen() {
       return
     }
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const { profile } = await register({
+        nickname: rUser,
+        email: rEmail,
+        password: rPass,
+        confirmPassword: rConfirm,
+      })
       toast('success', t('auth.accountCreated'))
       // A brand-new profile keeps the language picked on this station.
-      setTimeout(
-        () => loginSuccess({ ...DEMO_USER, nickname: rUser, email: rEmail, lang }),
-        900,
-      )
-    }, 1500)
+      loginSuccess({ ...profile, lang })
+    } catch (err) {
+      setLoading(false)
+      triggerShake()
+      reportError(err)
+    }
   }
 
-  const demoLogin = () => {
+  const demoLogin = async () => {
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const { profile } = await loginAsDemo()
       toast('info', t('auth.enteringDemo'))
-      loginSuccess({ ...DEMO_USER, nickname: 'DemoPlayer' })
-    }, 600)
+      loginSuccess(profile)
+    } catch (err) {
+      setLoading(false)
+      reportError(err)
+    }
   }
 
   const demoAdmin = () => {
     toast('info', t('auth.adminSeparateApp'))
   }
 
-  const startQr = () => {
+  const startQr = async () => {
     setQrOpen(true)
-    setTimeout(() => {
+    try {
+      const challenge = await requestQrChallenge()
+      // The mock confirms immediately, but the real handshake waits for the phone —
+      // so the pending state stays up for a beat before polling.
+      await new Promise((resolve) => setTimeout(resolve, 2500))
+      const { profile } = await confirmQrChallenge(challenge.challengeId)
       setQrOpen(false)
       toast('success', t('auth.qrVerified'))
-      loginSuccess({ ...DEMO_USER, nickname: 'MobileScan' })
-    }, 4000)
+      loginSuccess(profile)
+    } catch (err) {
+      setQrOpen(false)
+      reportError(err)
+    }
   }
 
   const switchMode = (m: Mode) => {

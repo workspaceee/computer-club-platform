@@ -3,9 +3,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Loader2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import useSWR from 'swr'
 import { GameCover } from '@/components/game-cover'
-import { launchGame } from '@/lib/mock/api'
-import { GAMES, HOUSE_ACCOUNTS } from '@/lib/mock/data'
+import { Skeleton } from '@/components/skeleton'
+import { fetchGame, fetchHouseAccounts, launchGame, toApiError } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -16,21 +17,39 @@ export function GameLaunchModal() {
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const toast = useStore((s) => s.toast)
 
-  const game = GAMES.find((g) => g.id === launchGameId) ?? null
+  // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
+  // conditional on the modal being open, so nothing is fetched while it is shut.
+  const { data: game } = useSWR(launchGameId ? ['game', launchGameId] : null, () =>
+    fetchGame(launchGameId as string),
+  )
+  const { data: accounts } = useSWR(
+    launchGameId ? 'catalog/house-accounts' : null,
+    fetchHouseAccounts,
+  )
 
-  const [account, setAccount] = useState('house-1')
+  const open = launchGameId !== null
+  const houseAccounts = accounts ?? []
+
+  const [account, setAccount] = useState<string | null>(null)
   const [remember, setRemember] = useState(false)
   const [launching, setLaunching] = useState(false)
   const [step, setStep] = useState(0)
 
   useEffect(() => {
-    if (game) {
-      setAccount('house-1')
+    if (launchGameId) {
+      setAccount(null)
       setRemember(false)
       setLaunching(false)
       setStep(0)
     }
-  }, [game])
+  }, [launchGameId])
+
+  // Preselect the first seat the club has free — the server owns availability.
+  useEffect(() => {
+    if (account !== null || houseAccounts.length === 0) return
+    const free = houseAccounts.find((a) => a.status !== 'in-use')
+    if (free) setAccount(free.id)
+  }, [account, houseAccounts])
 
   useEffect(() => {
     if (!launching) return
@@ -49,20 +68,26 @@ export function GameLaunchModal() {
     if (!game) return
     setLaunching(true)
     setStep(0)
-    // The endpoint answers in a few hundred ms, but the agent's own steps are the
-    // slow part — wait for both so the checklist is never cut short.
-    await Promise.all([
-      launchGame(game.id),
-      new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
-    ])
-    toast('success', `${game.name} launched! Minimizing...`)
-    setLaunching(false)
-    setLaunchGame(null)
+    try {
+      // The endpoint answers in a few hundred ms, but the agent's own steps are the
+      // slow part — wait for both so the checklist is never cut short.
+      await Promise.all([
+        launchGame(game.id),
+        new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
+      ])
+      toast('success', `${game.name} launched! Minimizing...`)
+      setLaunching(false)
+      setLaunchGame(null)
+    } catch (err) {
+      setLaunching(false)
+      // The API answers with a code; the wording stays in the UI (F2.2).
+      toast('error', `Launch failed (${toApiError(err).code})`)
+    }
   }
 
   return (
     <AnimatePresence>
-      {game && (
+      {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -78,7 +103,11 @@ export function GameLaunchModal() {
             className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
           >
             <div className="relative">
-              <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
+              {game ? (
+                <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
+              ) : (
+                <Skeleton className="h-40 w-full" radius="sm" />
+              )}
               <button
                 onClick={close}
                 disabled={launching}
@@ -96,7 +125,11 @@ export function GameLaunchModal() {
                     Select account
                   </p>
                   <div className="flex flex-col gap-2">
-                    {HOUSE_ACCOUNTS.map((acc) => {
+                    {houseAccounts.length === 0 &&
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="h-[58px] w-full" />
+                      ))}
+                    {houseAccounts.map((acc) => {
                       const disabled = acc.status === 'in-use'
                       const selected = account === acc.id
                       return (
@@ -153,7 +186,8 @@ export function GameLaunchModal() {
                     </button>
                     <button
                       onClick={handleLaunch}
-                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover"
+                      disabled={!game || !account}
+                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Launch
                     </button>
