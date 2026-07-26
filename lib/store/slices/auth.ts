@@ -49,9 +49,12 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
       paused.user?.email === user.email && paused.sessionSeconds > 0 && !paused.sessionExpired
 
     set({ user, guest: null })
-    // `coins` is required on `UserProfile`, so the balance comes from the
-    // account — never from whatever the previous player left on screen.
-    get().setCoins(user.coins)
+    // A *new* visit takes the balance from the account, so the previous player's
+    // coins can never leak to the next one. A *resumed* visit must not: coins
+    // earned during this visit (a bar order awards them) live only in the store
+    // until C7 wires a real wallet, and re-reading the mock profile here would
+    // silently roll the player back to the balance they signed in with.
+    if (!returning) get().setCoins(user.coins)
     get().resetUi()
     get().setScreen('launcher')
     if (returning) get().resumeTimer()
