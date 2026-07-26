@@ -6,6 +6,7 @@ import { useId } from 'react'
 import { IconButton } from '@/components/ui/button'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { overlayZ } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
 type Side = 'right' | 'bottom'
@@ -52,7 +53,12 @@ export function Drawer({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[70]"
+          // A drawer keeps its own frame rather than borrowing `Overlay`: it is
+          // pinned to an edge and sized by it, so the centring scroll port that
+          // rescues a too-tall *dialog* would only get in its way. What it does
+          // share is the rung — `drawer` sits below `modal`, so a dialog raised
+          // from inside the panel lands on top of it (F6.4).
+          className={cn('fixed inset-0', overlayZ.drawer)}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -82,7 +88,7 @@ export function Drawer({
               'glass-strong absolute flex flex-col overflow-hidden outline-none',
               isRight
                 ? 'inset-y-0 right-0 w-full max-w-md rounded-l-xl border-l'
-                : 'inset-x-0 bottom-0 max-h-[85vh] rounded-t-xl border-t',
+                : 'inset-x-0 bottom-0 max-h-[85svh] rounded-t-xl border-t',
               className,
             )}
           >

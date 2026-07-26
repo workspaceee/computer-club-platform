@@ -1,13 +1,16 @@
 'use client'
 
 import confetti from 'canvas-confetti'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { CheckCircle2, CreditCard, Loader2, Lock, X } from 'lucide-react'
 import { useState } from 'react'
+import { Overlay } from '@/components/ui/overlay'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { checkoutCart, toApiError } from '@/lib/mock/api'
+import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cartTotal, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 interface CheckoutModalProps {
   open: boolean
@@ -82,23 +85,27 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={close}
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
-        >
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
-          >
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <Overlay
+      open={open}
+      layer="modal"
+      blur="md"
+      // A click outside must not abandon an in-flight charge.
+      onDismiss={status === 'processing' ? undefined : close}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        // A card form is the worst case for a short window: at 693px tall the
+        // total, four fields and the Pay button do not fit at once. The cap plus
+        // the scrolling body keeps the header visible and the button reachable,
+        // instead of the whole card overflowing the top of the screen.
+        className={cn(
+          'tick-corners flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2',
+          OVERLAY_MAX_H,
+        )}
+      >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-2.5">
                 <CreditCard size={18} className="text-primary" />
                 <h3 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
@@ -116,7 +123,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
             </div>
 
             {status === 'done' ? (
-              <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-10 text-center">
                 <CheckCircle2 size={56} className="text-success" />
                 <h4 className="font-display text-xl font-bold text-text-high">Payment successful!</h4>
                 <p className="text-sm text-text-medium">
@@ -124,7 +131,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-4 p-6">
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
                 <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
                   <span className="text-sm text-text-medium">Total</span>
                   <span className="font-display text-xl font-black text-text-high">
@@ -201,10 +208,8 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 </p>
               </div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </Overlay>
   )
 }
 

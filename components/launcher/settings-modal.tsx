@@ -3,6 +3,8 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Monitor, Volume2, MousePointer2, Globe, type LucideIcon } from "lucide-react"
 import { useState } from "react"
+import { Overlay } from "@/components/ui/overlay"
+import { OVERLAY_MAX_H } from "@/lib/overlay"
 import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
@@ -156,24 +158,19 @@ export function SettingsModal() {
   const [tab, setTab] = useState<TabId>("display")
 
   return (
-    <AnimatePresence>
-      {settingsOpen && (
-        <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setSettingsOpen(false)}
-            aria-hidden
-          />
+    <Overlay open={settingsOpen} layer="modal" onDismiss={() => setSettingsOpen(false)}>
           <motion.div
             role="dialog"
             aria-modal="true"
             aria-label="Settings"
-            className="tick-corners relative z-10 flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl"
+            // Was `z-[60]`, the same rung the offline banner claimed — so during
+            // an outage which of the two won depended on render order. The rung
+            // now comes from the ladder, and `86vh` becomes the shared `svh` cap
+            // so the header cannot leave the top of a short window (F6.4).
+            className={cn(
+              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl',
+              OVERLAY_MAX_H,
+            )}
             initial={{ scale: 0.95, y: 12 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 12 }}
@@ -340,8 +337,6 @@ export function SettingsModal() {
               </button>
             </div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </Overlay>
   )
 }
