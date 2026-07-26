@@ -296,6 +296,38 @@ export const en = {
     createAccount: 'Create a profile',
   },
 
+  // PC-side surfaces served by the station agent (F5.4). Every string here
+  // describes hardware, so it must also cover the "no agent" seat.
+  agent: {
+    title: 'This PC',
+    subtitle: 'Windows and driver panels for this station.',
+    statusChecking: 'Looking for the station agent…',
+    statusConnected: 'Station agent connected',
+    statusUnavailable: 'No station agent',
+    version: 'Agent {version}',
+    unavailable: 'Unavailable on this PC',
+    unavailableBody:
+      'The station agent is not running, so the launcher cannot open Windows panels or change hardware here.',
+    unavailableHint: 'Ask staff to restart the station agent.',
+    unsupported: 'Not available on this hardware',
+    recheck: 'Check again',
+    open: 'Open',
+    opening: 'Opening…',
+    openedToast: '{panel} opened on the desktop',
+    panelNvidia: 'NVIDIA Control Panel',
+    panelNvidiaHint: 'Sharpening, latency mode, colour.',
+    panelWindowsDisplay: 'Display settings',
+    panelWindowsDisplayHint: 'Resolution, refresh rate, scaling.',
+    panelAudioOutput: 'Speakers and headphones',
+    panelAudioOutputHint: 'Output device and levels.',
+    panelAudioInput: 'Microphone',
+    panelAudioInputHint: 'Input device and gain.',
+    panelMouse: 'Mouse',
+    panelMouseHint: 'Pointer speed and buttons.',
+    panelKeyboard: 'Keyboard',
+    panelKeyboardHint: 'Repeat delay and layouts.',
+  },
+
   errors: {
     generic: 'Something went wrong',
     genericBody: 'The action did not go through. Try again in a moment.',
@@ -318,5 +350,17 @@ export const en = {
     required: 'This field is required',
     tooShort: 'Minimum {min} characters',
     passwordsMismatch: 'Passwords do not match',
+    // AgentErrorCode — one key per code, so `errors.<code>` always resolves.
+    agentUnavailable: 'No station agent on this PC',
+    unsupported: 'This PC cannot do that',
+    agentTimeout: 'The station agent did not answer',
+    gameNotInstalled: 'That game is not installed here',
+    gameAlreadyRunning: 'A game is already running',
+    gameNotRunning: 'That game is not running',
+    launcherFailed: 'The game launcher failed to start',
+    permissionDenied: 'Windows blocked that action',
+    invalidValue: 'That value is not supported by the hardware',
+    blockedByPolicy: 'Not allowed during a paid session',
+    agentFailed: 'The station agent reported an error',
   },
 } as const
