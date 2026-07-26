@@ -328,6 +328,50 @@ export const en = {
     panelKeyboardHint: 'Repeat delay and layouts.',
   },
 
+  // Copy for pushed events (F4). Payloads carry ids and numbers only, so every
+  // line a player reads about a server event lives here and gets translated.
+  realtime: {
+    // Connection banner (F4.5). The reassurance matters: club time is server
+    // time, so a dropped link never costs the player a minute.
+    offlineTitle: 'No connection to the club server',
+    offlineBody: 'Your time keeps running — nothing is lost. Reconnecting automatically.',
+    reconnecting: 'Reconnecting…',
+    retryIn: 'Next try in {n} s',
+    retryNow: 'Try now',
+    attempt: 'Attempt {n}',
+    restored: 'Connection restored',
+    // plural: one | other
+    pendingUpdates: '{n} update waiting|{n} updates waiting',
+
+    timeAdded: '+{minutes} min added to your session',
+    timeAddedByStaff: '+{minutes} min from the admin',
+    sessionPaused: 'Session paused',
+    sessionPausedStaff: 'An admin paused your session',
+    sessionResumed: 'Session resumed — go ahead',
+    sessionEnded: 'Session ended',
+    sessionMoved: 'Move to seat {seat}',
+    sessionMovedBody: 'Please move within {n} min. Your session and time move with you.',
+    orderNew: 'Order received',
+    orderAccepted: 'Order accepted at the bar',
+    orderPreparing: 'Your order is being prepared',
+    orderDelivering: 'Your order is on the way',
+    orderDelivered: 'Order delivered — enjoy',
+    orderCancelled: 'Order cancelled',
+    tabUpdated: 'Your tab is now {total}',
+    tabSettled: 'Tab settled — thank you',
+    passGranted: '{name} added: {minutes} min banked',
+    walletTopUp: 'Balance topped up by {amount}',
+    walletSpent: '{amount} spent',
+    coinsEarned: '+{n} coins',
+    messageReceived: 'Reply from the club',
+    questCompleted: 'Quest done: {title}',
+    battlePassTier: 'Battle Pass tier {n} unlocked',
+    tournamentCall: '{name}: you are called to a match',
+    bookingReminder: 'Your booking starts soon',
+    friendRequest: '{name} wants to be friends',
+    partyInvite: '{name} invited you to a party',
+  },
+
   errors: {
     generic: 'Something went wrong',
     genericBody: 'The action did not go through. Try again in a moment.',
