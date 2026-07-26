@@ -17,10 +17,13 @@ import {
   Zap,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import useSWR from 'swr'
+import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useApi } from '@/hooks/use-api'
+import { useT } from '@/lib/i18n/provider'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
@@ -66,9 +69,10 @@ function HeroCarousel() {
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
 
+  const { t } = useT()
   // `GET /api/games/featured` — the curated hero row (F3.4).
-  const { data, isLoading } = useSWR('games/featured', fetchFeaturedGames)
-  const slides = useMemo(() => data ?? [], [data])
+  const featured = useApi('games/featured', fetchFeaturedGames)
+  const slides = useMemo(() => featured.data ?? [], [featured.data])
   const count = slides.length
 
   const go = (next: number) => {
@@ -88,14 +92,27 @@ function HeroCarousel() {
 
   const game = count > 0 ? slides[index % count] : null
 
-  if (isLoading || !game) {
+  // The carousel owns slide state above the fetch, so it renders the three
+  // states by hand instead of through <DataBoundary>.
+  if (!game) {
     return (
       <section>
         <div className="mb-4 flex flex-col gap-2">
           <Skeleton className="h-3 w-32" radius="sm" />
           <Skeleton className="h-10 w-72" radius="sm" />
         </div>
-        <Skeleton className="h-72 w-full rounded-xl md:h-96" />
+        {featured.error ? (
+          <ApiErrorState state={featured} className="h-72 md:h-96" />
+        ) : featured.isLoading ? (
+          <Skeleton className="h-72 w-full rounded-xl md:h-96" />
+        ) : (
+          <EmptyState
+            icon={Play}
+            title={t('games.noFeatured')}
+            description={t('games.noFeaturedBody')}
+            className="h-72 md:h-96"
+          />
+        )}
       </section>
     )
   }
@@ -190,8 +207,8 @@ function QuickStats() {
   const coins = useStore((s) => s.coins)
   const timeLabel = useStore((s) => s.timeBalanceLabel)
   // Same SWR key as the prize ladder below, so the row is fetched once.
-  const { data: prizes } = useSWR('loyalty/rewards/featured', fetchFeaturedRewards)
-  const ladder = prizes ?? []
+  const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
+  const ladder = prizes.data ?? []
   const prizesUnlocked = ladder.filter((p) => coins >= p.coins).length
 
   const stats: { icon: LucideIcon; value: string; label: string }[] = [
@@ -245,19 +262,38 @@ function PromoBanner() {
 }
 
 function PrizeLadder() {
+  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  const { data, isLoading } = useSWR('loyalty/rewards/featured', fetchFeaturedRewards)
-  const prizes = data ?? []
+  const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
 
   return (
     <section>
       <SectionHeader index="04">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
-        {isLoading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-[62px] w-full" radius="md" />
-            ))
-          : prizes.map((prize) => {
+        <DataBoundary
+          state={prizes}
+          errorBare
+          errorSize="sm"
+          loading={
+            <>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-[62px] w-full" radius="md" />
+              ))}
+            </>
+          }
+          isEmpty={(rows) => rows.length === 0}
+          empty={
+            <EmptyState
+              bare
+              size="sm"
+              icon={Gift}
+              title={t('loyalty.noRewards')}
+              description={t('loyalty.noRewardsBody')}
+            />
+          }
+        >
+          {(rows) =>
+            rows.map((prize) => {
               const Icon = PRIZE_ICONS[prize.icon] ?? Gift
               const reached = coins >= prize.coins
               return (
@@ -282,7 +318,9 @@ function PrizeLadder() {
                   )}
                 </div>
               )
-            })}
+            })
+          }
+        </DataBoundary>
       </div>
     </section>
   )
@@ -295,12 +333,11 @@ const RANK_GRADIENT = [
 ]
 
 function Leaderboard() {
+  const { t } = useT()
   // Wrapped so SWR's key is not passed through as the query object.
-  const { data, isLoading } = useSWR('leaderboard', () => fetchLeaderboard({ limit: 10 }), {
+  const board = useApi('leaderboard', () => fetchLeaderboard({ limit: 10 }), {
     refreshInterval: 10000,
   })
-
-  const rows = useMemo(() => data ?? [], [data])
 
   return (
     <section>
@@ -312,13 +349,32 @@ function Leaderboard() {
           <span className="text-right">Hours</span>
           <span className="text-right">Coins</span>
         </div>
-        {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="px-5 py-2.5">
-                <Skeleton className="h-6 w-full" />
-              </div>
-            ))
-          : rows.map((row) => (
+        <DataBoundary
+          state={board}
+          errorBare
+          errorSize="sm"
+          loading={
+            <>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="px-5 py-2.5">
+                  <Skeleton className="h-6 w-full" />
+                </div>
+              ))}
+            </>
+          }
+          isEmpty={(rows) => rows.length === 0}
+          empty={
+            <EmptyState
+              bare
+              size="sm"
+              icon={Trophy}
+              title={t('loyalty.noLeaderboard')}
+              description={t('loyalty.noLeaderboardBody')}
+            />
+          }
+        >
+          {(rows) =>
+            rows.map((row) => (
               <div
                 key={row.rank}
                 className={cn(
@@ -363,7 +419,9 @@ function Leaderboard() {
                   {formatCoins(row.coins)}
                 </motion.span>
               </div>
-            ))}
+            ))
+          }
+        </DataBoundary>
       </div>
     </section>
   )
