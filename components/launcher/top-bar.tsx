@@ -7,7 +7,7 @@ import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { formatCoins, formatEur, toCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { cartTotal, useStore } from '@/lib/store'
+import { cartTotal, timeChargeCents, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { cn } from '@/lib/utils'
@@ -29,9 +29,12 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   const user = useStore((s) => s.user)
   const guest = useStore((s) => s.guest)
   const cart = useStore((s) => s.cart)
-  // What the guest owes so far. The legacy cart still carries float prices, so
-  // it goes through `toCents` before display to keep one money formatter.
-  const tabTotal = cartTotal(cart)
+  // What the guest owes so far: the bar order **plus** the time on the seat. On a
+  // postpaid seat `seconds` is time *used*, and the counter bills it by the
+  // minute, so leaving it out would show a tab that quietly understates the bill
+  // (F6.3). The legacy cart still carries float prices, so it goes through
+  // `toCents` to keep one money formatter.
+  const tabTotal = toCents(cartTotal(cart)) + timeChargeCents(seconds)
   const lockPc = useStore((s) => s.lockPc)
   const logout = useStore((s) => s.logout)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
@@ -51,8 +54,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const low = seconds <= 15 * 60
-  const critical = seconds <= 5 * 60
+  // Thresholds only mean something when time can run out. A postpaid guest's
+  // clock counts *up* into the tab, so painting it red at "5 minutes" would warn
+  // them about the opposite of what is happening (F6.3).
+  const low = !isGuest && seconds <= 15 * 60
+  const critical = !isGuest && seconds <= 5 * 60
   const timerColor = critical ? 'var(--danger)' : low ? 'var(--warning)' : 'var(--text-high)'
 
   // Guests have no profile, so the shell identifies them by their tab label.
@@ -113,8 +119,10 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
         >
           <Timer size={14} style={{ color: timerColor }} />
           <div className="flex flex-col leading-none">
+            {/* The label has to say which way the number moves: a guest reading
+                "TIME LEFT" next to a rising clock would be told a lie. */}
             <span className="label-mono hidden text-[8px] text-text-low sm:block">
-              {t('session.title')}
+              {isGuest ? t('session.sessionTime') : t('session.timeLeft')}
             </span>
             <span
               className="font-display text-sm font-bold tabular-nums leading-tight"
@@ -135,7 +143,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                 {t('guest.tab')}
               </span>
               <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
-                {formatEur(toCents(tabTotal))}
+                {formatEur(tabTotal)}
               </span>
             </div>
           </div>

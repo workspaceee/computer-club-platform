@@ -46,7 +46,10 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
     // different member starts a new session, and then the clock starts over.
     const paused = get()
     const returning =
-      paused.user?.email === user.email && paused.sessionSeconds > 0 && !paused.sessionExpired
+      paused.user?.email === user.email &&
+      paused.billingMode === 'prepaid' &&
+      paused.sessionSeconds > 0 &&
+      !paused.sessionExpired
 
     set({ user, guest: null })
     // A *new* visit takes the balance from the account, so the previous player's
@@ -57,8 +60,9 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
     if (!returning) get().setCoins(user.coins)
     get().resetUi()
     get().setScreen('launcher')
+    // A member bought hours in advance, so their clock counts down (F6.3).
     if (returning) get().resumeTimer()
-    else get().startSession()
+    else get().startSession('prepaid')
   },
 
   // A guest gets no coin balance: the loyalty economy is members-only, and the
@@ -69,7 +73,10 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
     // resumed rather than replaced: the open tab belongs to the seat, and
     // starting a second one would silently abandon what the first one owes.
     const paused = get()
-    const returning = paused.guest !== null && paused.sessionSeconds > 0 && !paused.sessionExpired
+    // A postpaid clock cannot "run out", so what makes a guest visit resumable is
+    // its existence, not a positive remainder (F6.3).
+    const returning =
+      paused.guest !== null && paused.billingMode === 'postpaid' && !paused.sessionExpired
 
     set({ user: null, guest: returning ? paused.guest : guest })
     get().clearWallet()
@@ -79,8 +86,10 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
     }
     get().resetUi()
     get().setScreen('guest')
+    // The walk-in model is PostPaid: time runs *up* into the open tab instead of
+    // burning prepaid hours nobody sold them (F6.3, MVP §8.2).
     if (returning) get().resumeTimer()
-    else get().startSession()
+    else get().startSession('postpaid')
   },
 
   // The single teardown path. Every way a visit can end — sign out, end guest
