@@ -26,6 +26,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { TimerOff } from 'lucide-react'
 import { useEffect } from 'react'
+import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
 import { useStore } from '@/lib/store'
 
@@ -35,6 +36,15 @@ export function SessionManager() {
   const timerRunning = useStore((s) => s.timerRunning)
   const sessionExpired = useStore((s) => s.sessionExpired)
   const clearExpired = useStore((s) => s.clearExpired)
+  const applySnapshot = useStore((s) => s.applySnapshot)
+
+  // Server truth wins over anything derived here: a granted 15 minutes arrives as
+  // a *new deadline*, and the next tick simply reads it. Because the clock is a
+  // derivation, adopting a snapshot needs no reconciliation — there is no counter
+  // to patch, and no way for the grant to be lost or double-applied.
+  useRealtimeEvent(['time.added', 'session.paused', 'session.resumed'], (event) => {
+    applySnapshot(event.payload.snapshot)
+  })
 
   useEffect(() => {
     if (!timerRunning) return
