@@ -58,6 +58,7 @@ export const lt: Dictionary = {
     help: 'Pagalba',
     more: 'Daugiau',
     landmark: 'Paleidyklės skyriai',
+    accountMenu: 'Profilio meniu, {name}',
     openSection: 'Atidaryti „{section}“',
     pendingTitle: 'Šis skyrius dar neparuoštas',
     pendingBody: 'Jis atsiras su 1 etapo darbu {task}. Geriau tuščia nei išgalvoti skaičiai.',
