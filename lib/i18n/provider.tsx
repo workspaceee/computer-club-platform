@@ -13,9 +13,14 @@
  *   tp('common.minutes', 5)                 // "5 минут" in RU, "5 minutes" in EN
  *
  * Language resolution order (F2.5):
- *   1. language stored on the device (localStorage) — survives reloads;
- *   2. language from the signed-in member profile — wins on login;
- *   3. `DEFAULT_LANG` (English) for a fresh station.
+ *   1. an explicit pick this session (the lock screen switcher) — wins, and
+ *      carries into the launcher after sign-in;
+ *   2. language from the signed-in member profile, when nothing was picked;
+ *   3. `DEFAULT_LANG` (English) whenever nobody is signed in.
+ *
+ * Nothing is written to localStorage. A club station is shared hardware: the
+ * language must reset to English on every logout and on every boot, so it is
+ * session state, not a device preference.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -24,13 +29,12 @@ import {
   DICTIONARIES,
   interpolate,
   lookup,
-  readStoredLang,
+  setSessionLang,
 } from '@/lib/i18n/translate'
 import {
   DEFAULT_LANG,
   isLang,
   type Lang,
-  LANG_STORAGE_KEY,
   LOCALES,
   PLURAL_ORDER,
   type TKey,
@@ -59,37 +63,48 @@ interface I18nValue {
 const I18nContext = createContext<I18nValue | null>(null)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  // Server and first client render always agree on DEFAULT_LANG; the stored
-  // preference is applied after hydration to avoid a markup mismatch.
   const [lang, setLangState] = useState<Lang>(DEFAULT_LANG)
   const user = useStore((s) => s.user)
   const appliedProfileFor = useRef<string | null>(null)
+  // Did somebody pick a language by hand this session? The lock screen switcher
+  // is the whole point of the flag: a guest who chose Lietuvių there expects the
+  // launcher in Lietuvių, so the profile language below must not overwrite it.
+  const pickedByHand = useRef(false)
 
-  const setLang = useCallback((next: Lang) => {
+  // Mirror into the module so the crash screen, which renders outside this
+  // provider, can still translate in the session's language.
+  const applyLang = useCallback((next: Lang) => {
     setLangState(next)
-    try {
-      window.localStorage.setItem(LANG_STORAGE_KEY, next)
-    } catch {
-      // Private mode / disabled storage: language still applies for this session.
-    }
+    setSessionLang(next)
   }, [])
 
-  // 1. device preference — applied after hydration, never during render.
-  useEffect(() => {
-    const stored = readStoredLang()
-    if (stored) setLangState(stored)
-  }, [])
+  const setLang = useCallback(
+    (next: Lang) => {
+      pickedByHand.current = true
+      applyLang(next)
+    },
+    [applyLang],
+  )
 
-  // 2. member profile language wins right after sign-in
+  // Identity drives the language, in both directions:
+  //
+  //   signed out → DEFAULT_LANG. Covers first boot and, more importantly, every
+  //     logout: the station is shared, so it must not hand the next guest the
+  //     previous one's language. Nothing is persisted anywhere, so a reload
+  //     lands on English too.
+  //   signed in  → the member's own profile language, unless this session has an
+  //     explicit pick to respect.
   useEffect(() => {
     if (!user) {
       appliedProfileFor.current = null
+      pickedByHand.current = false
+      applyLang(DEFAULT_LANG)
       return
     }
     if (appliedProfileFor.current === user.email) return
     appliedProfileFor.current = user.email
-    if (isLang(user.lang)) setLang(user.lang)
-  }, [user, setLang])
+    if (!pickedByHand.current && isLang(user.lang)) applyLang(user.lang)
+  }, [user, applyLang])
 
   // Keep <html lang> in sync for screen readers and hyphenation.
   useEffect(() => {

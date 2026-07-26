@@ -17,9 +17,10 @@ interface LangSwitcherProps {
 /**
  * The single language control of the shell (F2.4).
  *
- * Both variants write through `useT().setLang`, which persists the choice on the
- * device — so switching on the lock screen and switching in Settings are the
- * same action, not two parallel states.
+ * Both variants write through `useT().setLang`, so switching on the lock screen
+ * and switching in Settings are the same action, not two parallel states. The
+ * choice lasts for the session and carries into the launcher after sign-in; it
+ * is not stored on the device, because the station resets to English on logout.
  */
 export function LangSwitcher({
   variant = 'compact',
