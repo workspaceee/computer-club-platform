@@ -129,6 +129,10 @@ export const lt: Dictionary = {
     playersOnline: '{n} žaidžia|{n} žaidžia|{n} žaidžia',
     noResults: 'Žaidimų nerasta',
     noResultsBody: 'Pabandykite kitą pavadinimą arba nuimkite kategorijos filtrą.',
+    clearFilters: 'Išvalyti filtrus',
+    noFeatured: 'Rekomendacijų kol kas nėra',
+    noFeaturedBody: 'Klubas dar neišrinko favoritų — atidarykite visą biblioteką.',
+    openLibrary: 'Atidaryti biblioteką',
   },
 
   shop: {
@@ -149,6 +153,8 @@ export const lt: Dictionary = {
     catDrinks: 'Gėrimai',
     catTime: 'Laikas',
     catGear: 'Įranga',
+    sectionEmpty: 'Šiame skyriuje nieko nėra',
+    sectionEmptyBody: 'Klubas pildo atsargas. Pabandykite kitą skirtuką arba paklauskite prie baro.',
   },
 
   wallet: {
@@ -180,6 +186,20 @@ export const lt: Dictionary = {
     tierRegular: 'Nuolatinis',
     tierVeteran: 'Veteranas',
     tierElite: 'Elitas',
+    achievements: 'Pasiekimai',
+    noAchievements: 'Pasiekimų dar nėra',
+    noAchievementsBody: 'Sužaiskite sesiją — pirmieji ženkleliai pradės atsirakinti.',
+    activity: 'Naujausia veikla',
+    noActivity: 'Veiklos dar nėra',
+    noActivityBody: 'Sesijos, pirkimai ir atrakinimai atsiras čia.',
+    prizeLadder: 'Prizų kopėčios',
+    noRewards: 'Kopėčiose prizų nėra',
+    noRewardsBody: 'Klubas rengia naujas prizų kopėčias — užsukite vėliau.',
+    leaderboard: 'Lyderių lentelė',
+    noLeaderboard: 'Lyderių lentelė tuščia',
+    noLeaderboardBody: 'Būkite pirmas, surinkęs valandų šią savaitę.',
+    unlocked: 'Atrakinta',
+    prizesUnlocked: 'Atrakinta prizų',
   },
 
   social: {
@@ -286,7 +306,7 @@ export const lt: Dictionary = {
     sessionExpired: 'Jūsų sesija baigėsi',
     insufficientFunds: 'Balanse nepakanka pinigų',
     insufficientCoins: 'Nepakanka monetų',
-    outOfStock: 'Šiuo metu neturime',
+    outOfStock: '��iuo metu neturime',
     creditLimit: 'Sąskaitos limitas išnaudotas — apmokėkite prie baro',
     invalidEmail: 'Įveskite tinkamą el. pašto adresą',
     required: 'Šis laukas privalomas',

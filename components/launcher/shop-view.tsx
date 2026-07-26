@@ -20,9 +20,12 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { useState } from 'react'
-import useSWR from 'swr'
+import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useApi } from '@/hooks/use-api'
+import { useT } from '@/lib/i18n/provider'
 import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
 import { cartCount, useStore } from '@/lib/store'
 import type { ShopItem } from '@/lib/types/catalog'
@@ -73,13 +76,13 @@ function iconFor(id: string): LucideIcon {
 }
 
 export function ShopView() {
+  const { t } = useT()
   const [tab, setTab] = useState<Tab>('time')
   const cart = useStore((s) => s.cart)
   const setCartOpen = useStore((s) => s.setCartOpen)
   const count = cartCount(cart)
 
-  const { data, isLoading } = useSWR(['shop', tab], () => TAB_ENDPOINTS[tab]())
-  const list = data ?? []
+  const catalogue = useApi(['shop', tab], () => TAB_ENDPOINTS[tab]())
   const activeTab = TABS.find((t) => t.id === tab)!
 
   return (
@@ -127,14 +130,39 @@ export function ShopView() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => (
+      <DataBoundary
+        state={catalogue}
+        loading={
+          <Grid>
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-[152px] w-full" />
-            ))
-          : list.map((item) => <ProductCard key={item.id} item={item} />)}
-      </div>
+            ))}
+          </Grid>
+        }
+        isEmpty={(items) => items.length === 0}
+        empty={
+          <EmptyState
+            icon={activeTab.icon}
+            title={t('shop.sectionEmpty')}
+            description={t('shop.sectionEmptyBody')}
+          />
+        }
+      >
+        {(items) => (
+          <Grid>
+            {items.map((item) => (
+              <ProductCard key={item.id} item={item} />
+            ))}
+          </Grid>
+        )}
+      </DataBoundary>
     </div>
+  )
+}
+
+function Grid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
   )
 }
 
