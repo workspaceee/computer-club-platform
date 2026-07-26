@@ -24,6 +24,7 @@ import { OfflineBanner } from '@/components/realtime/offline-banner'
 import {
   useRealtimeAny,
   useRealtimeChannel,
+  useRealtimeEvent,
   useRealtimeRevalidation,
   type RealtimeChannelState,
 } from '@/hooks/use-realtime'
@@ -72,10 +73,35 @@ function useToastBridge(): void {
   )
 }
 
+/**
+ * Friend requests and party invites also land in the `social` slice (F6.1), not
+ * only in a toast: a six-second toast is not a place to keep an invite, and
+ * before this bridge existed a missed toast lost the payload for good. The
+ * screen that renders the inbox is `C9`.
+ */
+function useSocialBridge(): void {
+  const receiveFriendRequest = useStore((s) => s.receiveFriendRequest)
+  const receivePartyInvite = useStore((s) => s.receivePartyInvite)
+
+  // One subscription per event type: a shared handler would receive the union
+  // of both payloads and force a cast, which is exactly the kind of "trust me"
+  // the typed bus exists to avoid.
+  useRealtimeEvent(
+    'friend.request',
+    useCallback((event) => receiveFriendRequest(event.payload), [receiveFriendRequest]),
+  )
+
+  useRealtimeEvent(
+    'party.invite',
+    useCallback((event) => receivePartyInvite(event.payload), [receivePartyInvite]),
+  )
+}
+
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const channel = useRealtimeChannel()
   useRealtimeRevalidation()
   useToastBridge()
+  useSocialBridge()
 
   return (
     <RealtimeContext.Provider value={channel}>
