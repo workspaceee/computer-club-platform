@@ -1,22 +1,25 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Coins, Lock, LogOut, Settings, Timer, User } from 'lucide-react'
+import { ChevronDown, Coins, Lock, LogOut, Settings, Timer } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { formatCoins } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { useStore, type LauncherView } from '@/lib/store'
+import { useStore } from '@/lib/store'
+import { useT } from '@/lib/i18n/provider'
+import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { cn } from '@/lib/utils'
 
-const NAV: { id: LauncherView; label: string; index: string }[] = [
-  { id: 'home', label: 'Home', index: '01' },
-  { id: 'games', label: 'Games', index: '02' },
-  { id: 'shop', label: 'Shop', index: '03' },
-]
+export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) {
+  const { t } = useT()
+  // Sections come from the one navigation table, so the bar, the avatar menu
+  // and the mobile bar can never drift apart (F6.2).
+  const nav = navFor(surface)
+  const primary = nav.filter((item) => item.slot === 'primary')
+  const menu = nav.filter((item) => item.slot === 'menu')
 
-export function TopBar() {
   const view = useStore((s) => s.view)
   const setView = useStore((s) => s.setView)
   const seconds = useStore((s) => s.sessionSeconds)
@@ -57,15 +60,17 @@ export function TopBar() {
         >
           <ImbaLogo size="sm" />
         </button>
-        <nav className="hidden items-center gap-1 sm:flex">
-          {NAV.map((item) => {
+        <nav className="hidden items-center gap-1 sm:flex" aria-label={t('nav.landmark')}>
+          {primary.map((item) => {
             const active = view === item.id
             return (
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
+                aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'group relative flex items-center gap-2 px-3.5 py-2 transition-colors',
+                  'group relative flex items-center gap-2 rounded-sm px-3.5 py-2 transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
                   active ? 'text-text-high' : 'text-text-low hover:text-text-medium',
                 )}
               >
@@ -73,7 +78,7 @@ export function TopBar() {
                   {item.index}
                 </span>
                 <span className="font-display text-sm font-semibold tracking-tight">
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 {active && (
                   <motion.span
@@ -98,7 +103,9 @@ export function TopBar() {
         >
           <Timer size={14} style={{ color: timerColor }} />
           <div className="flex flex-col leading-none">
-            <span className="label-mono hidden text-[8px] text-text-low sm:block">Session</span>
+            <span className="label-mono hidden text-[8px] text-text-low sm:block">
+              {t('session.title')}
+            </span>
             <span
               className="font-display text-sm font-bold tabular-nums leading-tight"
               style={{ color: timerColor }}
@@ -112,7 +119,9 @@ export function TopBar() {
         <div className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-1.5">
           <Coins size={14} className="text-warning" />
           <div className="flex flex-col leading-none">
-            <span className="label-mono hidden text-[8px] text-warning/70 sm:block">Coins</span>
+            <span className="label-mono hidden text-[8px] text-warning/70 sm:block">
+              {t('wallet.coinBalance')}
+            </span>
             <span className="font-display text-sm font-bold tabular-nums leading-tight text-text-high">
               {formatCoins(coins)}
             </span>
@@ -153,17 +162,20 @@ export function TopBar() {
                     <p className="truncate text-xs text-text-low">{user?.email}</p>
                   </div>
                 </div>
-                <MenuItem
-                  icon={<User size={16} />}
-                  label="Profile"
-                  onClick={() => {
-                    setView('profile')
-                    setMenuOpen(false)
-                  }}
-                />
+                {menu.map(({ id, icon: Icon, labelKey }) => (
+                  <MenuItem
+                    key={id}
+                    icon={<Icon size={16} />}
+                    label={t(labelKey)}
+                    onClick={() => {
+                      setView(id)
+                      setMenuOpen(false)
+                    }}
+                  />
+                ))}
                 <MenuItem
                   icon={<Settings size={16} />}
-                  label="Settings"
+                  label={t('common.settings')}
                   onClick={() => {
                     setSettingsOpen(true)
                     setMenuOpen(false)
@@ -171,7 +183,7 @@ export function TopBar() {
                 />
                 <MenuItem
                   icon={<Lock size={16} />}
-                  label="Lock PC"
+                  label={t('session.lockStation')}
                   onClick={() => {
                     setConfirm('lock')
                     setMenuOpen(false)
@@ -179,7 +191,7 @@ export function TopBar() {
                 />
                 <MenuItem
                   icon={<LogOut size={16} />}
-                  label="Logout"
+                  label={t('common.logout')}
                   danger
                   onClick={() => {
                     setConfirm('logout')
@@ -194,22 +206,22 @@ export function TopBar() {
 
       <ConfirmDialog
         open={confirm === 'lock'}
-        title="Lock this station?"
-        message="Your session will be paused. Log back in to resume your remaining time."
-        confirmLabel="Lock PC"
+        title={t('session.lockConfirmTitle')}
+        message={t('session.lockConfirmBody')}
+        confirmLabel={t('session.lockStation')}
         danger
         onConfirm={() => {
           setConfirm(null)
-          toast('info', 'Station locked. Session paused.')
+          toast('info', t('session.lockedToast'))
           lockPc()
         }}
         onCancel={() => setConfirm(null)}
       />
       <ConfirmDialog
         open={confirm === 'logout'}
-        title="Log out?"
-        message="You will end your session and return to the lock screen."
-        confirmLabel="Logout"
+        title={t('session.logoutConfirmTitle')}
+        message={t('session.logoutConfirmBody')}
+        confirmLabel={t('common.logout')}
         danger
         onConfirm={() => {
           setConfirm(null)

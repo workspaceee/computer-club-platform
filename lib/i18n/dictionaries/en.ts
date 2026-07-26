@@ -50,6 +50,26 @@ export const en = {
     slots: '{n} slot left|{n} slots left',
   },
 
+  // Section names of the launcher — the only label source for the top bar, the
+  // avatar menu and the mobile bar (F6.2, see lib/launcher-nav.ts).
+  nav: {
+    home: 'Home',
+    games: 'Games',
+    shop: 'Shop',
+    rewards: 'Rewards',
+    tournaments: 'Tournaments',
+    social: 'Friends',
+    wallet: 'Wallet',
+    profile: 'Profile',
+    help: 'Help',
+    more: 'More',
+    landmark: 'Launcher sections',
+    openSection: 'Open {section}',
+    pendingTitle: 'This section is not live yet',
+    pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',
+    guestLimited: 'Guests get games, the bar and help. Create a profile to unlock the rest.',
+  },
+
   auth: {
     localTime: 'Local time',
     accessTerminal: 'Access Terminal',
@@ -113,6 +133,11 @@ export const en = {
     expiredBody: 'Your paid time has run out. Top up at the counter or in the app to keep playing.',
     lockedTitle: 'Station locked',
     lockedBody: 'The timer is paused. Sign in again to continue where you left off.',
+    lockConfirmTitle: 'Lock this station?',
+    lockConfirmBody: 'Your session pauses. Sign back in to pick up your remaining time.',
+    lockedToast: 'Station locked. Session paused.',
+    logoutConfirmTitle: 'Log out?',
+    logoutConfirmBody: 'This ends your session and returns the station to the lock screen.',
     // plural: one | other
     minutesLeft: '{n} minute left|{n} minutes left',
     warningLowTime: 'Less than {n} min of session time left.',

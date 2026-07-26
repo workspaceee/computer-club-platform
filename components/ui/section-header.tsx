@@ -11,6 +11,8 @@ interface SectionHeaderProps extends Omit<React.ComponentProps<'div'>, 'title'> 
   action?: React.ReactNode
   /** Heading level for correct document outline. */
   as?: 'h1' | 'h2' | 'h3'
+  /** Put on the heading itself, so `aria-labelledby` names the title only. */
+  headingId?: string
 }
 
 /**
@@ -26,6 +28,7 @@ export function SectionHeader({
   subtitle,
   action,
   as: Heading = 'h2',
+  headingId,
   className,
   ...props
 }: SectionHeaderProps) {
@@ -38,7 +41,10 @@ export function SectionHeader({
             <span className="h-3 w-px bg-border-strong" aria-hidden />
           </>
         )}
-        <Heading className="font-display text-lg font-bold uppercase tracking-tight text-text-high text-balance">
+        <Heading
+          id={headingId}
+          className="font-display text-lg font-bold uppercase tracking-tight text-text-high text-balance"
+        >
           {title}
         </Heading>
         <span className="ml-1 h-px flex-1 bg-border" aria-hidden />

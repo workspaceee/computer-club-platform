@@ -46,6 +46,25 @@ export const lt: Dictionary = {
     slots: 'liko {n} vieta|liko {n} vietos|liko {n} vietų',
   },
 
+  nav: {
+    home: 'Pradžia',
+    games: 'Žaidimai',
+    shop: 'Baras',
+    rewards: 'Apdovanojimai',
+    tournaments: 'Turnyrai',
+    social: 'Draugai',
+    wallet: 'Piniginė',
+    profile: 'Profilis',
+    help: 'Pagalba',
+    more: 'Daugiau',
+    landmark: 'Paleidyklės skyriai',
+    openSection: 'Atidaryti „{section}“',
+    pendingTitle: 'Šis skyrius dar neparuoštas',
+    pendingBody: 'Jis atsiras su 1 etapo darbu {task}. Geriau tuščia nei išgalvoti skaičiai.',
+    guestLimited:
+      'Svečiams prieinami žaidimai, baras ir pagalba. Sukurk profilį, kad atrakintum kitus skyrius.',
+  },
+
   auth: {
     localTime: 'Vietos laikas',
     accessTerminal: 'Prieigos terminalas',
@@ -108,6 +127,11 @@ export const lt: Dictionary = {
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',
+    lockConfirmTitle: 'Užrakinti šį kompiuterį?',
+    lockConfirmBody: 'Sesija bus pristabdyta. Prisijunk vėl ir tęsk su likusiu laiku.',
+    lockedToast: 'Kompiuteris užrakintas. Sesija pristabdyta.',
+    logoutConfirmTitle: 'Atsijungti?',
+    logoutConfirmBody: 'Sesija bus baigta, kompiuteris grįš į užrakto ekraną.',
     lockedTitle: 'Stotis užrakinta',
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',

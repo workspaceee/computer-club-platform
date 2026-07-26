@@ -36,7 +36,9 @@ export default function Page() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <Launcher />
+            {/* Members and PostPaid guests share one shell; the surface only
+                decides which sections the navigation offers (F6.2). */}
+            <Launcher surface={screen === 'guest' ? 'guest' : 'launcher'} />
           </motion.div>
         )}
       </AnimatePresence>

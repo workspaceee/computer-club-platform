@@ -1,12 +1,19 @@
 'use client'
 
 import { create } from 'zustand'
+import { resolveView, type LauncherView, type Screen } from '@/lib/launcher-nav'
 import type { ShopItem } from '@/lib/types/catalog'
 import type { CartItem } from '@/lib/types/order'
 import type { UserProfile } from '@/lib/types/user'
 
-export type Screen = 'lock' | 'launcher'
-export type LauncherView = 'home' | 'games' | 'shop' | 'profile'
+/**
+ * `Screen` and `LauncherView` live in `lib/launcher-nav.ts` next to the table
+ * that gives every section its label, icon, placement and guest availability
+ * (F6.2). They are re-exported here because the store is where the rest of the
+ * app already reads them from.
+ */
+export type { LauncherSurface, LauncherView, Screen } from '@/lib/launcher-nav'
+
 export type ToastKind = 'success' | 'error' | 'info' | 'warning'
 
 export interface Toast {
@@ -186,7 +193,10 @@ export const useStore = create<StoreState>((set, get) => ({
       view: 'home',
     }),
 
-  setView: (view) => set({ view }),
+  // Navigation goes through the surface map so a guest can never land on a
+  // member-only section, even from a stale deep link or a keyboard shortcut.
+  setView: (view) =>
+    set((s) => ({ view: resolveView(s.screen === 'guest' ? 'guest' : 'launcher', view) })),
 
   tick: () => {
     const { sessionSeconds, timerRunning } = get()
