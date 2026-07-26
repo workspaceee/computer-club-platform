@@ -64,6 +64,7 @@ export const en = {
     help: 'Help',
     more: 'More',
     landmark: 'Launcher sections',
+    accountMenu: 'Account menu, {name}',
     openSection: 'Open {section}',
     pendingTitle: 'This section is not live yet',
     pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',

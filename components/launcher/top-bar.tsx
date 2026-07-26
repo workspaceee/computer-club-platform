@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Coins, Lock, LogOut, Receipt, Settings, Timer } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { formatCoins, formatEur, toCents } from '@/lib/money'
@@ -44,6 +44,8 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirm, setConfirm] = useState<'lock' | 'logout' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -54,6 +56,21 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
+
+  // Escape closes the menu and hands focus back to the trigger. It is only bound
+  // while the menu is open so it cannot swallow the key from a dialog raised
+  // *from* the menu — the confirmations own Escape once they are up, and they sit
+  // on a higher rung of the layer stack.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setMenuOpen(false)
+      menuTriggerRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [menuOpen])
 
   // Thresholds only mean something when time can run out. A postpaid guest's
   // clock counts *up* into the tab, so painting it red at "5 minutes" would warn
@@ -170,17 +187,30 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           </div>
         )}
 
-        {/* Avatar menu */}
+        {/* Avatar menu. The trigger was a bare `<button>` wrapping two decorative
+            spans: no accessible name (a screen reader announced "button"), and no
+            `aria-expanded`, so nothing told a non-visual user the menu had opened.
+            It is also the only route to lock/log out, which makes it the worst
+            control in the frame to leave unlabelled. */}
         <div ref={menuRef} className="relative">
           <button
+            ref={menuTriggerRef}
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-md border border-border bg-white/[0.03] py-1 pl-1 pr-2 transition-colors hover:border-border-strong"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            aria-label={t('nav.accountMenu', { name: displayName })}
+            className="flex items-center gap-2 rounded-md border border-border bg-white/[0.03] py-1 pl-1 pr-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-primary font-display text-xs font-bold text-primary-foreground shadow-[0_0_14px_-3px_rgba(229,53,43,0.8)]">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 items-center justify-center rounded-[5px] bg-primary font-display text-xs font-bold text-primary-foreground shadow-[0_0_14px_-3px_rgba(229,53,43,0.8)]"
+            >
               {initials}
             </span>
             <ChevronDown
               size={15}
+              aria-hidden
               className={cn('text-text-medium transition-transform', menuOpen && 'rotate-180')}
             />
           </button>
@@ -188,6 +218,9 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           <AnimatePresence>
             {menuOpen && (
               <motion.div
+                id={menuId}
+                role="menu"
+                aria-label={t('nav.accountMenu', { name: displayName })}
                 initial={{ opacity: 0, y: -8, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -290,13 +323,19 @@ function MenuItem({
 }) {
   return (
     <button
+      // `role="menuitem"` matches the `role="menu"` container, and the icon is
+      // hidden from the tree so the item announces its label once rather than
+      // "graphic, Lock, Lock station".
+      role="menuitem"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5',
+        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
         danger ? 'text-danger' : 'text-text-high',
       )}
     >
-      {icon}
+      <span aria-hidden className="flex shrink-0 items-center">
+        {icon}
+      </span>
       {label}
     </button>
   )

@@ -89,26 +89,37 @@ export function SessionManager() {
           // The end of the visit is the top rung and the only one allowed there:
           // it must cover a half-finished checkout, an open cart and any dialog,
           // because none of them mean anything once the clock has run out (F6.4).
-          // `min-h-svh` rather than `h-full` so the message centres against the
-          // space that actually exists on a short window.
+          //
+          // This element is the *scroll port* only. It used to also be the
+          // centring flex container (`min-h-svh` + `justify-center` on the same
+          // node), which is the same defect `F6.1` caught in the confirmations:
+          // a flex container that is exactly viewport-tall centres overflow in
+          // both directions, and the half above the scroll origin cannot be
+          // scrolled back — so on a short window (or in a long translation) the
+          // "time is up" heading was cut off above the top edge.
           className={cn(
-            'fixed inset-0 flex min-h-svh flex-col items-center justify-center gap-4 overflow-y-auto bg-black/85 px-6 py-10 text-center backdrop-blur',
+            'fixed inset-0 overflow-y-auto overscroll-contain bg-black/85 backdrop-blur',
             overlayZ.blocking,
           )}
         >
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15"
-          >
-            <TimerOff size={40} className="text-primary" />
-          </motion.div>
-          <h2 className="font-display text-2xl font-black uppercase text-text-high text-balance sm:text-3xl">
-            {t('session.expired')}
-          </h2>
-          <p className="max-w-sm text-pretty text-sm leading-relaxed text-text-medium">
-            {t('session.expiredBody')}
-          </p>
+          {/* The `min-h-full` sandwich, same as `components/ui/overlay.tsx`:
+              centred while it fits, top-aligned and scrollable the moment it
+              does not. */}
+          <div className="flex min-h-full flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/15"
+            >
+              <TimerOff size={40} className="text-primary" />
+            </motion.div>
+            <h2 className="font-display text-2xl font-black uppercase text-text-high text-balance sm:text-3xl">
+              {t('session.expired')}
+            </h2>
+            <p className="max-w-sm text-pretty text-sm leading-relaxed text-text-medium">
+              {t('session.expiredBody')}
+            </p>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

@@ -26,6 +26,7 @@ import { useId } from 'react'
 import { Overlay } from '@/components/ui/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useT } from '@/lib/i18n/provider'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
@@ -44,16 +45,24 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   danger,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useT()
   const titleId = useId()
   const bodyId = useId()
   const reduced = useReducedMotion()
   const panelRef = useDismissableLayer({ open, onClose: onCancel })
+
+  // The defaults are translated, not English literals. Every caller passes a
+  // localized `confirmLabel` (it is the verb of the action) and none passes
+  // `cancelLabel`, so a hardcoded `'Cancel'` shipped an English button sitting
+  // next to Russian copy in the one dialog you cannot avoid on the way out.
+  const confirmText = confirmLabel ?? t('common.confirm')
+  const cancelText = cancelLabel ?? t('common.cancel')
 
   return (
     <Overlay open={open} layer="confirm" onDismiss={onCancel}>
@@ -95,14 +104,14 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="flex-1 rounded-md border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
           >
-            {cancelLabel}
+            {cancelText}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 rounded-md py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             style={{ background: danger ? 'var(--danger)' : 'var(--success)' }}
           >
-            {confirmLabel}
+            {confirmText}
           </button>
         </div>
       </motion.div>
