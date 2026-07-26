@@ -131,11 +131,22 @@ export function useRealtimeChannel(): RealtimeChannelState {
 
   // Mirror the channel status, and keep the queued-event count fresh.
   useEffect(() => {
-    const off = bus.onStatus((next) => {
+    const offStatus = bus.onStatus((next) => {
       setStatus(next)
       setPending(bus.pendingCount)
     })
-    return off
+    // The status flips to `open` *before* the backlog drains, so counting only on
+    // status changes would leave "1 queued" on screen forever. Recount on every
+    // delivered frame instead — that is exactly when the queue shrinks.
+    const offEvents = bus.subscribeAll(() => setPending(bus.pendingCount))
+    // …and when it grows: frames published during an outage are logged, never
+    // delivered, so the log is the only signal that the backlog got longer.
+    const offLog = bus.onLog(() => setPending(bus.pendingCount))
+    return () => {
+      offStatus()
+      offEvents()
+      offLog()
+    }
   }, [])
 
   useEffect(() => {
