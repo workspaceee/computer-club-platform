@@ -3,26 +3,25 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useStore } from '@/lib/store'
 import { navItem, resolveView, type LauncherSurface } from '@/lib/launcher-nav'
+import { AppShell } from '@/components/app-shell'
 import { ErrorBoundary } from '@/components/error-boundary'
-import { TopBar } from '@/components/launcher/top-bar'
-import { MobileNav } from '@/components/launcher/mobile-nav'
 import { HomeView } from '@/components/launcher/home-view'
 import { GamesView } from '@/components/launcher/games-view'
 import { ShopView } from '@/components/launcher/shop-view'
 import { ProfileView } from '@/components/launcher/profile-view'
 import { PendingView } from '@/components/launcher/pending-view'
-import { GuestNotice } from '@/components/launcher/guest-notice'
-import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
-import { CartDrawer } from '@/components/launcher/cart-drawer'
-import { SettingsModal } from '@/components/launcher/settings-modal'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 
 /**
- * The launcher shell (F6.2 / F6.4).
+ * Section router of the launcher (F6.2).
  *
- * Both signed-in members and PostPaid guests render through here — the surface
- * only changes which sections the navigation offers, so there is no second copy
- * of the frame to keep in sync.
+ * The frame — background, bars, content column — is `AppShell` (F6.4), and the
+ * global overlays are mounted next to the screens, not here. What is left in
+ * this file is the one thing it should own: which section is open and what
+ * happens when that section fails.
+ *
+ * Both signed-in members and PostPaid guests render through here; the surface
+ * only changes which sections the navigation offers.
  */
 export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }) {
   const view = useStore((s) => s.view)
@@ -34,50 +33,35 @@ export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }
   const pendingTask = navItem(active).pendingTask
 
   return (
-    <div className="app-ambient flex min-h-svh flex-col">
-      <div className="hairline-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
-      <TopBar surface={surface} />
-
-      {surface === 'guest' && <GuestNotice />}
-
-      <main className="flex-1 pb-24 sm:pb-10">
-        <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={active}
-              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-              transition={{ duration: reduceMotion ? 0 : 0.2 }}
-            >
-              {/* Section-level boundary (F6.5). A render fault in one view must
-                  not cost the player the session clock, the lock button and the
-                  navigation they need to get out — so the frame outside this
-                  boundary stays mounted and only the content becomes a card.
-                  `resetKey={active}` means switching sections clears the fault
-                  without any explicit retry. */}
-              <ErrorBoundary variant="section" resetKey={active}>
-                {pendingTask ? (
-                  <PendingView view={active} />
-                ) : (
-                  <>
-                    {active === 'home' && <HomeView surface={surface} />}
-                    {active === 'games' && <GamesView />}
-                    {active === 'shop' && <ShopView />}
-                    {active === 'profile' && <ProfileView />}
-                  </>
-                )}
-              </ErrorBoundary>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </main>
-
-      <MobileNav surface={surface} />
-
-      <GameLaunchModal />
-      <CartDrawer />
-      <SettingsModal />
-    </div>
+    <AppShell surface={surface}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={active}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2 }}
+        >
+          {/* Section-level boundary (F6.5). A render fault in one view must not
+              cost the player the session clock, the lock button and the
+              navigation they need to get out — so the frame outside this
+              boundary stays mounted and only the content becomes a card.
+              `resetKey={active}` means switching sections clears the fault
+              without any explicit retry. */}
+          <ErrorBoundary variant="section" resetKey={active}>
+            {pendingTask ? (
+              <PendingView view={active} />
+            ) : (
+              <>
+                {active === 'home' && <HomeView surface={surface} />}
+                {active === 'games' && <GamesView />}
+                {active === 'shop' && <ShopView />}
+                {active === 'profile' && <ProfileView />}
+              </>
+            )}
+          </ErrorBoundary>
+        </motion.div>
+      </AnimatePresence>
+    </AppShell>
   )
 }

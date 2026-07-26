@@ -61,37 +61,26 @@ export function Modal({
   })
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduced ? 0 : 0.2 }}
-        >
-          <div
-            aria-hidden
-            onClick={dismissable ? onClose : undefined}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          />
-
-          <motion.div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={title ? titleId : undefined}
-            tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
-            transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
-            className={cn(
-              'glass-strong tick-corners relative z-10 flex max-h-[88vh] w-full flex-col overflow-hidden rounded-xl outline-none',
-              SIZES[size],
-              className,
-            )}
-          >
+    <Overlay open={open} layer="modal" onDismiss={dismissable ? onClose : undefined}>
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
+        // `OVERLAY_MAX_H` replaces the old `max-h-[88vh]`: `vh` on a kiosk
+        // browser measures the largest possible viewport, so the card was taller
+        // than the space it had and its header hid under the browser UI (F6.4).
+        className={cn(
+          'glass-strong tick-corners relative flex w-full flex-col overflow-hidden rounded-xl outline-none',
+          size === 'full' ? SIZES.full : cn(SIZES[size], OVERLAY_MAX_H),
+          className,
+        )}
+      >
             {/* Top accent hairline — the signature edge of every IMBA surface. */}
             <div
               aria-hidden
@@ -131,14 +120,12 @@ export function Modal({
 
             <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
 
-            {footer && (
-              <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
-                {footer}
-              </footer>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        {footer && (
+          <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+            {footer}
+          </footer>
+        )}
+      </motion.div>
+    </Overlay>
   )
 }
