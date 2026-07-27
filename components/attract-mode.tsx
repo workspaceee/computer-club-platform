@@ -187,9 +187,6 @@ export function AttractMode() {
         }}
       />
 
-      {/* ---------- corner brackets (HUD frame) ---------- */}
-      <CornerBrackets />
-
       {/* ---------- ambient layer ---------- */}
       <div className="relative z-10 flex h-full flex-col items-center justify-between pb-16 pt-9 md:pb-20">
         {/* top strip: logo + live status */}
@@ -341,22 +338,6 @@ export function AttractMode() {
         </div>
       </div>
     </motion.div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/*  Decorative HUD frame                                               */
-/* ------------------------------------------------------------------ */
-
-function CornerBrackets() {
-  const base = 'pointer-events-none absolute h-10 w-10 border-white/20 md:h-14 md:w-14'
-  return (
-    <div aria-hidden className="absolute inset-0 z-10 m-5 md:m-7">
-      <span className={`${base} left-0 top-0 border-l border-t`} />
-      <span className={`${base} right-0 top-0 border-r border-t`} />
-      <span className={`${base} bottom-0 left-0 border-b border-l`} />
-      <span className={`${base} bottom-0 right-0 border-b border-r`} />
-    </div>
   )
 }
 
