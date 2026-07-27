@@ -5,6 +5,7 @@ import { icons } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
+import { BrandLabel } from '@/components/brand-label'
 import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
 import { Overlay } from '@/components/ui/overlay'
@@ -281,29 +282,16 @@ export function LockScreen() {
       {/* =================== Language switcher (F2.4) =================== */}
       <LangSwitcher showLabel className="absolute right-4 top-4 z-30 lg:right-6 lg:top-6" />
 
-      {/* =================== LEFT — station identity =================== */}
-      <div className="relative z-10 hidden flex-1 flex-col justify-between p-10 lg:flex xl:p-14">
-        {/* real full logo lockup */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
-          className="neon-logo relative h-16 w-[360px] xl:h-20 xl:w-[430px]"
-        >
-          <AssetImage
-            src="/imba-logo-full.webp"
-            // The one named instance of the mark on this screen (F7.4). Nothing
-            // else here says which club the station belongs to, and the mobile
-            // lockup below is the same picture at another breakpoint — both in
-            // the DOM at once, so only this one carries the name.
-            alt="IMBA Cyber Club"
-            priority
-            sizes="430px"
-            className="object-contain object-left"
-            fallback="none"
-          />
-        </motion.div>
+      {/* =================== Corner signature =================== */}
+      <BrandLabel className="absolute bottom-4 right-4 z-30 lg:bottom-6 lg:right-6" />
 
+      {/* =================== LEFT — station identity =================== */}
+      {/* The lockup used to head this column; it now signs the bottom-right
+          corner (see `BrandLabel`), which leaves the clock as the first thing
+          read and clears the neon sign in the backdrop art. With two children
+          left, `justify-between` would strand the clock at the ceiling — the
+          pair is centred as one block instead. */}
+      <div className="relative z-10 hidden flex-1 flex-col justify-center gap-12 p-10 lg:flex xl:p-14">
         {/* giant clock */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -348,25 +336,6 @@ export function LockScreen() {
 
       {/* =================== RIGHT — access terminal =================== */}
       <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 py-10 lg:w-[44%] lg:min-w-[480px] lg:px-12">
-        {/* compact identity for mobile */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="neon-logo relative mb-8 h-14 w-72 lg:hidden"
-        >
-          <AssetImage
-            src="/imba-logo-full.webp"
-            // Duplicate of the desktop lockup above, shown at another breakpoint
-            // but present in the same DOM — the name lives up there.
-            alt=""
-            priority
-            sizes="288px"
-            className="object-contain"
-            fallback="none"
-          />
-        </motion.div>
-
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={

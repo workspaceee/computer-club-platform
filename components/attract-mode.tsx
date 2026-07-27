@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
+import { BrandLabel } from '@/components/brand-label'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
@@ -178,24 +179,10 @@ export function AttractMode() {
 
       {/* ---------- ambient layer ---------- */}
       <div className="relative z-10 flex h-full flex-col items-center justify-between pb-16 pt-9 md:pb-20">
-        {/* top strip: logo + live status */}
+        {/* top strip: live status. The lockup that used to sit above it now signs
+            the bottom-right corner (see `BrandLabel`), mirroring the promo
+            caption's corner and leaving the clock uncontested. */}
         <div className="flex w-full flex-col items-center gap-2.5">
-          <motion.div
-            animate={{ opacity: [0.85, 1, 0.85] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="neon-logo relative h-12 w-64 md:h-14 md:w-80"
-          >
-            <AssetImage
-              src="/imba-logo-full.webp"
-              // The screen's own `aria-label` names the club and states the way
-              // out; naming the logo too would put "IMBA Cyber Club" in front of
-              // "move the mouse to unlock" (F7.4).
-              alt=""
-              sizes="320px"
-              className="object-contain"
-              fallback="none"
-            />
-          </motion.div>
           <span className="label-mono flex items-center gap-2 text-[10px] tracking-[0.35em] text-text-low">
             <motion.span
               animate={{ opacity: [1, 0.25, 1] }}
@@ -297,6 +284,13 @@ export function AttractMode() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ---------- corner signature ---------- */}
+      {/* Mirrors the promo caption's band on the opposite side, above the crawl. */}
+      <BrandLabel
+        named={false}
+        className="absolute bottom-16 right-5 z-20 md:bottom-20 md:right-7"
+      />
 
       {/* ---------- promo ticker ---------- */}
       <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
