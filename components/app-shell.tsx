@@ -36,6 +36,7 @@ import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { SessionManager } from '@/components/session-manager'
 import { Toaster } from '@/components/toaster'
+import { useSfxPreload } from '@/hooks/use-sfx'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 
@@ -99,8 +100,14 @@ export function AppShell({
  * single clock of the product (F6.3): mounting it per screen would restart the
  * interval on every surface change, and mounting it inside the launcher would
  * stop the end-of-visit takeover from being able to cover the launcher itself.
+ *
+ * `useSfxPreload()` is here for the same reason (F8.2): the sound set is decoded
+ * once per station, during idle time, so the first cue is instant instead of
+ * arriving after its own fetch. It renders nothing and never blocks boot.
  */
 export function GlobalOverlays() {
+  useSfxPreload()
+
   return (
     <>
       <GameLaunchModal />

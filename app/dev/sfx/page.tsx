@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { SfxConsole } from '@/components/dev-kit/sfx-console'
+import { SfxEngineConsole } from '@/components/dev-kit/sfx-engine-console'
 
 /**
  * Audition page for the F8.1 sound set (docs/DESIGN.md §13.9).
@@ -37,6 +38,22 @@ export default function DevSfxPage() {
       </header>
 
       <SfxConsole />
+
+      <section className="flex flex-col gap-5 border-t border-border pt-8">
+        <header className="flex flex-col gap-2">
+          <span className="label-mono text-[10px] text-primary">F8.2 / ENGINE</span>
+          <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-text-high">
+            Playback engine
+          </h2>
+          <p className="max-w-2xl text-sm leading-relaxed text-text-medium">
+            {
+              'The console above plays files directly; this one goes through lib/sfx.ts — the single entry point every screen uses. What it tests is the part listening cannot: that a burst of identical events is heard once, that unrelated cues stop at the voice cap, that a critical cue is never the one dropped, and that every silence reports its reason.'
+            }
+          </p>
+        </header>
+
+        <SfxEngineConsole />
+      </section>
     </main>
   )
 }
