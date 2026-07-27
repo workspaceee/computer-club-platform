@@ -176,7 +176,7 @@ export const ru: Dictionary = {
     quantity: 'Количество',
     payWithCoins: 'Оплатить коинами',
     payAtCounter: 'Оплатить на стойке',
-    orderPlaced: 'Заказ принят! Персонал принесёт его к станции.',
+    orderPlaced: 'За��аз принят! Персонал принесёт его к станции.',
     catSnacks: 'Снеки',
     catDrinks: 'Напитки',
     catTime: 'Время',
@@ -307,6 +307,9 @@ export const ru: Dictionary = {
     serverRegion: 'Игровой регион',
     language: 'Язык интерфейса',
     languageHint: 'Применяется к станции сразу и сохраняется в профиле.',
+    languageHintGuest: 'Действует до конца сеанса. У гостя нет профиля, чтобы сохранить выбор.',
+    languageSaved: 'Язык интерфейса сохранён в профиле.',
+    languageSaveFailed: 'Язык сменился для этого сеанса, но сохранить его в профиль не удалось.',
   },
 
   guest: {

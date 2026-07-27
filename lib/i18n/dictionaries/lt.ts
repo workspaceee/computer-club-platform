@@ -308,6 +308,9 @@ export const lt: Dictionary = {
     serverRegion: 'Serverio regionas',
     language: 'Sąsajos kalba',
     languageHint: 'Pritaikoma stotyje iš karto ir išsaugoma profilyje.',
+    languageHintGuest: 'Veikia iki šio seanso pabaigos. Svečias neturi profilio, kuriame būtų išsaugota.',
+    languageSaved: 'Sąsajos kalba išsaugota profilyje.',
+    languageSaveFailed: 'Kalba pakeista šiam seansui, bet išsaugoti profilyje nepavyko.',
   },
 
   guest: {
