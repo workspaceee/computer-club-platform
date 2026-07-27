@@ -86,9 +86,6 @@ export function CartDrawer() {
                   <ProductImage
                     src={item.image}
                     alt={item.name}
-                    {/* Фолбэк товара — «товар» (`shop`), а не «корзина»: миниатюра
-                        описывает позицию, а не контейнер, в котором она лежит.
-                        Тот же глиф стоит под товаром без фото в витрине. */}
                     fallbackIcon={icons.shop}
                     className="size-10 shrink-0"
                     sizes="40px"

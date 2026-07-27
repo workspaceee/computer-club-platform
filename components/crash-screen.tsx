@@ -10,7 +10,7 @@
  *    `useApi`, no realtime, no `useT()` (which throws without its provider).
  *    Translations come from `useMaybeT()` with a `translate()` fallback, and the
  *    language is read straight off localStorage in an effect.
- * 2. **No framer-motion, no next/image, no icons beyond `lucide-react`.**
+ * 2. **No framer-motion, no next/image; glyphs only via `lib/icons` (F7.6).**
  *    `app/global-error.tsx` renders without the root layout, so heavy client
  *    machinery is a liability. The brand mark is a plain `<img>` for the same
  *    reason — `next/image` needs an intact app runtime.
@@ -300,7 +300,7 @@ export function CrashScreen({
               variant="secondary"
               size="lg"
               onClick={() => window.location.reload()}
-              iconLeft={<icons.support aria-hidden />}
+              iconLeft={<icons.restart aria-hidden />}
             >
               {t('crash.reload')}
             </Button>

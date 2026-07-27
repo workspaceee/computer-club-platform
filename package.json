@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/generate-blur.mjs && node scripts/verify-assets.mjs",
+    "prebuild": "node scripts/generate-blur.mjs && node scripts/verify-assets.mjs && node scripts/verify-icons.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "icons:verify": "node scripts/verify-icons.mjs",
     "assets:blur": "node scripts/generate-blur.mjs",
     "assets:verify": "node scripts/verify-assets.mjs",
     "assets:build": "node scripts/optimize-covers.mjs && node scripts/optimize-products.mjs && node scripts/optimize-promo.mjs && node scripts/optimize-chrome.mjs && node scripts/generate-blur.mjs && node scripts/verify-assets.mjs"
