@@ -37,16 +37,22 @@ export function BrandLabel({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.45, ease: 'easeOut' }}
-      className={`neon-logo pointer-events-none relative h-9 w-20 opacity-80 md:h-10 md:w-[88px] ${className}`}
+      // No `relative` here: call sites position this element with `absolute`,
+      // and Tailwind's `relative` wins the cascade over `absolute`, which
+      // dropped the label into the flex flow instead of the corner. The
+      // positioning context `AssetImage` needs lives on the inner box.
+      className={`neon-logo pointer-events-none opacity-80 ${className}`}
     >
-      <AssetImage
-        src="/imba-logo-full.webp"
-        alt={named ? 'IMBA Cyber Club' : ''}
-        priority
-        sizes="88px"
-        className="object-contain object-right"
-        fallback="none"
-      />
+      <div className="relative h-9 w-20 md:h-10 md:w-[88px]">
+        <AssetImage
+          src="/imba-logo-full.webp"
+          alt={named ? 'IMBA Cyber Club' : ''}
+          priority
+          sizes="88px"
+          className="object-contain object-right"
+          fallback="none"
+        />
+      </div>
     </motion.div>
   )
 }
