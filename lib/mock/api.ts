@@ -15,6 +15,7 @@
 //   loyalty   coins, quests, battle pass, rewards, leaderboard
 //   social    friends, requests, parties
 //   events    tournaments and bookings
+//   promo     marketing campaigns for the hero strip and attract-mode
 //   support   notifications and help threads
 export {
   ApiError,
@@ -31,6 +32,7 @@ export * from '@/lib/mock/api/catalog'
 export * from '@/lib/mock/api/events'
 export * from '@/lib/mock/api/loyalty'
 export * from '@/lib/mock/api/profile'
+export * from '@/lib/mock/api/promo'
 export * from '@/lib/mock/api/session'
 export * from '@/lib/mock/api/shop'
 export * from '@/lib/mock/api/social'

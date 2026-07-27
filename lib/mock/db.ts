@@ -41,6 +41,7 @@ import type {
 import type { HelpThread, Notification } from '@/lib/types/notification'
 import type { Order } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
+import type { Promo, PromoAudience, PromoKind, PromoSurface } from '@/lib/types/promo'
 import type { Session } from '@/lib/types/session'
 import type { Club, ClubSettings, UserPreferences } from '@/lib/types/settings'
 import type { Friendship, FriendSummary, Party } from '@/lib/types/social'
@@ -1317,6 +1318,184 @@ const tournaments: Tournament[] = [
   },
 ]
 
+/* ------------------------------------------------------------------ *
+ * Promo campaigns (F7.3)
+ *
+ * Catalogue data, not session state: the club edits campaigns in admin, a demo
+ * run never mutates them, so this slice is intentionally absent from
+ * `lib/mock/persist.ts` — a stale banner frozen into localStorage is exactly the
+ * bug that file's rule 2 exists to prevent.
+ *
+ * Every row that advertises something real points at it through `refType`/
+ * `refId` (a tournament above, the active season, a pass) so copy and data
+ * cannot drift apart, and `target` is a section id rather than a URL so
+ * `resolveView` can refuse a destination the current surface cannot open.
+ * `image` names a file in `public/promo/`; the art carries **no baked-in text**.
+ * ------------------------------------------------------------------ */
+
+function promo(
+  id: string,
+  kind: PromoKind,
+  copy: { badge: string; title: string; subtitle: string },
+  extra: Partial<Omit<Promo, 'id' | 'kind' | 'badge' | 'title' | 'subtitle'>> = {},
+): Promo {
+  return {
+    id,
+    kind,
+    badge: copy.badge,
+    title: copy.title,
+    subtitle: copy.subtitle,
+    image: `/promo/${id}.webp`,
+    cta: null,
+    target: null,
+    priority: 0,
+    startsAt: atDays(-2),
+    endsAt: null,
+    surfaces: ['home', 'attract'],
+    audience: 'everyone',
+    refType: null,
+    refId: null,
+    ...extra,
+  }
+}
+
+const promos: Promo[] = [
+  // Highest priority: the check-in window is closing in 45 minutes, so this is
+  // the one thing worth shouting about on both screens tonight.
+  promo(
+    'promo-cs2-weekly',
+    'tournament',
+    {
+      badge: 'Check-in open',
+      title: 'CS2 Weekly Cup',
+      subtitle: '€100 top prize · 13 of 16 seats taken · starts in 45 minutes',
+    },
+    {
+      cta: 'Check in',
+      target: 'tournaments',
+      priority: 100,
+      startsAt: atDays(-3),
+      endsAt: atHours(3),
+      audience: 'members',
+      refType: 'tournament',
+      refId: 't-cs2-weekly',
+    },
+  ),
+  promo(
+    'promo-double-coins',
+    'sale',
+    {
+      badge: 'Happy hours',
+      title: 'Double coins until 22:00',
+      subtitle: 'Every minute of play pays twice into the season track',
+    },
+    {
+      cta: 'View rewards',
+      target: 'rewards',
+      priority: 90,
+      startsAt: atHours(-2),
+      endsAt: atHours(3),
+      // Coins are a membership perk — the walk-in guest surface has no coin
+      // balance, so advertising the multiplier there would sell nothing.
+      audience: 'members',
+    },
+  ),
+  promo(
+    'promo-battlepass',
+    'battlepass',
+    {
+      badge: 'Season 3',
+      title: 'Neon Rush battle pass',
+      subtitle: '50 levels of rewards · 30 days left in the season',
+    },
+    {
+      cta: 'Open the pass',
+      target: 'rewards',
+      priority: 80,
+      startsAt: atDays(-30),
+      endsAt: atDays(30),
+      audience: 'members',
+      refType: 'season',
+      refId: SEASON_ID,
+    },
+  ),
+  promo(
+    'promo-valorant-night',
+    'tournament',
+    {
+      badge: 'Tonight',
+      title: 'Valorant Night Showdown',
+      subtitle: 'Free entry with 500 coins · 3 slots left',
+    },
+    {
+      cta: 'Join',
+      target: 'tournaments',
+      priority: 70,
+      endsAt: atHours(5),
+      audience: 'members',
+      refType: 'tournament',
+      refId: 't-valorant-night',
+    },
+  ),
+  promo(
+    'promo-night-pass',
+    'sale',
+    {
+      badge: 'Night pass',
+      title: 'Unlimited from 22:00 to 08:00',
+      subtitle: 'One price, one seat, the whole night in the Main Hall',
+    },
+    {
+      cta: 'Buy at the shop',
+      target: 'shop',
+      priority: 60,
+      refType: 'pass',
+      refId: 'pass-night',
+    },
+  ),
+  promo(
+    'promo-fifa-ladder',
+    'tournament',
+    {
+      badge: 'Sign-ups open',
+      title: 'FC 25 1v1 Ladder',
+      subtitle: 'IMBA hoodie for first place · €3 entry · starts Tuesday',
+    },
+    {
+      cta: 'Reserve a slot',
+      target: 'tournaments',
+      priority: 50,
+      endsAt: atDays(2),
+      audience: 'members',
+      refType: 'tournament',
+      refId: 't-fifa-1v1',
+    },
+  ),
+  // Informational: no CTA, and attract-only. It answers a question people ask
+  // the counter, which is worth screen time while nobody is seated but would
+  // just be noise inside a live session.
+  promo(
+    'promo-vip-zone',
+    'event',
+    {
+      badge: 'VIP zone',
+      title: 'RTX 4090 seats and a door that closes',
+      subtitle: 'Six seats, private room, ask the counter about the team rate',
+    },
+    { priority: 40, surfaces: ['attract'] },
+  ),
+  promo(
+    'promo-birthday',
+    'event',
+    {
+      badge: 'Parties',
+      title: 'Book the arena for your birthday',
+      subtitle: 'Ten seats, two hours, cake from the bar — reserve in advance',
+    },
+    { cta: 'Ask the staff', target: 'help', priority: 30, surfaces: ['home', 'attract'] },
+  ),
+]
+
 const tournamentEntries: TournamentEntry[] = [
   { tournamentId: 't-cs2-weekly', userId: CURRENT_USER_ID, teamId: null, checkedIn: false, seed: 9 },
   { tournamentId: 't-cs2-weekly', userId: 'u-pro', teamId: null, checkedIn: true, seed: 1 },
@@ -1830,6 +2009,7 @@ export const db = {
   parties,
   tournaments,
   tournamentEntries,
+  promos,
   bookings,
   helpThreads,
   notifications,
@@ -1950,6 +2130,31 @@ export function getMinutesBanked(userId: ID = db.currentUserId): Minutes {
 
 export function getBattlePassTiers(track?: 'free' | 'paid'): BattlePassTier[] {
   return track ? db.battlePassTiers.filter((t) => t.track === track) : db.battlePassTiers
+}
+
+/**
+ * Campaigns live *now* on one surface, highest priority first (F7.3).
+ *
+ * The window check uses `db.now`, not `Date.now()`, so the strip on Home and the
+ * idle screen agree with every countdown in the product and server-rendered
+ * markup matches the client. Audience filtering is done here rather than in the
+ * component because "the guest surface must not see the coin economy" is a rule
+ * about data, not about layout.
+ */
+export function getActivePromos(
+  surface: PromoSurface,
+  audience: PromoAudience = 'members',
+): Promo[] {
+  const now = Date.parse(db.now)
+  return db.promos
+    .filter((p) => {
+      if (!p.surfaces.includes(surface)) return false
+      if (p.audience === 'members' && audience !== 'members') return false
+      if (Date.parse(p.startsAt) > now) return false
+      if (p.endsAt !== null && Date.parse(p.endsAt) <= now) return false
+      return true
+    })
+    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
 }
 
 export function getActiveSeason(): Season {
