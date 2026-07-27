@@ -19,7 +19,7 @@ import {
   UserRound,
   Wifi,
 } from 'lucide-react'
-import Image from 'next/image'
+import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import { LangSwitcher } from '@/components/lang-switcher'
@@ -254,14 +254,16 @@ export function LockScreen() {
     <div className="relative flex h-full min-h-dvh w-full overflow-hidden bg-black">
       {/* ------- cinematic backdrop ------- */}
       <div className="absolute inset-0">
-        <Image
+        <AssetImage
           src="/lock-bg.webp"
           alt=""
-          fill
           priority
           sizes="100vw"
           className="object-cover"
-          aria-hidden
+          // This is the first paint of the whole product on a station that boots
+          // into it, so it blurs up from an LQIP instead of flashing black, and
+          // degrades to the plate rather than to nothing (F7.5).
+          fallback="plate"
         />
       </div>
       {/* readability overlays: cool the red cast, darken globally, deepen toward edges */}
@@ -295,17 +297,17 @@ export function LockScreen() {
           transition={{ duration: 0.7, ease: 'easeOut' }}
           className="neon-logo relative h-16 w-[360px] xl:h-20 xl:w-[430px]"
         >
-          <Image
+          <AssetImage
             src="/imba-logo-full.webp"
             // The one named instance of the mark on this screen (F7.4). Nothing
             // else here says which club the station belongs to, and the mobile
             // lockup below is the same picture at another breakpoint — both in
             // the DOM at once, so only this one carries the name.
             alt="IMBA Cyber Club"
-            fill
             priority
             sizes="430px"
             className="object-contain object-left"
+            fallback="none"
           />
         </motion.div>
 
@@ -360,16 +362,15 @@ export function LockScreen() {
           transition={{ duration: 0.6 }}
           className="neon-logo relative mb-8 h-14 w-72 lg:hidden"
         >
-          <Image
+          <AssetImage
             src="/imba-logo-full.webp"
             // Duplicate of the desktop lockup above, shown at another breakpoint
             // but present in the same DOM — the name lives up there.
             alt=""
-            aria-hidden
-            fill
             priority
             sizes="288px"
             className="object-contain"
+            fallback="none"
           />
         </motion.div>
 

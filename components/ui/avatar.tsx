@@ -1,4 +1,12 @@
+import { AssetImage } from '@/components/ui/asset-image'
 import { cn } from '@/lib/utils'
+
+/**
+ * One hint for every size. The largest avatar in the product is `xl` (96px), and
+ * a photo is a per-member upload rather than a shipped asset, so asking the
+ * optimizer for a single 96px variant beats five near-identical ones.
+ */
+const AVATAR_SIZES = '96px'
 
 /**
  * Avatar (F1.19).
@@ -116,27 +124,36 @@ export function Avatar({
     >
       <div
         className={cn(
-          'grid place-items-center overflow-hidden bg-surface-2 ring-2 ring-offset-2 ring-offset-background',
+          // `relative` is load-bearing: the photo layer fills this box.
+          'relative grid place-items-center overflow-hidden bg-surface-2 ring-2 ring-offset-2 ring-offset-background',
           square ? 'rounded-md' : 'rounded-full',
           s.box,
           tier.ring,
           tier.glow,
         )}
       >
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src || '/placeholder.svg'} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span
-            aria-hidden
-            className={cn(
-              'font-display font-bold uppercase tracking-widest text-text-medium',
-              s.text,
-            )}
-          >
-            {initialsOf(name)}
-          </span>
-        )}
+        <AssetImage
+          src={src ?? ''}
+          // The wrapper above is `role="img"` with the full label (name, level,
+          // presence), so the photo itself must stay silent.
+          alt=""
+          sizes={AVATAR_SIZES}
+          className="object-cover"
+          // Initials are the designed default here, not a degraded state (F1.19):
+          // no photo and a failed photo land on the same tile the club has been
+          // showing since day one.
+          fallback={
+            <span
+              aria-hidden
+              className={cn(
+                'font-display font-bold uppercase tracking-widest text-text-medium',
+                s.text,
+              )}
+            >
+              {initialsOf(name)}
+            </span>
+          }
+        />
       </div>
 
       {status && (

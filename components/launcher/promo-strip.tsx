@@ -9,9 +9,9 @@ import {
   Tag,
   type LucideIcon,
 } from 'lucide-react'
-import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { ApiErrorState } from '@/components/data-boundary'
+import { AssetImage } from '@/components/ui/asset-image'
 import { Skeleton } from '@/components/skeleton'
 import { useApi } from '@/hooks/use-api'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
@@ -112,18 +112,18 @@ export function PromoStrip({ surface = 'launcher' }: { surface?: LauncherSurface
           transition={{ duration: reduced ? 0 : 0.35 }}
           className="relative"
         >
-          {promo.image !== '' && (
-            <Image
-              src={promo.image}
-              alt=""
-              aria-hidden
-              fill
-              // Decorative art behind DOM copy: the banner is never the largest
-              // element on Home, so it stays lazy and out of the hero's way.
-              sizes="(min-width: 1280px) 70vw, 100vw"
-              className="object-cover object-right"
-            />
-          )}
+          <AssetImage
+            src={promo.image}
+            alt=""
+            // Decorative art behind DOM copy: the banner is never the largest
+            // element on Home, so it stays lazy and out of the hero's way.
+            sizes="(min-width: 1280px) 70vw, 100vw"
+            className="object-cover object-right"
+            // A campaign with no art is a real row (`image: ''`), and the badge,
+            // headline and CTA below still have to sit on something — the plate
+            // is what stops the strip from becoming a flat red-scrimmed void.
+            fallback="plate"
+          />
           {/* The art is framed dark on the left; this scrim guarantees the
               contrast ratio there even if a future banner is not. */}
           <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(10,10,12,0.96)_18%,rgba(10,10,12,0.7)_52%,rgba(10,10,12,0.15))]" />
