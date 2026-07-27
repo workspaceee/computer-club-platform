@@ -56,11 +56,38 @@ function ToastCard({ toast }: { toast: Toast }) {
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
-      className="pointer-events-auto relative w-80 overflow-hidden rounded-lg border border-border bg-surface-2/95 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.8)] backdrop-blur"
-      style={{ borderLeft: `3px solid ${color}` }}
+      // Neon treatment matching the lock/attract chips: a thin kind-coloured
+      // border that glows outward, a faint tint of the same colour washing in
+      // from the accent edge, and a white hairline along the top — the same
+      // recipe as the club's neon signage, just in the semantic colour instead
+      // of brand red so success/error/warning stay legible at a glance.
+      className="pointer-events-auto relative w-80 overflow-hidden rounded-xl bg-surface-2/90 backdrop-blur-md"
+      style={{
+        border: `1px solid color-mix(in srgb, ${color} 45%, transparent)`,
+        boxShadow: `0 0 0.5px color-mix(in srgb, ${color} 90%, white), 0 0 14px -4px ${color}, 0 16px 40px -16px rgba(0,0,0,0.8)`,
+        backgroundImage: `linear-gradient(105deg, color-mix(in srgb, ${color} 14%, transparent) 0%, transparent 45%)`,
+      }}
     >
+      {/* top hairline — the bright "tube" edge of the neon */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-3 top-0 h-px"
+        style={{
+          background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${color} 70%, white), transparent)`,
+        }}
+      />
       <div className="flex items-start gap-3 px-4 py-3">
-        <Icon size={18} style={{ color }} className="mt-0.5 shrink-0" aria-hidden />
+        {/* icon chip: glowing dot of the kind colour instead of a bare glyph */}
+        <span
+          className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md"
+          style={{
+            color,
+            background: `color-mix(in srgb, ${color} 14%, transparent)`,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${color} 30%, transparent), 0 0 8px -2px ${color}`,
+          }}
+        >
+          <Icon size={15} aria-hidden />
+        </span>
         <div className="flex-1">
           {toast.title && (
             <p className="mb-0.5 font-display text-[11px] font-bold uppercase tracking-widest text-text-high">
@@ -86,7 +113,7 @@ function ToastCard({ toast }: { toast: Toast }) {
         <motion.span
           aria-hidden
           className="absolute bottom-0 left-0 h-0.5 origin-left"
-          style={{ background: color }}
+          style={{ background: color, boxShadow: `0 0 6px ${color}` }}
           initial={{ scaleX: 1 }}
           animate={{ scaleX: paused ? undefined : 0 }}
           transition={{ duration: remaining.current / 1000, ease: 'linear' }}
