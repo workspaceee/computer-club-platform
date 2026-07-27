@@ -33,7 +33,7 @@ const ATTRACT_VIDEOS: string[] = [
   // '/attract/clip-2.mp4',
 ]
 
-const ATTRACT_FRAMES = ['/attract/frame-1.png', '/attract/frame-2.png', '/attract/frame-3.png']
+const ATTRACT_FRAMES = ['/attract/frame-1.webp', '/attract/frame-2.webp', '/attract/frame-3.webp']
 
 const SLIDE_DURATION_MS = 9000
 
@@ -200,8 +200,12 @@ export function AttractMode() {
             className="neon-logo relative h-12 w-64 md:h-14 md:w-80"
           >
             <Image
-              src="/imba-logo-full.png"
-              alt="IMBA Cyber Club"
+              src="/imba-logo-full.webp"
+              // The screen's own `aria-label` names the club and states the way
+              // out; naming the logo too would put "IMBA Cyber Club" in front of
+              // "move the mouse to unlock" (F7.4).
+              alt=""
+              aria-hidden
               fill
               sizes="320px"
               className="object-contain"

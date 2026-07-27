@@ -255,7 +255,7 @@ export function LockScreen() {
       {/* ------- cinematic backdrop ------- */}
       <div className="absolute inset-0">
         <Image
-          src="/lock-bg.png"
+          src="/lock-bg.webp"
           alt=""
           fill
           priority
@@ -296,7 +296,11 @@ export function LockScreen() {
           className="neon-logo relative h-16 w-[360px] xl:h-20 xl:w-[430px]"
         >
           <Image
-            src="/imba-logo-full.png"
+            src="/imba-logo-full.webp"
+            // The one named instance of the mark on this screen (F7.4). Nothing
+            // else here says which club the station belongs to, and the mobile
+            // lockup below is the same picture at another breakpoint — both in
+            // the DOM at once, so only this one carries the name.
             alt="IMBA Cyber Club"
             fill
             priority
@@ -357,8 +361,11 @@ export function LockScreen() {
           className="neon-logo relative mb-8 h-14 w-72 lg:hidden"
         >
           <Image
-            src="/imba-logo-full.png"
-            alt="IMBA Cyber Club"
+            src="/imba-logo-full.webp"
+            // Duplicate of the desktop lockup above, shown at another breakpoint
+            // but present in the same DOM — the name lives up there.
+            alt=""
+            aria-hidden
             fill
             priority
             sizes="288px"
