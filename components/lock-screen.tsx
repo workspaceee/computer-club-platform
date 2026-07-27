@@ -305,11 +305,11 @@ export function LockScreen() {
             <span className="h-px w-8 bg-primary/60" />
             {t('auth.localTime')}
           </span>
-          <div className="flex items-end gap-3">
-            <span className="neon-text neon-digits font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
+          <div className="flex items-end gap-2.5">
+            <span className="neon-text neon-digits font-clock text-[4.75rem] font-semibold leading-[0.85] tabular-nums text-text-high xl:text-[6rem]">
               {timeStr}
             </span>
-            <span className="mb-2 font-clock text-2xl font-medium tabular-nums text-primary xl:mb-3 xl:text-3xl">
+            <span className="mb-1.5 font-clock text-xl font-medium tabular-nums text-primary xl:mb-2 xl:text-2xl">
               :{secStr}
             </span>
           </div>

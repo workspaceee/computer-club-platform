@@ -202,16 +202,16 @@ export function AttractMode() {
         >
           {/* Neon-tube digits: the red stroke traces the glyphs themselves —
               no framing box, per request. */}
-          <div className="neon-text neon-digits flex items-center justify-center font-clock font-semibold leading-none tracking-tight tabular-nums text-text-high">
-            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{hh}</span>
+          <div className="neon-text neon-digits flex items-center justify-center font-clock font-semibold leading-none tabular-nums text-text-high">
+            <span className="text-[3.75rem] md:text-[5.25rem] xl:text-[6.25rem]">{hh}</span>
             <motion.span
               animate={{ opacity: [1, 0.2, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="mx-1 -translate-y-[0.06em] text-[4.25rem] font-normal text-primary md:mx-1.5 md:text-[6.25rem] xl:text-[7.5rem]"
+              className="-translate-y-[0.06em] text-[3.25rem] font-normal text-primary md:text-[4.5rem] xl:text-[5.25rem]"
             >
               :
             </motion.span>
-            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{mm}</span>
+            <span className="text-[3.75rem] md:text-[5.25rem] xl:text-[6.25rem]">{mm}</span>
           </div>
 
           {/* seconds as a thin progress line filling over the minute */}
