@@ -133,7 +133,14 @@ export function GameLaunchModal() {
       >
             <div className="relative shrink-0">
               {game ? (
-                <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
+                <GameCover
+                  game={game}
+                  className="h-40 w-full"
+                  titleClassName="text-2xl"
+                  // The panel is capped at `max-w-md`, so the cover never renders
+                  // wider than that regardless of viewport.
+                  sizes="448px"
+                />
               ) : (
                 <Skeleton className="h-40 w-full" radius="sm" />
               )}
