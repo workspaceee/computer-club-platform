@@ -1,9 +1,23 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Activity, Cpu, Gauge, MousePointer2, Wifi } from 'lucide-react'
+import {
+  Activity,
+  CalendarDays,
+  Cpu,
+  Gauge,
+  MousePointer2,
+  Sparkles,
+  Swords,
+  Tag,
+  Wifi,
+  type LucideIcon,
+} from 'lucide-react'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useApi } from '@/hooks/use-api'
+import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
+import type { Promo, PromoKind } from '@/lib/types/promo'
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                             */
@@ -23,18 +37,80 @@ const ATTRACT_FRAMES = ['/attract/frame-1.png', '/attract/frame-2.png', '/attrac
 
 const SLIDE_DURATION_MS = 9000
 
-const TICKER_ITEMS = [
-  'HAPPY HOURS 22:00 — 06:00 · −30% ON ALL TARIFFS',
-  'CS2 5v5 TOURNAMENT EVERY FRIDAY · PRIZE POOL 50 000 ₽',
-  'BOOTCAMP ROOM AVAILABLE · BOOK AT THE FRONT DESK',
-  'NEW: RTX 4080 + 240HZ ON EVERY STATION',
-  'BRING A FRIEND — BOTH GET +1 HOUR FREE',
+/**
+ * Ticker copy of last resort (F7.3).
+ *
+ * Used only while `/api/promos/ticker` is loading or failed: the crawl is the one
+ * part of this screen that must never be empty, because an empty strip at the
+ * bottom of a kiosk reads as a broken screen from across the room. Everything
+ * here is evergreen club fact, not a dated offer — a stale "prize pool tonight"
+ * is worse than no line at all.
+ */
+const TICKER_FALLBACK = [
+  'NOW OPEN · 24/7',
+  'RTX 4080 + 240HZ ON EVERY STATION',
+  'ASK THE COUNTER ABOUT MEMBERSHIP',
 ]
+
+/**
+ * Fallback mark per campaign type, mirroring the promo strip on Home so the same
+ * campaign is recognisable on both screens.
+ */
+const KIND_ICONS: Record<PromoKind, LucideIcon> = {
+  sale: Tag,
+  tournament: Swords,
+  battlepass: Sparkles,
+  event: CalendarDays,
+}
+
+/** One Ken Burns frame: either a room shot or a campaign banner. */
+interface AttractSlide {
+  key: string
+  src: string
+  /** Set when the frame is advertising something — drives the caption. */
+  promo: Promo | null
+}
+
+/**
+ * Room shots and campaign banners, interleaved (F7.3).
+ *
+ * Interleaved rather than appended so the club itself stays on screen between
+ * offers: six banners in a row would turn the idle screen into an ad break. A
+ * campaign with no art (`image: ''`) is skipped here and still reaches the
+ * ticker — the crawl needs a sentence, not a picture.
+ */
+function buildSlides(promos: Promo[]): AttractSlide[] {
+  const art = promos.filter((p) => p.image !== '')
+  const frames: AttractSlide[] = ATTRACT_FRAMES.map((src, i) => ({
+    key: `frame-${i}`,
+    src,
+    promo: null,
+  }))
+  if (art.length === 0) return frames
+
+  const slides: AttractSlide[] = []
+  for (let i = 0; i < Math.max(frames.length, art.length); i++) {
+    if (i < frames.length) slides.push(frames[i])
+    if (i < art.length) slides.push({ key: art[i].id, src: art[i].image, promo: art[i] })
+  }
+  return slides
+}
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Idle screen.
+ *
+ * The campaigns shown here come from `GET /api/promos/active?surface=attract` and
+ * the crawl from `GET /api/promos/ticker` — the same rows the promo strip on Home
+ * reads (F7.3). Before that both were hardcoded here, so the idle screen could
+ * advertise a Friday tournament on a Sunday while Home advertised tonight's.
+ *
+ * It asks as `viewer: 'everyone'`: nobody is signed in in front of an idle kiosk,
+ * so the coin-economy campaigns are filtered out server-side.
+ */
 export function AttractMode() {
   const now = useClock()
   const ping = useLivePing()
@@ -42,11 +118,28 @@ export function AttractMode() {
 
   const useVideo = ATTRACT_VIDEOS.length > 0
 
+  const promos = useApi(['promos/active', 'attract', 'everyone'], () =>
+    fetchActivePromos('attract', 'everyone'),
+  )
+  const ticker = useApi(['promos/ticker', 'everyone'], () => fetchPromoTicker('everyone'))
+
+  const slides = useMemo(() => buildSlides(promos.data ?? []), [promos.data])
+  // A failed or empty fetch must not blank the crawl (see TICKER_FALLBACK).
+  const tickerItems = ticker.data?.length ? ticker.data : TICKER_FALLBACK
+
+  // The rotation is built from data that arrives after the first paint, so the
+  // list grows under the timer — clamp instead of pointing past the end.
+  useEffect(() => {
+    if (slide >= slides.length) setSlide(0)
+  }, [slide, slides.length])
+
   useEffect(() => {
     if (useVideo) return
-    const t = setInterval(() => setSlide((i) => (i + 1) % ATTRACT_FRAMES.length), SLIDE_DURATION_MS)
+    const t = setInterval(() => setSlide((i) => (i + 1) % slides.length), SLIDE_DURATION_MS)
     return () => clearInterval(t)
-  }, [useVideo])
+  }, [useVideo, slides.length])
+
+  const current = slides[Math.min(slide, slides.length - 1)]
 
   const hh = now ? String(now.getHours()).padStart(2, '0') : '--'
   const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--'
@@ -65,11 +158,7 @@ export function AttractMode() {
       aria-label="Idle screen. Move the mouse or press any key to unlock."
     >
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
-      {useVideo ? (
-        <VideoPlaylist sources={ATTRACT_VIDEOS} />
-      ) : (
-        <KenBurnsSlideshow index={slide} />
-      )}
+      {useVideo ? <VideoPlaylist sources={ATTRACT_VIDEOS} /> : <KenBurnsSlideshow slide={current} />}
 
       {/* readability veils: base dim + radial scrim behind the clock + edge gradient */}
       <div className="absolute inset-0 bg-black/35" />
@@ -168,9 +257,9 @@ export function AttractMode() {
           {/* slideshow progress */}
           {!useVideo && (
             <div className="mt-6 flex items-center gap-2">
-              {ATTRACT_FRAMES.map((_, i) => (
+              {slides.map((s, i) => (
                 <span
-                  key={i}
+                  key={s.key}
                   className={`h-0.5 rounded-full transition-all duration-500 ${
                     i === slide ? 'w-8 bg-primary' : 'w-3 bg-white/20'
                   }`}
@@ -200,6 +289,26 @@ export function AttractMode() {
         </div>
       </div>
 
+      {/* ---------- campaign caption for the current banner ---------- */}
+      {/* The copy is DOM text over the art, never baked into the file: it has to
+          survive translation, a screen reader and a price change (F7.3). It sits
+          in the lower-left corner the banners reserve for it, clear of the
+          centred clock and above the crawl. */}
+      <AnimatePresence mode="wait">
+        {current?.promo && (
+          <motion.div
+            key={current.promo.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="absolute bottom-16 left-5 z-20 max-w-md md:bottom-20 md:left-7"
+          >
+            <PromoCaption promo={current.promo} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ---------- promo ticker ---------- */}
       <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
         {/* thin accent rule above the ticker */}
@@ -211,10 +320,13 @@ export function AttractMode() {
               aria-hidden={copy === 1}
               className="marquee-track flex shrink-0 items-center"
             >
-              {TICKER_ITEMS.map((item) => (
+              {tickerItems.map((item) => (
                 <span
                   key={item}
-                  className="label-mono flex items-center gap-6 whitespace-nowrap px-6 text-[11px] tracking-[0.18em] text-text-medium"
+                  // `uppercase` in CSS, not in the data: the campaign rows are
+                  // the same ones Home renders in sentence case, and the crawl's
+                  // house style must not force the copy writer's hand.
+                  className="label-mono flex items-center gap-6 whitespace-nowrap px-6 text-[11px] uppercase tracking-[0.18em] text-text-medium"
                 >
                   {item}
                   <span className="h-1 w-1 rotate-45 bg-primary" />
@@ -271,11 +383,17 @@ function VideoPlaylist({ sources }: { sources: string[] }) {
   )
 }
 
-function KenBurnsSlideshow({ index }: { index: number }) {
+/**
+ * One frame at a time, slowly zoomed. The frame may be a room shot or a campaign
+ * banner (F7.3) — identical treatment on purpose: the banners were generated
+ * text-free precisely so they could be scrimmed and cropped like a photograph.
+ */
+function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
+  if (!slide) return null
   return (
     <AnimatePresence>
       <motion.div
-        key={index}
+        key={slide.key}
         initial={{ opacity: 0, scale: 1 }}
         animate={{ opacity: 1, scale: 1.12 }}
         exit={{ opacity: 0 }}
@@ -286,16 +404,41 @@ function KenBurnsSlideshow({ index }: { index: number }) {
         className="absolute inset-0"
       >
         <Image
-          src={ATTRACT_FRAMES[index] || '/placeholder.svg'}
+          src={slide.src || '/placeholder.svg'}
           alt=""
           fill
-          priority={index === 0}
+          // The idle screen is never the entry point of a page load — it appears
+          // after minutes of inactivity, by which time nothing is competing for
+          // bandwidth, so no frame needs `priority`.
           sizes="100vw"
           className="object-cover"
           aria-hidden
         />
       </motion.div>
     </AnimatePresence>
+  )
+}
+
+/**
+ * Campaign copy over the current banner.
+ *
+ * `aria-hidden`: the crawl below already carries every live campaign as text and
+ * an idle screen has no reader in front of it — announcing the same offer twice,
+ * once per rotation, would make the wake-up hint impossible to hear.
+ */
+function PromoCaption({ promo }: { promo: Promo }) {
+  const Icon = KIND_ICONS[promo.kind]
+  return (
+    <div aria-hidden className="glass neon-ring rounded-xl border-l-2 border-l-primary p-5 md:p-6">
+      <span className="label-mono flex items-center gap-1.5 text-[10px] tracking-[0.28em] text-primary">
+        <Icon size={12} />
+        {promo.badge}
+      </span>
+      <h2 className="mt-2 font-display text-xl font-bold uppercase tracking-tight text-text-high text-balance md:text-2xl">
+        {promo.title}
+      </h2>
+      <p className="mt-1.5 text-sm leading-relaxed text-text-medium text-pretty">{promo.subtitle}</p>
+    </div>
   )
 }
 
