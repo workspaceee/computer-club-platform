@@ -23,6 +23,7 @@ import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
+import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
@@ -81,6 +82,13 @@ function HeroCarousel() {
   const guest = useStore((s) => s.guest)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
+  // Auto-advance is suspended while the keyboard is inside the hero (F6.7).
+  // Without this, a player tabbing to "Play now" has the slide — and therefore
+  // the game that button launches — swapped under them every five seconds.
+  const [held, setHeld] = useState(false)
+
+  // The slide dots are a composite widget: one tab stop, arrows walk the slides.
+  const dotsRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
 
   const { t } = useT()
   // `GET /api/games/featured` — the curated hero row (F3.4).
@@ -95,13 +103,13 @@ function HeroCarousel() {
   }
 
   useEffect(() => {
-    if (count === 0) return
+    if (count === 0 || held) return
     const t = setInterval(() => {
       setDir(1)
       setIndex((i) => (i + 1) % count)
     }, 5000)
     return () => clearInterval(t)
-  }, [count])
+  }, [count, held])
 
   const game = count > 0 ? slides[index % count] : null
 
@@ -149,7 +157,15 @@ function HeroCarousel() {
         </span>
       </div>
 
-      <div className="glass tick-corners relative h-72 overflow-hidden rounded-xl md:h-96">
+      <div
+        onFocusCapture={() => setHeld(true)}
+        onBlurCapture={(e) => {
+          // `relatedTarget` is where focus is going: still inside the hero means
+          // the player is moving between the arrows and the dots, not leaving.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false)
+        }}
+        className="glass tick-corners relative h-72 overflow-hidden rounded-xl md:h-96"
+      >
         <AnimatePresence custom={dir} mode="popLayout">
           <motion.div
             key={game.id}
@@ -206,14 +222,18 @@ function HeroCarousel() {
           <ChevronRight size={20} />
         </button>
 
-        <div className="absolute bottom-6 right-8 flex gap-1.5">
+        <div ref={dotsRef} role="group" aria-label="Slides" className="absolute bottom-6 right-8 flex gap-1.5">
           {slides.map((g, i) => (
             <button
               key={g.id}
               onClick={() => go(i)}
-              aria-label={`Go to slide ${i + 1}`}
+              aria-label={`Go to slide ${i + 1}: ${g.name}`}
+              aria-current={i === index ? 'true' : undefined}
+              data-roving-item
               className={cn(
-                'h-1 rounded-full transition-all',
+                // A 1px-tall dot is a 1px-tall focus ring, so the hit and focus
+                // target is padded out to something a keyboard user can see.
+                'h-1 rounded-full transition-all focus-visible:outline-offset-4',
                 i === index
                   ? 'w-8 bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]'
                   : 'w-1.5 bg-white/40',

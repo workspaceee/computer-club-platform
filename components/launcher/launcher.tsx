@@ -10,6 +10,7 @@ import { GamesView } from '@/components/launcher/games-view'
 import { ShopView } from '@/components/launcher/shop-view'
 import { ProfileView } from '@/components/launcher/profile-view'
 import { PendingView } from '@/components/launcher/pending-view'
+import { useNavShortcuts } from '@/hooks/use-nav-shortcuts'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 
 /**
@@ -26,6 +27,14 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion'
 export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }) {
   const view = useStore((s) => s.view)
   const reduceMotion = useReducedMotion()
+
+  // The section numbers the bar prints (`01 HOME`, `02 GAMES`, …) become real
+  // keys here (F6.7). It lives on the router rather than on the bar because the
+  // shortcut belongs to the *surface*, not to a piece of chrome: the mobile bar
+  // shows five of the sections and the avatar menu the rest, yet `4` has to
+  // reach `04` from anywhere. Registered once per surface, so the guest set is
+  // exactly the guest navigation.
+  useNavShortcuts(surface)
 
   // A guest arriving on a member-only section is folded back to home rather
   // than shown an empty frame.

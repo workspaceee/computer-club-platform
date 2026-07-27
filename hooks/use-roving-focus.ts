@@ -33,7 +33,7 @@
  * co-ordination with React — the `MutationObserver` re-derives the single stop.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 /**
  * Items opt in with `data-roving-item`. Disabled and hidden controls are
@@ -63,17 +63,33 @@ export function useRovingFocus<T extends HTMLElement = HTMLDivElement>({
   loop = true,
   enabled = true,
 }: Options = {}) {
-  const containerRef = useRef<T>(null)
+  // A **callback** ref, not `useRef`, because half of these groups mount later
+  // than the component that owns them: the library grid appears only when the
+  // fetch resolves, so a plain ref object is still `null` when the effect below
+  // first runs — and nothing would ever re-run it. Storing the node in state
+  // means attaching the group re-runs the effect. The returned function also
+  // exposes `.current`, so callers can still read the node (the avatar menu
+  // focuses its first item that way).
+  const [container, setContainer] = useState<T | null>(null)
+  const containerRef = useMemo(() => {
+    let node: T | null = null
+    const attach = (el: T | null) => {
+      node = el
+      setContainer(el)
+    }
+    Object.defineProperty(attach, 'current', { get: () => node })
+    return attach as ((el: T | null) => void) & { current: T | null }
+  }, [])
 
   const readItems = useCallback((): HTMLElement[] => {
-    const root = containerRef.current
+    const root = container
     if (!root) return []
     return Array.from(root.querySelectorAll<HTMLElement>(ITEM_SELECTOR)).filter(
       // `offsetParent === null` catches `display:none` branches (the mobile bar
       // on desktop, a collapsed menu) that would otherwise become tab stops.
       (el) => el.offsetParent !== null,
     )
-  }, [])
+  }, [container])
 
   /** Exactly one item is reachable by Tab; the rest are `-1`. */
   const syncTabStops = useCallback(() => {
@@ -96,7 +112,7 @@ export function useRovingFocus<T extends HTMLElement = HTMLDivElement>({
   }, [readItems])
 
   useEffect(() => {
-    const root = containerRef.current
+    const root = container
     if (!enabled || !root) return
 
     syncTabStops()
@@ -172,7 +188,7 @@ export function useRovingFocus<T extends HTMLElement = HTMLDivElement>({
       root.removeEventListener('focusin', onFocusIn)
       root.removeEventListener('keydown', onKeyDown)
     }
-  }, [enabled, loop, orientation, readItems, syncTabStops])
+  }, [container, enabled, loop, orientation, readItems, syncTabStops])
 
   return containerRef
 }
@@ -187,19 +203,27 @@ function step(from: number, delta: number, length: number, loop: boolean): numbe
 /**
  * Move one visual row, in a grid whose column count is only known at runtime.
  *
- * Rows come from the rendered geometry: items sharing an `offsetTop` are a row.
- * The column is kept across the jump and clamped to the target row, so
+ * Rows come from the rendered geometry: items sharing a vertical position are a
+ * row. The column is kept across the jump and clamped to the target row, so
  * ArrowDown from the third card of a full row lands on the third card below —
  * or on the last one when that row is short.
+ *
+ * The measurement is `getBoundingClientRect()`, not `offsetTop`, because the
+ * item is rarely the card itself. In the library the roving item is the *Play*
+ * button inside each cover, whose `offsetParent` is its own card — so every
+ * button reports roughly the same `offsetTop` and the whole grid would collapse
+ * into a single row. A viewport-relative top is comparable across items no
+ * matter which ancestor each one is positioned against.
  */
 function rowStep(items: HTMLElement[], current: number, dir: 1 | -1, loop: boolean): number {
   const rows: number[][] = []
   let lastTop: number | null = null
   for (let i = 0; i < items.length; i++) {
-    // Round: sub-pixel layout and hover transforms (the cards lift on hover)
-    // otherwise split one visual row into several.
-    const top = Math.round(items[i].offsetTop)
-    if (lastTop === null || Math.abs(top - lastTop) > 4) {
+    const top = items[i].getBoundingClientRect().top
+    // The tolerance absorbs sub-pixel layout and the hover/focus lift the cards
+    // apply (a few px), which would otherwise split one visual row in two. It
+    // stays far below a real row's height, so distinct rows never merge.
+    if (lastTop === null || Math.abs(top - lastTop) > 16) {
       rows.push([i])
       lastTop = top
     } else {
