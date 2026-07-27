@@ -16,6 +16,14 @@ import { join, extname, basename } from 'node:path'
 import sharp from 'sharp'
 
 import { blurFingerprint, coveredPaths } from './lib/blur-manifest.mjs'
+import {
+  SFX,
+  SAMPLE_RATE as SFX_RATE,
+  MAX_DURATION_S as SFX_MAX_S,
+  MAX_KB as SFX_MAX_KB,
+  sfxPath,
+  sfxIds,
+} from './lib/sfx-manifest.mjs'
 
 /**
  * The four generated families. `dim` is exact because the pipelines letterbox to
@@ -185,10 +193,166 @@ for (const item of [...CHROME, ...PLATE]) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * F8.1 — the interface sound set (§13.9)
+ *
+ * Sounds are held to the same contract as pictures, and for a sharper reason:
+ * a too-loud or too-long cue is not a bad *look*, it is the thing that makes a
+ * room mute the launcher permanently — and nobody files that as a bug. So
+ * "quiet" and "short" are measured off the bytes on disk, not promised.
+ *
+ * The header is parsed by hand (44-byte canonical RIFF, which is exactly what
+ * the generator writes) rather than with a library: one dependency for four
+ * integers, in a check that exists to catch hand-dropped files, is a worse
+ * trade than twenty lines here.
+ * ------------------------------------------------------------------ */
+const SFX_CATALOG = join('lib', 'assets', 'sfx.ts')
+
+/** Canonical PCM header → `{ channels, rate, bits, samples }`, or an error string. */
+function readWav(buf) {
+  if (buf.length < 44) return 'file is shorter than a WAV header'
+  if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') {
+    return 'not a RIFF/WAVE file'
+  }
+  if (buf.toString('ascii', 12, 16) !== 'fmt ' || buf.toString('ascii', 36, 40) !== 'data') {
+    return 'non-canonical chunk layout — regenerate with scripts/generate-sfx.mjs'
+  }
+  if (buf.readUInt16LE(20) !== 1) return 'not uncompressed PCM'
+
+  const bits = buf.readUInt16LE(34)
+  const dataBytes = buf.readUInt32LE(40)
+  if (44 + dataBytes !== buf.length) return 'data chunk size disagrees with the file size'
+
+  return {
+    channels: buf.readUInt16LE(22),
+    rate: buf.readUInt32LE(24),
+    bits,
+    samples: dataBytes / (bits / 8),
+    peak: (() => {
+      let peak = 0
+      for (let i = 44; i + 1 < buf.length; i += 2) peak = Math.max(peak, Math.abs(buf.readInt16LE(i)))
+      return peak / 32767
+    })(),
+    firstSample: buf.readInt16LE(44),
+    lastSample: buf.readInt16LE(buf.length - 2),
+  }
+}
+
+if (!existsSync(join('public', 'sfx'))) {
+  fail('missing directory public/sfx/ — the F8.1 sound set, produced by scripts/generate-sfx.mjs')
+} else {
+  const onDisk = readdirSync(join('public', 'sfx'))
+  const declared = new Set(sfxIds().map((id) => `${id}.wav`))
+
+  for (const file of onDisk) {
+    if (!declared.has(file)) {
+      fail(
+        `public/sfx/${file}: not in scripts/lib/sfx-manifest.mjs — every cue is generated, ` +
+          `so a file the manifest does not know about cannot be reproduced (§13.9)`,
+      )
+    }
+  }
+
+  let totalBytes = 0
+  for (const spec of SFX) {
+    const rel = join('public', sfxPath(spec.id))
+    if (!existsSync(rel)) {
+      fail(`missing ${rel} — declared in the manifest; run \`pnpm assets:sfx\` (§13.9)`)
+      continue
+    }
+
+    const bytes = readFileSync(rel)
+    totalBytes += bytes.length
+    if (kb(bytes.length) > SFX_MAX_KB) {
+      fail(`${rel}: ${kb(bytes.length)} KB exceeds the ${SFX_MAX_KB} KB ceiling (§13.9)`)
+    }
+
+    const wav = readWav(bytes)
+    if (typeof wav === 'string') {
+      fail(`${rel}: ${wav} (§13.9)`)
+      continue
+    }
+
+    if (wav.channels !== 1 || wav.rate !== SFX_RATE || wav.bits !== 16) {
+      fail(
+        `${rel}: ${wav.channels}ch ${wav.rate} Hz ${wav.bits}-bit, the set is fixed at ` +
+          `mono ${SFX_RATE} Hz 16-bit (§13.9). Re-run scripts/generate-sfx.mjs instead of ` +
+          `hand-dropping files.`,
+      )
+    }
+
+    const seconds = wav.samples / wav.rate
+    if (seconds > SFX_MAX_S + 0.001) {
+      fail(
+        `${rel}: ${Math.round(seconds * 1000)} ms exceeds the ${Math.round(SFX_MAX_S * 1000)} ms ` +
+          `ceiling — past that a cue stops being feedback and becomes a jingle (§13.9)`,
+      )
+    }
+    if (Math.abs(seconds - spec.dur) > 0.002) {
+      fail(
+        `${rel}: ${Math.round(seconds * 1000)} ms on disk, manifest declares ` +
+          `${Math.round(spec.dur * 1000)} ms — the file predates the recipe; run \`pnpm assets:sfx\` (§13.9)`,
+      )
+    }
+
+    // Loudness. The manifest ceiling is applied by exact peak normalisation, so
+    // a mismatch means the bytes were not produced by the current recipe.
+    const peakDb = 20 * Math.log10(wav.peak || 1e-9)
+    if (peakDb > -12) {
+      fail(
+        `${rel}: peak ${peakDb.toFixed(1)} dBFS — interface cues stay below −12 dBFS, ` +
+          `the launcher is never the loudest voice in the room (§13.9)`,
+      )
+    } else if (Math.abs(peakDb - spec.peakDb) > 0.5) {
+      fail(
+        `${rel}: peak ${peakDb.toFixed(1)} dBFS but the manifest declares ${spec.peakDb} — ` +
+          `run \`pnpm assets:sfx\` (§13.9)`,
+      )
+    }
+
+    // Silent edges: a cue retriggered mid-tail must not click, and a click on a
+    // kiosk reads as broken hardware rather than as a quiet sound.
+    if (wav.firstSample !== 0 || wav.lastSample !== 0) {
+      fail(
+        `${rel}: starts at ${wav.firstSample} and ends at ${wav.lastSample}, both must be 0 — ` +
+          `a hard edge clicks (§13.9)`,
+      )
+    }
+
+    if (!isReferenced(`/sfx/${spec.id}.wav`, 'sfx')) {
+      fail(`${rel}: nothing in the codebase references it (§13.5)`)
+    }
+  }
+
+  // Catalogue parity: the ids the product can *ask* for must be exactly the ids
+  // that exist. A cue in the catalogue with no file is a silent 404 on click;
+  // a file with no catalogue entry is weight nobody can play.
+  if (!existsSync(SFX_CATALOG)) {
+    fail(`missing ${SFX_CATALOG} — the module that gives the sound set a consumer (§13.9)`)
+  } else {
+    const catalog = readFileSync(SFX_CATALOG, 'utf8')
+    const listed = [...catalog.matchAll(/'\/sfx\/([a-z0-9-]+)\.wav'/g)].map((m) => m[1])
+    for (const id of sfxIds()) {
+      if (!listed.includes(id)) fail(`${SFX_CATALOG}: no entry for "${id}" (§13.9)`)
+    }
+    for (const id of listed) {
+      if (!sfxIds().includes(id)) {
+        fail(`${SFX_CATALOG}: entry "${id}" has no file in public/sfx/ — a silent click (§13.9)`)
+      }
+    }
+  }
+
+  const critical = SFX.filter((s) => s.critical).map((s) => s.id)
+  notes.push(
+    `sfx/: ${SFX.length} files, ${kb(totalBytes)} KB total, mono ${SFX_RATE} Hz 16-bit, ` +
+      `≤${Math.round(SFX_MAX_S * 1000)} ms, peaks −20…−14 dBFS (critical: ${critical.join(', ')})`,
+  )
+}
+
 /** Loose files at the root of public/ that belong to no known bucket. */
 for (const entry of readdirSync('public', { withFileTypes: true })) {
   if (entry.isDirectory()) {
-    if (!FAMILIES.some((f) => f.dir === entry.name)) {
+    if (entry.name !== 'sfx' && !FAMILIES.some((f) => f.dir === entry.name)) {
       fail(`public/${entry.name}/ is an undeclared asset directory — add it to §13 and to this script, or remove it`)
     }
     continue
@@ -425,7 +589,7 @@ if (!existsSync(BLUR_MODULE)) {
   )
 }
 
-console.log('F7.4 asset convention + F7.5 fallbacks\n')
+console.log('F7.4 asset convention + F7.5 fallbacks + F8.1 sound set\n')
 notes.forEach((n) => console.log('  ' + n))
 
 const publicKB = (() => {
@@ -448,5 +612,5 @@ if (problems.length) {
   process.exit(1)
 }
 console.log(
-  '\n✓ geometry, format, weight, naming, consumers, alt, image funnel and blur map all conform',
+  '\n✓ geometry, format, weight, naming, consumers, alt, image funnel, blur map and sound set all conform',
 )
