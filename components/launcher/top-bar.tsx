@@ -5,6 +5,8 @@ import { ChevronDown, Coins, Lock, LogOut, Receipt, Settings, Timer } from 'luci
 import { useEffect, useId, useRef, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
+import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { formatCoins, formatEur, toCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
 import { cartTotal, timeChargeCents, useStore } from '@/lib/store'
@@ -43,34 +45,50 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirm, setConfirm] = useState<'lock' | 'logout' | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
 
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
+  // The bar is a composite widget: one tab stop, arrows walk the sections, and
+  // entering it lands on the section that is open because `aria-current` marks
+  // the stop (F6.7).
+  const navRef = useRovingFocus<HTMLElement>({ orientation: 'horizontal' })
 
-  // Escape closes the menu and hands focus back to the trigger. It is only bound
-  // while the menu is open so it cannot swallow the key from a dialog raised
-  // *from* the menu — the confirmations own Escape once they are up, and they sit
-  // on a higher rung of the layer stack.
+  // The menu shares the shell's dismissable core instead of hand-rolling
+  // Escape + outside-click (F6.7). Three of the five behaviours are wrong for a
+  // popover and are off: no scroll lock (it would shift the bar it hangs from)
+  // and no focus trap (a non-modal menu must let Tab leave — `closeOnOutside`
+  // then closes it, so focus never ends up behind an open menu). What it does
+  // take is the shared layer stack, so Escape peels the menu only when the menu
+  // is the topmost layer, and the digit shortcuts know the keyboard is busy.
+  //
+  // The panel here is the *wrapper*, trigger included, and that is deliberate:
+  // if "outside" covered the trigger, a pointer-down on it would close the menu
+  // and the click that follows would immediately reopen it — the button would
+  // never toggle off.
+  const menuRef = useDismissableLayer({
+    open: menuOpen,
+    onClose: () => setMenuOpen(false),
+    closeOnOutside: true,
+    trapFocus: false,
+    // Initial focus is handled below, because the first focusable element in the
+    // wrapper is the trigger, not the first item of the menu.
+    autoFocus: false,
+    lockScroll: false,
+  })
+  const menuItemsRef = useRovingFocus<HTMLDivElement>({
+    orientation: 'vertical',
+    enabled: menuOpen,
+  })
+
+  // Menu-button pattern: opening moves focus onto the first item, closing hands
+  // it back to the trigger (the layer's `restoreFocus` does the second half).
+  // Without this the keyboard route into the only way out of a visit — lock, log
+  // out — was "open the menu, then guess that Tab still works".
   useEffect(() => {
     if (!menuOpen) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setMenuOpen(false)
-      menuTriggerRef.current?.focus()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [menuOpen])
+    const first = menuItemsRef.current?.querySelector<HTMLElement>('[data-roving-item]')
+    first?.focus({ preventScroll: true })
+  }, [menuOpen, menuItemsRef])
 
   // Thresholds only mean something when time can run out. A postpaid guest's
   // clock counts *up* into the tab, so painting it red at "5 minutes" would warn
@@ -102,7 +120,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
         >
           <ImbaLogo size="sm" />
         </button>
-        <nav className="hidden items-center gap-1 sm:flex" aria-label={t('nav.landmark')}>
+        <nav
+          ref={navRef}
+          className="hidden items-center gap-1 sm:flex"
+          aria-label={t('nav.landmark')}
+        >
           {primary.map((item) => {
             const active = view === item.id
             return (
@@ -110,6 +132,10 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                 key={item.id}
                 onClick={() => setView(item.id)}
                 aria-current={active ? 'page' : undefined}
+                // The number printed in this button is a real shortcut
+                // (`use-nav-shortcuts`), so it is announced as one.
+                aria-keyshortcuts={item.index.replace(/^0/, '')}
+                data-roving-item
                 className={cn(
                   'group relative flex items-center gap-2 rounded-sm px-3.5 py-2 transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
@@ -218,6 +244,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           <AnimatePresence>
             {menuOpen && (
               <motion.div
+                ref={menuItemsRef}
                 id={menuId}
                 role="menu"
                 aria-label={t('nav.accountMenu', { name: displayName })}
@@ -327,6 +354,9 @@ function MenuItem({
       // hidden from the tree so the item announces its label once rather than
       // "graphic, Lock, Lock station".
       role="menuitem"
+      // A menu is a composite widget: up/down move between items and the group
+      // holds a single tab stop (F6.7).
+      data-roving-item
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',

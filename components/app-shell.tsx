@@ -24,7 +24,8 @@
  * top-right, so a toast covered the balance it was announcing. The rule now is
  * one owner per edge — **top-right is the top bar's** (clock, wallet/tab,
  * avatar), the top strip is the outage banner's, and transient feedback lives
- * bottom-right, clear of the mobile bar. See `components/toaster.tsx`.
+ * bottom-left, clear of both the mobile bar and the right-hand action column.
+ * See `components/toaster.tsx`.
  */
 
 import { GuestNotice } from '@/components/launcher/guest-notice'
