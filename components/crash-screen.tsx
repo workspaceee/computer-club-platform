@@ -17,13 +17,15 @@
  * 3. **Two recoveries, in escalating order.** `reset()` re-renders the tree
  *    (cheap, keeps state); a full reload is the escape hatch. On a kiosk there
  *    is no address bar and no visible F5, so both must be buttons.
- * 4. **Reassurance before diagnostics.** The guest paid for minutes. The first
+ * 4. **It recovers by itself.** The buttons are for whoever happens to be
+ *    standing there; most of the time nobody is. See `useAutoRecovery`.
+ * 5. **Reassurance before diagnostics.** The guest paid for minutes. The first
  *    thing they read is that the clock is server-side and still running; the
  *    fault code sits last, small, for the admin.
  */
 
-import { AlertTriangle, Clock, LifeBuoy, RotateCcw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { AlertTriangle, Clock, LifeBuoy, RefreshCw, RotateCcw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMaybeT } from '@/lib/i18n/provider'
 import { readSessionLang, translate } from '@/lib/i18n/translate'
@@ -50,6 +52,124 @@ export interface CrashScreenProps {
    * `section` sits inside a working frame and only offers a retry.
    */
   variant?: 'page' | 'section'
+  /**
+   * Recover on a timer without anyone pressing anything (default `true`).
+   *
+   * Off only where the crash screen is the subject rather than the failure
+   * path — the `/dev/kit` showcase, which would otherwise heal itself every
+   * five seconds and leave the reviewer nothing to look at.
+   */
+  autoRecover?: boolean
+}
+
+/* ------------------------------------------------------------------ */
+/*  Automatic recovery                                                 */
+/* ------------------------------------------------------------------ */
+
+/** How long the screen stays readable before it tries to heal itself. */
+const AUTO_RECOVER_MS = 5000
+
+/**
+ * Automatic attempts per incident, after which the screen goes quiet and waits
+ * for a human. Without a cap a permanently broken build would reload the station
+ * every five seconds forever, and an admin could never read the fault code off
+ * a screen that keeps restarting under their hands.
+ */
+const MAX_AUTO_ATTEMPTS = 4
+
+/**
+ * Attempts older than this belong to a different incident.
+ *
+ * The counter has to survive a reload, so it lives in `sessionStorage` — and
+ * therefore needs an expiry, or a crash on Monday would spend the budget of a
+ * crash on Tuesday. A station that ran fine for a minute is healthy by
+ * definition, which is also why nothing else has to remember to clear this.
+ */
+const INCIDENT_TTL_MS = 60_000
+
+const INCIDENT_KEY = 'imba.crash.autoRecover'
+
+interface Incident {
+  count: number
+  at: number
+}
+
+/**
+ * Every storage access here is wrapped: this module renders on the failure path,
+ * and a station in private mode throwing on `sessionStorage` must not turn the
+ * crash screen into a second crash (constraint 1).
+ */
+function readIncident(): Incident {
+  try {
+    const raw = window.sessionStorage.getItem(INCIDENT_KEY)
+    if (!raw) return { count: 0, at: 0 }
+    const parsed = JSON.parse(raw) as Partial<Incident>
+    const count = typeof parsed.count === 'number' ? parsed.count : 0
+    const at = typeof parsed.at === 'number' ? parsed.at : 0
+    if (!at || Date.now() - at > INCIDENT_TTL_MS) return { count: 0, at: 0 }
+    return { count, at }
+  } catch {
+    return { count: 0, at: 0 }
+  }
+}
+
+function writeIncident(count: number): void {
+  try {
+    window.sessionStorage.setItem(INCIDENT_KEY, JSON.stringify({ count, at: Date.now() }))
+  } catch {
+    /* storage unavailable — auto recovery still works, it just cannot escalate */
+  }
+}
+
+/**
+ * Counts down to the next automatic attempt.
+ *
+ * The attempt number is read from storage on mount, so it keeps rising *across
+ * reloads*: attempt 0 is the cheap in-place retry, everything after it is a full
+ * reload, and after `MAX_AUTO_ATTEMPTS` the screen stops trying. `recover` is
+ * held in a ref so a re-render (the ticking second) never restarts the timer.
+ */
+function useAutoRecovery(
+  enabled: boolean,
+  recover: (attempt: number) => void,
+): { seconds: number | null; exhausted: boolean } {
+  const [seconds, setSeconds] = useState<number | null>(null)
+  const [exhausted, setExhausted] = useState(false)
+  const recoverRef = useRef(recover)
+
+  useEffect(() => {
+    recoverRef.current = recover
+  })
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const attempt = readIncident().count
+    if (attempt >= MAX_AUTO_ATTEMPTS) {
+      setExhausted(true)
+      return
+    }
+
+    let left = Math.round(AUTO_RECOVER_MS / 1000)
+    setSeconds(left)
+
+    const timer = setInterval(() => {
+      left -= 1
+      if (left > 0) {
+        setSeconds(left)
+        return
+      }
+      clearInterval(timer)
+      setSeconds(0)
+      // Written *before* the attempt: a reload never comes back here to do it.
+      writeIncident(attempt + 1)
+      recoverRef.current(attempt)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [enabled])
+
+  return { seconds, exhausted }
 }
 
 /**
@@ -83,6 +203,7 @@ export function CrashScreen({
   reference,
   detail,
   variant = 'page',
+  autoRecover = true,
 }: CrashScreenProps) {
   const t = useCrashT()
   const isPage = variant === 'page'
@@ -95,6 +216,25 @@ export function CrashScreen({
   // non-alarming copy — the clock and navigation above them still work.
   const title = isPage ? t('crash.title') : t('crash.sectionTitle')
   const body = isPage ? t('crash.body') : t('crash.sectionBody')
+
+  /**
+   * The unattended path.
+   *
+   * A club station is normally facing an empty chair, or a guest who will not
+   * touch a screen that just told them something broke — so a crash screen that
+   * only recovers on a click stays up until staff walk past. The same two
+   * recoveries the buttons offer run on a timer instead, in the same order.
+   *
+   * A section fault never escalates to a reload: the shell around it is alive,
+   * with the session clock and the way out in it, and reloading a working kiosk
+   * because a side panel failed is a bigger fault than the one being fixed.
+   */
+  const canAutoRecover = autoRecover && (isPage || Boolean(onRetry))
+  const { seconds, exhausted } = useAutoRecovery(canAutoRecover, (attempt) => {
+    if (attempt === 0 && onRetry) onRetry()
+    else if (isPage) window.location.reload()
+    else onRetry?.()
+  })
 
   const card = (
     <div
@@ -166,6 +306,26 @@ export function CrashScreen({
             </Button>
           )}
         </div>
+
+        {/* What the screen is about to do on its own. `aria-live="off"` inside an
+            already-assertive alert: the whole card is announced once, and a
+            second-by-second countdown re-announcing itself would talk over the
+            copy that matters. */}
+        {seconds !== null && (
+          <p
+            aria-live="off"
+            className="label-mono flex items-center gap-2 text-[10px] tracking-[0.18em] text-text-low"
+          >
+            <RefreshCw size={12} className="animate-spin text-primary" aria-hidden />
+            {t('crash.autoRecover', { seconds })}
+          </p>
+        )}
+
+        {exhausted && (
+          <p className="max-w-md text-xs leading-relaxed text-danger text-pretty">
+            {t('crash.autoRecoverGaveUp')}
+          </p>
+        )}
 
         {isPage && (
           <p className="max-w-md text-xs leading-relaxed text-text-low text-pretty">
