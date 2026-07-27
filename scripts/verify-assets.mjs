@@ -15,6 +15,8 @@ import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
 import { join, extname, basename } from 'node:path'
 import sharp from 'sharp'
 
+import { blurFingerprint, coveredPaths } from './lib/blur-manifest.mjs'
+
 /**
  * The four generated families. `dim` is exact because the pipelines letterbox to
  * a fixed frame — a stray size means someone hand-dropped a file past the script.
@@ -38,6 +40,17 @@ const CHROME = [
   { file: 'imba-wordmark.webp',  w: 1024, h: 549, maxKB: 40, alpha: true },
   { file: 'lock-bg.webp',        w: 1024, h: 576, maxKB: 70, alpha: false },
 ]
+
+/**
+ * The F7.5 fallback plate. Pinned separately from brand chrome because it is not
+ * brand: it stands in for a promo banner, an attract frame or the lock wallpaper,
+ * so it carries the widest 16:9 geometry of those families and no mark at all.
+ *
+ * The ceiling is deliberately tight (20 KB against 4 KB today). A plate that grew
+ * to cover-size weight would be a picture someone had drawn on it, and a
+ * recognisable plate reads as a real campaign on every surface it replaces.
+ */
+const PLATE = [{ file: 'fallback.webp', w: 1024, h: 576, maxKB: 20, alpha: false }]
 
 /**
  * Favicon-class files Next.js and the browser reference by convention rather than
@@ -141,10 +154,16 @@ for (const fam of FAMILIES) {
   notes.push(`${fam.dir}/: ${files.length} files, ${kb(total)} KB total, ${fam.w}×${fam.h}`)
 }
 
-for (const item of CHROME) {
+for (const item of [...CHROME, ...PLATE]) {
   const rel = `public/${item.file}`
   if (!existsSync(rel)) {
-    fail(`missing ${rel} — brand chrome, produced by scripts/optimize-chrome.mjs`)
+    // The plate is the one asset whose absence breaks the *fallback* path, so it
+    // is called out by name rather than folded into the chrome message.
+    fail(
+      item.file === 'fallback.webp'
+        ? `missing ${rel} — the F7.5 fallback plate; without it AssetImage has nothing to draw (§13.8)`
+        : `missing ${rel} — brand chrome, produced by scripts/optimize-chrome.mjs`,
+    )
     continue
   }
   const bytes = statSync(rel).size
@@ -172,7 +191,13 @@ for (const entry of readdirSync('public', { withFileTypes: true })) {
     continue
   }
   const name = entry.name
-  if (CHROME.some((c) => c.file === name) || CONVENTIONAL.has(name) || SCAFFOLD.has(name)) continue
+  if (
+    CHROME.some((c) => c.file === name) ||
+    PLATE.some((p) => p.file === name) ||
+    CONVENTIONAL.has(name) ||
+    SCAFFOLD.has(name)
+  )
+    continue
   fail(`public/${name}: undeclared root asset — declare it in §13 and in this script, or remove it (§13.5)`)
 }
 
@@ -295,7 +320,109 @@ for (const dir of ['app', 'components']) {
 }
 altless.forEach(fail)
 
-console.log('F7.4 asset convention\n')
+/* ------------------------------------------------------------------ *
+ * F7.5 — the fallback funnel (§13.8)
+ *
+ * Three rules, and each one exists because the failure it prevents is
+ * *invisible*: a stale blur map, a bare `next/image` or a stock placeholder
+ * all render something, just the wrong thing, and only on the cold-cache
+ * kiosk where nobody is looking at a console.
+ * ------------------------------------------------------------------ */
+
+/** Every policed source file, comment bodies blanked, line offsets preserved. */
+function policedFiles() {
+  const out = []
+  const walk = (dir) => {
+    if (!existsSync(dir)) return
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (/\.(tsx?|css)$/.test(entry.name)) {
+        out.push({ file: full, text: maskComments(readFileSync(full, 'utf8')) })
+      }
+    }
+  }
+  ;['app', 'components', 'lib', 'hooks'].forEach(walk)
+  return out
+}
+
+/** The single file allowed to touch `next/image`. */
+const IMAGE_FUNNEL = join('components', 'ui', 'asset-image.tsx')
+
+for (const { file, text } of policedFiles()) {
+  text.split('\n').forEach((line, i) => {
+    // The scaffold's grey camera glyph is a *light* asset on a dark kiosk and
+    // says "this build is unfinished". `AssetImage`'s fallback prop covers every
+    // case it used to: a designed empty state, the plate, or nothing at all.
+    if (line.includes('placeholder.svg')) {
+      fail(`${file}:${i + 1} references placeholder.svg — use AssetImage's fallback prop (§13.8)`)
+    }
+  })
+
+  if (/from\s+['"]next\/image['"]/.test(text) && file !== IMAGE_FUNNEL) {
+    fail(
+      `${file}: imports next/image directly — every surface goes through components/ui/asset-image.tsx, ` +
+        `which is what guarantees onError and the LQIP (§13.8)`,
+    )
+  }
+}
+
+/**
+ * The blur map must cover exactly the art it claims to, and must have been
+ * generated from the bytes that are on disk right now.
+ *
+ * The covered set and the fingerprint both come from `scripts/lib/blur-manifest.mjs`,
+ * shared with the generator: two hand-kept lists would drift, and drift is the
+ * bug — an LQIP baked from a previous edit of a banner is not a missing image, it
+ * is a *wrong* image shown with full confidence, for as long as decoding takes.
+ */
+const BLUR_MODULE = join('lib', 'assets', 'blur-data.generated.ts')
+
+if (!existsSync(BLUR_MODULE)) {
+  fail(`missing ${BLUR_MODULE} — run \`pnpm assets:blur\` (§13.8)`)
+} else {
+  const covered = coveredPaths()
+  const blurSrc = readFileSync(BLUR_MODULE, 'utf8')
+  const entries = [...blurSrc.matchAll(/^\s*'(\/[^']+)':/gm)].map((m) => m[1])
+  const have = new Set(entries)
+
+  for (const p of covered) {
+    if (!have.has(p)) {
+      fail(`${BLUR_MODULE}: no blur placeholder for ${p} — run \`pnpm assets:blur\` (§13.8)`)
+    }
+  }
+  for (const p of entries) {
+    if (!covered.includes(p)) {
+      fail(
+        `${BLUR_MODULE}: blur entry for ${p}, which no longer exists in public/ — ` +
+          `run \`pnpm assets:blur\` (§13.8)`,
+      )
+    }
+  }
+  if (!/data:image\/webp;base64,/.test(blurSrc)) {
+    fail(`${BLUR_MODULE}: entries are not webp data URLs — regenerate it (§13.8)`)
+  }
+
+  // Staleness, by content rather than by mtime: a fresh clone stamps every file
+  // with the checkout time, so an mtime comparison would fail CI on a tree nobody
+  // has touched. See scripts/lib/blur-manifest.mjs.
+  const recorded = /BLUR_FINGERPRINT = '([a-f0-9]+)'/.exec(blurSrc)?.[1]
+  const actual = blurFingerprint(covered)
+  if (!recorded) {
+    fail(`${BLUR_MODULE}: no BLUR_FINGERPRINT — regenerate it with \`pnpm assets:blur\` (§13.8)`)
+  } else if (recorded !== actual) {
+    fail(
+      `${BLUR_MODULE}: fingerprint ${recorded} but the art hashes to ${actual} — ` +
+        `the placeholders describe an older version of these files; run \`pnpm assets:blur\` (§13.8)`,
+    )
+  }
+
+  notes.push(
+    `blur/: ${entries.length} placeholders, ${kb(blurSrc.length)} KB module, fingerprint ${actual}`,
+  )
+}
+
+console.log('F7.4 asset convention + F7.5 fallbacks\n')
 notes.forEach((n) => console.log('  ' + n))
 
 const publicKB = (() => {
@@ -317,4 +444,6 @@ if (problems.length) {
   problems.forEach((p) => console.error('  ✗ ' + p))
   process.exit(1)
 }
-console.log('\n✓ geometry, format, weight, naming, consumers and alt all conform')
+console.log(
+  '\n✓ geometry, format, weight, naming, consumers, alt, image funnel and blur map all conform',
+)

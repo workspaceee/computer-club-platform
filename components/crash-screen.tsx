@@ -86,6 +86,10 @@ export function CrashScreen({
 }: CrashScreenProps) {
   const t = useCrashT()
   const isPage = variant === 'page'
+  // F7.5: the mark is the one image in the product outside `AssetImage`, so it
+  // needs its own removal. A crash screen showing the browser's torn-page glyph
+  // is the worst possible place to be caught with a broken asset.
+  const [markBroken, setMarkBroken] = useState(false)
 
   // Section failures keep the surrounding shell, so they get the smaller,
   // non-alarming copy — the clock and navigation above them still work.
@@ -199,15 +203,22 @@ export function CrashScreen({
 
       <div className="flex w-full max-w-xl flex-col items-center gap-8">
         {/* Plain <img>: `next/image` depends on an app runtime that may be the
-            thing that just failed. Decorative — the heading carries the meaning. */}
-        <img
-          src="/imba-mark.webp"
-          alt=""
-          aria-hidden
-          width={60}
-          height={72}
-          className="h-[72px] w-auto opacity-90 drop-shadow-[0_0_14px_rgba(229,53,43,0.4)]"
-        />
+            thing that just failed. Decorative — the heading carries the meaning,
+            so on failure it is removed outright rather than replaced by the
+            fallback plate: a dark rectangle where a logo belongs reads as a
+            second, unrelated breakage. The layout is `gap`-driven, so the card
+            below simply moves up. */}
+        {!markBroken && (
+          <img
+            src="/imba-mark.webp"
+            alt=""
+            aria-hidden
+            width={60}
+            height={72}
+            onError={() => setMarkBroken(true)}
+            className="h-[72px] w-auto opacity-90 drop-shadow-[0_0_14px_rgba(229,53,43,0.4)]"
+          />
+        )}
         {card}
       </div>
     </div>
