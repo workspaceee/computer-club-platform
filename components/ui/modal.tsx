@@ -1,18 +1,22 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useId } from 'react'
 import { IconButton } from '@/components/ui/button'
+import { Overlay } from '@/components/ui/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
 const SIZES = {
   sm: 'max-w-sm',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
-  full: 'max-w-[min(96vw,1400px)] h-[92vh]',
+  // `svh`, like `OVERLAY_MAX_H`: a `vh`-tall takeover overshoots the visible
+  // area whenever the browser keeps its own chrome on screen.
+  full: 'max-w-[min(96vw,1400px)] h-[calc(100svh-2rem)]',
 } as const
 
 interface ModalProps {
@@ -61,84 +65,74 @@ export function Modal({
   })
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduced ? 0 : 0.2 }}
-        >
-          <div
-            aria-hidden
-            onClick={dismissable ? onClose : undefined}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          />
+    <Overlay open={open} layer="modal" onDismiss={dismissable ? onClose : undefined}>
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
+        // `OVERLAY_MAX_H` replaces the old `max-h-[88vh]`: `vh` on a kiosk
+        // browser measures the largest possible viewport, so the card was taller
+        // than the space it had and its header hid under the browser UI (F6.4).
+        className={cn(
+          'glass-strong tick-corners relative flex w-full flex-col overflow-hidden rounded-xl outline-none',
+          size === 'full' ? SIZES.full : cn(SIZES[size], OVERLAY_MAX_H),
+          className,
+        )}
+      >
+        {/* Top accent hairline — the signature edge of every IMBA surface. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent, rgba(229,53,43,0.8) 50%, transparent)',
+          }}
+        />
 
-          <motion.div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={title ? titleId : undefined}
-            tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
-            transition={{ duration: reduced ? 0 : 0.25, ease: 'easeOut' }}
-            className={cn(
-              'glass-strong tick-corners relative z-10 flex max-h-[88vh] w-full flex-col overflow-hidden rounded-xl outline-none',
-              SIZES[size],
-              className,
+        {(title || !hideClose) && (
+          <header className="relative flex shrink-0 items-center justify-between gap-4 border-b border-border px-5 py-4">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(229,53,43,0.12),transparent_60%)]" />
+            <div className="relative flex min-w-0 items-center gap-3">
+              {eyebrow && (
+                <>
+                  <span className="label-mono text-[10px] text-primary">{eyebrow}</span>
+                  <span className="h-3 w-px bg-border-strong" aria-hidden />
+                </>
+              )}
+              {title && (
+                <h2
+                  id={titleId}
+                  className="truncate font-display text-lg font-bold uppercase tracking-tight text-text-high"
+                >
+                  {title}
+                </h2>
+              )}
+            </div>
+            {!hideClose && (
+              <IconButton label="Close dialog" size="sm" onClick={onClose} className="relative">
+                <X />
+              </IconButton>
             )}
-          >
-            {/* Top accent hairline — the signature edge of every IMBA surface. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px"
-              style={{
-                background:
-                  'linear-gradient(90deg, transparent, rgba(229,53,43,0.8) 50%, transparent)',
-              }}
-            />
+          </header>
+        )}
 
-            {(title || !hideClose) && (
-              <header className="relative flex shrink-0 items-center justify-between gap-4 border-b border-border px-5 py-4">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(229,53,43,0.12),transparent_60%)]" />
-                <div className="relative flex min-w-0 items-center gap-3">
-                  {eyebrow && (
-                    <>
-                      <span className="label-mono text-[10px] text-primary">{eyebrow}</span>
-                      <span className="h-3 w-px bg-border-strong" aria-hidden />
-                    </>
-                  )}
-                  {title && (
-                    <h2
-                      id={titleId}
-                      className="truncate font-display text-lg font-bold uppercase tracking-tight text-text-high"
-                    >
-                      {title}
-                    </h2>
-                  )}
-                </div>
-                {!hideClose && (
-                  <IconButton label="Close dialog" size="sm" onClick={onClose} className="relative">
-                    <X />
-                  </IconButton>
-                )}
-              </header>
-            )}
+        {/* The card's own scroll body. This is what keeps the outer scroll port
+            idle in the normal case: the header and footer stay pinned and only
+            the content moves. */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
-
-            {footer && (
-              <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
-                {footer}
-              </footer>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        {footer && (
+          <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+            {footer}
+          </footer>
+        )}
+      </motion.div>
+    </Overlay>
   )
 }

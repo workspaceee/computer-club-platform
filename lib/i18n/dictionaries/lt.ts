@@ -46,6 +46,26 @@ export const lt: Dictionary = {
     slots: 'liko {n} vieta|liko {n} vietos|liko {n} vietų',
   },
 
+  nav: {
+    home: 'Pradžia',
+    games: 'Žaidimai',
+    shop: 'Baras',
+    rewards: 'Apdovanojimai',
+    tournaments: 'Turnyrai',
+    social: 'Draugai',
+    wallet: 'Piniginė',
+    profile: 'Profilis',
+    help: 'Pagalba',
+    more: 'Daugiau',
+    landmark: 'Paleidyklės skyriai',
+    accountMenu: 'Profilio meniu, {name}',
+    openSection: 'Atidaryti „{section}“',
+    pendingTitle: 'Šis skyrius dar neparuoštas',
+    pendingBody: 'Jis atsiras su 1 etapo darbu {task}. Geriau tuščia nei išgalvoti skaičiai.',
+    guestLimited:
+      'Svečiams prieinami žaidimai, baras ir pagalba. Sukurk profilį, kad atrakintum kitus skyrius.',
+  },
+
   auth: {
     localTime: 'Vietos laikas',
     accessTerminal: 'Prieigos terminalas',
@@ -108,6 +128,11 @@ export const lt: Dictionary = {
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',
+    lockConfirmTitle: 'Užrakinti šį kompiuterį?',
+    lockConfirmBody: 'Sesija bus pristabdyta. Prisijunk vėl ir tęsk su likusiu laiku.',
+    lockedToast: 'Kompiuteris užrakintas. Sesija pristabdyta.',
+    logoutConfirmTitle: 'Atsijungti?',
+    logoutConfirmBody: 'Sesija bus baigta, kompiuteris grįš į užrakto ekraną.',
     lockedTitle: 'Stotis užrakinta',
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
@@ -290,6 +315,11 @@ export const lt: Dictionary = {
     badge: 'Svečias',
     limits: 'Svečiai negauna patirties, monetų ir Battle Pass apdovanojimų.',
     createAccount: 'Sukurti profilį',
+    startedToast: 'Prisiregistravote kaip {label}. Užsakymai keliauja į sąskaitą.',
+    tab: 'Atvira sąskaita',
+    endSession: 'Baigti svečio seansą',
+    endConfirmTitle: 'Baigti svečio seansą?',
+    endConfirmBody: 'Atviras sąskaitą apmokėkite bare. Seanso duomenys nesaugomi.',
   },
 
   agent: {
@@ -395,5 +425,22 @@ export const lt: Dictionary = {
     invalidValue: 'Įranga nepalaiko šios reikšmės',
     blockedByPolicy: 'Negalima apmokėtos sesijos metu',
     agentFailed: 'Stoties agentas pranešė apie klaidą',
+  },
+
+  // Avarijos ekranas (F6.5). Tonas — ramus ir operatyvinis: žaidėjas sumokėjo
+  // už minutes, todėl pirmiausia turi perskaityti, kad laikas neprarastas.
+  crash: {
+    eyebrow: 'Aplinkos klaida',
+    title: 'Sąsaja',
+    titleAccent: 'sustojo',
+    body: 'Netikėta klaida nutraukė paleidyklės darbą. Užsakymas nepateiktas, pinigai nenuskaityti.',
+    timeSafe: 'Sesijos laiką skaičiuoja klubo serveris ir jis toliau eina — sąsajos perkrovimas neatima jūsų minučių.',
+    callStaff: 'Jei tai kartojasi, pakvieskite administratorių prie baro ir pasakykite žemiau esantį kodą.',
+    retry: 'Bandyti dar kartą',
+    reload: 'Perkrauti sąsają',
+    reference: 'Klaidos kodas',
+    details: 'Techninė informacija',
+    sectionTitle: 'Šis skyrius neįsikėlė',
+    sectionBody: 'Likusi paleidyklės dalis veikia kaip įprasta. Atnaujinkite skyrių arba atidarykite kitą.',
   },
 }

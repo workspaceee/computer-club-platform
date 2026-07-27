@@ -18,6 +18,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CloudOff, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/i18n/provider'
+import { overlayZ } from '@/lib/overlay'
+import { cn } from '@/lib/utils'
 import type { RealtimeChannelState } from '@/hooks/use-realtime'
 
 export function OfflineBanner({
@@ -43,8 +45,15 @@ export function OfflineBanner({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -64, opacity: 0 }}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          // Right padding keeps the strip clear of the toast column (top-right).
-          className="pointer-events-auto fixed inset-x-0 top-0 z-[60] flex justify-center px-4 pt-4 md:pr-88"
+          // Full width again: the `md:pr-88` reserve that used to dodge the toast
+          // column is gone, because toasts moved to the bottom-right corner and
+          // the top strip now has a single owner (F6.4). The rung comes from the
+          // ladder — the banner used to share `z-60` with dialogs, so which one
+          // covered the other depended on render order.
+          className={cn(
+            'pointer-events-auto fixed inset-x-0 top-0 flex justify-center px-4 pt-4',
+            overlayZ.banner,
+          )}
         >
           <div className="flex w-full max-w-3xl items-center gap-3 rounded-lg border border-warning/35 bg-warning/12 px-4 py-3 backdrop-blur-md">
             <CloudOff

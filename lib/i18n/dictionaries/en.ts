@@ -50,6 +50,27 @@ export const en = {
     slots: '{n} slot left|{n} slots left',
   },
 
+  // Section names of the launcher — the only label source for the top bar, the
+  // avatar menu and the mobile bar (F6.2, see lib/launcher-nav.ts).
+  nav: {
+    home: 'Home',
+    games: 'Games',
+    shop: 'Shop',
+    rewards: 'Rewards',
+    tournaments: 'Tournaments',
+    social: 'Friends',
+    wallet: 'Wallet',
+    profile: 'Profile',
+    help: 'Help',
+    more: 'More',
+    landmark: 'Launcher sections',
+    accountMenu: 'Account menu, {name}',
+    openSection: 'Open {section}',
+    pendingTitle: 'This section is not live yet',
+    pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',
+    guestLimited: 'Guests get games, the bar and help. Create a profile to unlock the rest.',
+  },
+
   auth: {
     localTime: 'Local time',
     accessTerminal: 'Access Terminal',
@@ -113,6 +134,11 @@ export const en = {
     expiredBody: 'Your paid time has run out. Top up at the counter or in the app to keep playing.',
     lockedTitle: 'Station locked',
     lockedBody: 'The timer is paused. Sign in again to continue where you left off.',
+    lockConfirmTitle: 'Lock this station?',
+    lockConfirmBody: 'Your session pauses. Sign back in to pick up your remaining time.',
+    lockedToast: 'Station locked. Session paused.',
+    logoutConfirmTitle: 'Log out?',
+    logoutConfirmBody: 'This ends your session and returns the station to the lock screen.',
     // plural: one | other
     minutesLeft: '{n} minute left|{n} minutes left',
     warningLowTime: 'Less than {n} min of session time left.',
@@ -294,6 +320,11 @@ export const en = {
     badge: 'Guest',
     limits: 'Guests cannot collect XP, coins or Battle Pass rewards.',
     createAccount: 'Create a profile',
+    startedToast: 'Checked in as {label}. Anything you order goes on your tab.',
+    tab: 'Open tab',
+    endSession: 'End guest session',
+    endConfirmTitle: 'End the guest session?',
+    endConfirmBody: 'Settle the open tab at the bar. Nothing from this session is saved.',
   },
 
   // PC-side surfaces served by the station agent (F5.4). Every string here
@@ -406,5 +437,33 @@ export const en = {
     invalidValue: 'That value is not supported by the hardware',
     blockedByPolicy: 'Not allowed during a paid session',
     agentFailed: 'The station agent reported an error',
+  },
+
+  /**
+   * Crash screen (F6.5) — the copy shown when the shell itself throws, not when
+   * a request fails. `errors.*` describes a failed *action* and lives next to a
+   * retry button; these strings describe a broken *interface* and must answer
+   * three questions in the first two seconds: what happened, is my money and
+   * time safe, what do I press.
+   *
+   * Reassurance is not decoration here. The player paid for minutes that are
+   * still ticking on the server, so the screen says so explicitly — otherwise a
+   * crash reads as "I just lost my session".
+   */
+  crash: {
+    eyebrow: 'Shell fault',
+    title: 'Interface',
+    titleAccent: 'stopped',
+    body: 'An unexpected error interrupted the launcher. No order was placed and nothing was charged.',
+    timeSafe: 'Your session time is counted by the club server and keeps running — restarting the interface costs you no minutes.',
+    callStaff: 'If this keeps coming back, call the admin at the counter and read them the code below.',
+    retry: 'Try again',
+    reload: 'Restart interface',
+    reference: 'Fault code',
+    details: 'Technical details',
+    // A single failed section inside a working shell — the frame, the clock and
+    // the navigation are all still alive, so the copy must not imply a restart.
+    sectionTitle: 'This section failed to load',
+    sectionBody: 'The rest of the launcher works as usual. Reload the section or open another one.',
   },
 } as const

@@ -24,8 +24,10 @@ import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
+import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
+import { formatDurationParts } from '@/lib/time'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -49,14 +51,24 @@ function SectionHeader({ index, children }: { index: string; children: React.Rea
   )
 }
 
-export function HomeView() {
+/**
+ * Home (F6.2).
+ *
+ * The loyalty economy — coins, the prize ladder and the double-coins promo — is
+ * members-only, so the guest surface omits those blocks entirely rather than
+ * rendering them at zero. Games, the session clock and the leaderboard are the
+ * same for everyone.
+ */
+export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }) {
+  const isGuest = surface === 'guest'
+
   return (
     <div className="flex flex-col gap-10">
       <HeroCarousel />
-      <QuickStats />
-      <PromoBanner />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.25fr]">
-        <PrizeLadder />
+      <QuickStats showLoyalty={!isGuest} />
+      {!isGuest && <PromoBanner />}
+      <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
+        {!isGuest && <PrizeLadder />}
         <Leaderboard />
       </div>
     </div>
@@ -66,6 +78,7 @@ export function HomeView() {
 function HeroCarousel() {
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const user = useStore((s) => s.user)
+  const guest = useStore((s) => s.guest)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
 
@@ -121,9 +134,11 @@ function HeroCarousel() {
     <section>
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
+          {/* A guest has no profile to welcome "back", so the shell greets the
+              tab label instead of an empty name (F6.2). */}
           <p className="label-mono mb-1 text-[10px] text-text-low">
-            Welcome back{user ? ' //' : ''}{' '}
-            <span className="text-primary">{user?.nickname}</span>
+            {user ? 'Welcome back //' : guest ? `${t('guest.badge')} //` : 'Welcome'}{' '}
+            <span className="text-primary">{user?.nickname ?? guest?.label}</span>
           </p>
           <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
             Ready to <span className="text-primary text-glow">dominate</span>
@@ -145,9 +160,12 @@ function HeroCarousel() {
             transition={{ duration: 0.4 }}
             className="absolute inset-0"
           >
-            <GameCover game={game} className="h-full w-full" titleClassName="text-4xl md:text-6xl" />
+            {/* `hideTitle`: the hero writes the name itself, one line below, so
+                the cover must not anchor a second title to the same bottom edge —
+                that is what put a 60px game name on top of "Play now". */}
+            <GameCover game={game} className="h-full w-full" hideTitle />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+            <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
               <div className="flex items-center gap-3">
                 <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
                   {game.category}
@@ -157,9 +175,14 @@ function HeroCarousel() {
                   {game.players.toLocaleString()} playing
                 </span>
               </div>
+              {/* The hero's own heading. `pr-28` keeps a long name clear of the
+                  slide dots parked in the bottom-right corner. */}
+              <h2 className="max-w-2xl pr-28 font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:text-5xl">
+                {game.name}
+              </h2>
               <button
                 onClick={() => setLaunchGame(game.id)}
-                className="mt-4 flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
+                className="flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
               >
                 <Play size={17} fill="currentColor" />
                 Play now
@@ -203,22 +226,52 @@ function HeroCarousel() {
   )
 }
 
-function QuickStats() {
+function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
+  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  const timeLabel = useStore((s) => s.timeBalanceLabel)
+  // The tile reads the same derived clock as the top bar (F6.3). It used to
+  // render a hardcoded `2h 00m` from the store, which meant the number never
+  // moved — and a walk-in guest was shown a prepaid balance the club had not
+  // sold them.
+  const seconds = useStore((s) => s.sessionSeconds)
+  const postpaid = useStore((s) => s.billingMode) === 'postpaid'
+  const { hours, minutes } = formatDurationParts(seconds)
   // Same SWR key as the prize ladder below, so the row is fetched once.
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
   const ladder = prizes.data ?? []
   const prizesUnlocked = ladder.filter((p) => coins >= p.coins).length
 
+  // A guest has no coin balance and no ladder progress, so those tiles are
+  // dropped instead of showing zeros the player can never move.
   const stats: { icon: LucideIcon; value: string; label: string }[] = [
-    { icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' },
-    { icon: Timer, value: timeLabel, label: 'Time balance' },
-    { icon: Trophy, value: `${prizesUnlocked}/${ladder.length}`, label: 'Prizes unlocked' },
+    ...(showLoyalty
+      ? [{ icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' }]
+      : []),
+    {
+      icon: Timer,
+      value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
+      // Postpaid time is not a balance: it is time already used and billed, so
+      // the tile has to be labelled as such.
+      label: postpaid ? t('session.sessionTime') : t('session.timeBalance'),
+    },
+    ...(showLoyalty
+      ? [
+          {
+            icon: Trophy,
+            value: `${prizesUnlocked}/${ladder.length}`,
+            label: 'Prizes unlocked',
+          },
+        ]
+      : []),
   ]
 
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <section
+      className={cn(
+        'grid grid-cols-1 gap-4',
+        showLoyalty ? 'sm:grid-cols-3' : 'sm:max-w-sm',
+      )}
+    >
       {stats.map((s, i) => (
         <motion.div
           key={s.label}
