@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
 import { ProductImage } from '@/components/product-image'
@@ -67,7 +67,7 @@ export function CartDrawer() {
       >
         {cart.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <ShoppingCart size={40} className="text-text-low" aria-hidden />
+            <icons.cart size={40} className="text-text-low" aria-hidden />
             <p className="font-display font-bold text-text-high">{t('shop.cartEmpty')}</p>
             <p className="text-sm text-text-medium">{t('shop.cartEmptyBody')}</p>
           </div>
@@ -86,7 +86,10 @@ export function CartDrawer() {
                   <ProductImage
                     src={item.image}
                     alt={item.name}
-                    fallbackIcon={ShoppingCart}
+                    {/* Фолбэк товара — «товар» (`shop`), а не «корзина»: миниатюра
+                        описывает позицию, а не контейнер, в котором она лежит.
+                        Тот же глиф стоит под товаром без фото в витрине. */}
+                    fallbackIcon={icons.shop}
                     className="size-10 shrink-0"
                     sizes="40px"
                   />
@@ -104,7 +107,7 @@ export function CartDrawer() {
                       // tell which line it is on.
                       aria-label={`${t('shop.quantity')} −1: ${item.name}`}
                     >
-                      <Minus size={14} aria-hidden />
+                      <icons.remove size={14} aria-hidden />
                     </button>
                     <span className="w-6 text-center text-sm font-semibold tabular-nums text-text-high">
                       {item.qty}
@@ -114,7 +117,7 @@ export function CartDrawer() {
                       className="rounded-r-lg p-1.5 text-text-medium transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                       aria-label={`${t('shop.quantity')} +1: ${item.name}`}
                     >
-                      <Plus size={14} aria-hidden />
+                      <icons.add size={14} aria-hidden />
                     </button>
                   </div>
                   <span className="w-16 text-right text-sm font-bold tabular-nums text-text-high">
@@ -125,7 +128,7 @@ export function CartDrawer() {
                     className="rounded-md p-1 text-text-low transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                     aria-label={`${t('shop.remove')}: ${item.name}`}
                   >
-                    <Trash2 size={16} aria-hidden />
+                    <icons.delete size={16} aria-hidden />
                   </button>
                 </motion.div>
               ))}

@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, Coins, Lock, Search, Timer, TrendingUp, User } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Grid, Row, Spec } from '@/components/dev-kit/kit-shell'
 import { Avatar } from '@/components/ui/avatar'
@@ -34,7 +34,7 @@ export function KitData() {
         <div className="grid gap-4 rounded-lg border border-border bg-surface/40 p-4 sm:grid-cols-2">
           <Field
             label="Login"
-            icon={<User size={16} />}
+            icon={<icons.player size={16} />}
             placeholder="nickname"
             value={text}
             onValueChange={setText}
@@ -43,14 +43,14 @@ export function KitData() {
           <Field
             label="Password"
             type="password"
-            icon={<Lock size={16} />}
+            icon={<icons.lock size={16} />}
             placeholder="••••••••"
             error="Wrong login or password."
           />
-          <Field label="Search" icon={<Search size={16} />} placeholder="Find a game" />
+          <Field label="Search" icon={<icons.search size={16} />} placeholder="Find a game" />
           <Field
             label="Disabled"
-            icon={<User size={16} />}
+            icon={<icons.player size={16} />}
             placeholder="Locked by admin"
             disabled
           />
@@ -92,8 +92,8 @@ export function KitData() {
           <Segmented
             round
             options={[
-              { value: 'all', label: 'Hour', icon: <Clock size={14} /> },
-              { value: 'vip', label: 'Day', icon: <Timer size={14} /> },
+              { value: 'all', label: 'Hour', icon: <icons.clock size={14} /> },
+              { value: 'vip', label: 'Day', icon: <icons.calendar size={14} /> },
             ]}
             value={zone === 'ps5' ? 'all' : zone}
             onChange={setZone}
@@ -146,16 +146,16 @@ export function KitData() {
 
       <Spec id="F1.11" name="StatTile" note="icon, value, delta, hint, tones">
         <Grid cols={4}>
-          <StatTile label="Time left" value="01:42:18" mono icon={<Clock size={16} />} />
+          <StatTile label="Time left" value="01:42:18" mono icon={<icons.clock size={16} />} />
           <StatTile
             label="Revenue today"
             value="€412.50"
             mono
             tone="success"
             delta={12.4}
-            icon={<TrendingUp size={16} />}
+            icon={<icons.trend size={16} />}
           />
-          <StatTile label="Coins" value="1 250" mono tone="coin" icon={<Coins size={16} />} />
+          <StatTile label="Coins" value="1 250" mono tone="coin" icon={<icons.coins size={16} />} />
           <StatTile label="Open tabs" value="3" tone="danger" delta={-8} hint="vs yesterday" />
         </Grid>
         <Grid cols={4}>

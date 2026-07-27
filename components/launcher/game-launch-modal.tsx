@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, Loader2, UserX, X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect, useId, useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
@@ -150,7 +150,7 @@ export function GameLaunchModal() {
                 className="absolute right-3 top-3 rounded-lg bg-black/40 p-1.5 text-white transition-colors hover:bg-black/70 disabled:opacity-40"
                 aria-label="Close"
               >
-                <X size={18} />
+                <icons.close size={18} />
               </button>
             </div>
 
@@ -178,7 +178,7 @@ export function GameLaunchModal() {
                       <EmptyState
                         bare
                         size="sm"
-                        icon={UserX}
+                        icon={icons.accountMissing}
                         title={t('games.noAccounts')}
                         description={t('games.noAccountsBody')}
                       />
@@ -254,7 +254,7 @@ export function GameLaunchModal() {
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-4 py-6">
-                  <Loader2 size={40} className="animate-spin text-primary" />
+                  <icons.pending size={40} className="animate-spin text-primary" />
                   <div className="flex flex-col items-center gap-2">
                     {LAUNCH_STEPS.map((label, i) => (
                       <div
@@ -265,9 +265,9 @@ export function GameLaunchModal() {
                         )}
                       >
                         {i < step ? (
-                          <Check size={14} className="text-success" />
+                          <icons.check size={14} className="text-success" />
                         ) : i === step ? (
-                          <Loader2 size={14} className="animate-spin text-primary" />
+                          <icons.pending size={14} className="animate-spin text-primary" />
                         ) : (
                           <span className="h-3.5 w-3.5" />
                         )}

@@ -24,7 +24,7 @@
  *    fault code sits last, small, for the admin.
  */
 
-import { AlertTriangle, Clock, LifeBuoy, RefreshCw, RotateCcw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMaybeT } from '@/lib/i18n/provider'
@@ -251,7 +251,7 @@ export function CrashScreen({
           aria-hidden
           className="flex size-14 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger"
         >
-          <AlertTriangle size={24} />
+          <icons.error size={24} />
         </span>
 
         <div className="flex flex-col items-center gap-2">
@@ -278,7 +278,7 @@ export function CrashScreen({
             working shell the live clock already makes the point. */}
         {isPage && (
           <p className="flex max-w-md items-start gap-2.5 rounded-md border border-success/20 bg-success/5 px-4 py-3 text-left text-xs leading-relaxed text-text-medium">
-            <Clock size={16} className="mt-px shrink-0 text-success" aria-hidden />
+            <icons.timer size={16} className="mt-px shrink-0 text-success" aria-hidden />
             {t('crash.timeSafe')}
           </p>
         )}
@@ -290,7 +290,7 @@ export function CrashScreen({
               size={isPage ? 'lg' : 'sm'}
               cut={isPage}
               onClick={onRetry}
-              iconLeft={<RotateCcw aria-hidden />}
+              iconLeft={<icons.retry aria-hidden />}
             >
               {t('crash.retry')}
             </Button>
@@ -300,7 +300,7 @@ export function CrashScreen({
               variant="secondary"
               size="lg"
               onClick={() => window.location.reload()}
-              iconLeft={<LifeBuoy aria-hidden />}
+              iconLeft={<icons.support aria-hidden />}
             >
               {t('crash.reload')}
             </Button>
@@ -316,7 +316,7 @@ export function CrashScreen({
             aria-live="off"
             className="label-mono flex items-center gap-2 text-[10px] tracking-[0.18em] text-text-low"
           >
-            <RefreshCw size={12} className="animate-spin text-primary" aria-hidden />
+            <icons.pending size={12} className="animate-spin text-primary" aria-hidden />
             {t('crash.autoRecover', { seconds })}
           </p>
         )}

@@ -1,7 +1,7 @@
 'use client'
 
 import confetti from 'canvas-confetti'
-import { CheckCircle2, CreditCard, Loader2, Lock } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { useT } from '@/lib/i18n/provider'
@@ -97,7 +97,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
     <Modal
       open={open}
       onClose={close}
-      eyebrow={<CreditCard size={14} aria-hidden />}
+      eyebrow={<icons.payment size={14} aria-hidden />}
       title={t('shop.checkout')}
       // A click outside or an Escape must not abandon an in-flight charge, and
       // during processing that also hides the close button.
@@ -111,7 +111,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
       <>
             {status === 'done' ? (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto py-6 text-center">
-                <CheckCircle2 size={56} className="text-success" aria-hidden />
+                <icons.success size={56} className="text-success" aria-hidden />
                 {/* The result has to reach a screen reader that is not looking at
                     the tick: the region announces itself when the state flips. */}
                 <div role="status" aria-live="polite">
@@ -190,7 +190,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 >
                   {status === 'processing' ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" aria-hidden />
+                      <icons.pending size={18} className="animate-spin" aria-hidden />
                       {/* A spinner is not an accessible name: without this the
                           button announces itself as "button, busy" and nothing
                           says what is being waited on. */}
@@ -198,7 +198,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                     </>
                   ) : (
                     <>
-                      <Lock size={15} aria-hidden />
+                      <icons.lock size={15} aria-hidden />
                       Pay {formatEur(totalCents)}
                     </>
                   )}

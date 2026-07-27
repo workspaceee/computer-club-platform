@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Coins, Lock, LogOut, Receipt, Settings, Timer } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect, useId, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -170,7 +170,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           className="flex items-center gap-2.5 rounded-md border bg-black/30 px-3 py-1.5"
           style={{ borderColor: low ? timerColor : 'var(--border)' }}
         >
-          <Timer size={14} style={{ color: timerColor }} />
+          <icons.timer size={14} style={{ color: timerColor }} />
           <div className="flex flex-col leading-none">
             {/* The label has to say which way the number moves: a guest reading
                 "TIME LEFT" next to a rising clock would be told a lie. */}
@@ -190,7 +190,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
             coins, so showing a zero balance would be a lie (F6.2). */}
         {isGuest ? (
           <div className="flex items-center gap-2 rounded-md border border-border bg-white/[0.03] px-3 py-1.5">
-            <Receipt size={14} className="text-text-medium" />
+            <icons.bill size={14} className="text-text-medium" />
             <div className="flex flex-col leading-none">
               <span className="label-mono hidden text-[8px] text-text-low sm:block">
                 {t('guest.tab')}
@@ -202,7 +202,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           </div>
         ) : (
           <div className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/[0.07] px-3 py-1.5">
-            <Coins size={14} className="text-warning" />
+            <icons.coins size={14} className="text-warning" />
             <div className="flex flex-col leading-none">
               <span className="label-mono hidden text-[8px] text-warning/70 sm:block">
                 {t('wallet.coinBalance')}
@@ -234,7 +234,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
             >
               {initials}
             </span>
-            <ChevronDown
+            <icons.expand
               size={15}
               aria-hidden
               className={cn('text-text-medium transition-transform', menuOpen && 'rotate-180')}
@@ -278,7 +278,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                   />
                 ))}
                 <MenuItem
-                  icon={<Settings size={16} />}
+                  icon={<icons.settings size={16} />}
                   label={t('common.settings')}
                   onClick={() => {
                     setSettingsOpen(true)
@@ -286,7 +286,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                   }}
                 />
                 <MenuItem
-                  icon={<Lock size={16} />}
+                  icon={<icons.lock size={16} />}
                   label={t('session.lockStation')}
                   onClick={() => {
                     setConfirm('lock')
@@ -294,7 +294,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
                   }}
                 />
                 <MenuItem
-                  icon={<LogOut size={16} />}
+                  icon={<icons.signOut size={16} />}
                   label={isGuest ? t('guest.endSession') : t('common.logout')}
                   danger
                   onClick={() => {

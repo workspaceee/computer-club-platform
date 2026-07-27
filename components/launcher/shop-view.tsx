@@ -1,24 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import {
-  Clock,
-  Coffee,
-  Cookie,
-  Crown,
-  CupSoda,
-  type LucideIcon,
-  Medal,
-  Moon,
-  Pizza,
-  Plus,
-  Shield,
-  Shirt,
-  ShoppingBag,
-  ShoppingCart,
-  Timer,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
@@ -37,9 +20,9 @@ import { cn } from '@/lib/utils'
 type Tab = 'time' | 'memberships' | 'items'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'time', label: 'Gaming Time', icon: Timer },
-  { id: 'memberships', label: 'Memberships', icon: Crown },
-  { id: 'items', label: 'Physical Items', icon: ShoppingBag },
+  { id: 'time', label: 'Gaming Time', icon: icons.timer },
+  { id: 'memberships', label: 'Memberships', icon: icons.premium },
+  { id: 'items', label: 'Physical Items', icon: icons.shop },
 ]
 
 /** One endpoint per tab — the shop grid never slices a single big catalogue. */
@@ -54,27 +37,27 @@ const TAB_ENDPOINTS: Record<Tab, () => Promise<ShopEntry[]>> = {
  * each pass reads as itself. Exact matches first, then the prefix rules below.
  */
 const ICONS: Record<string, LucideIcon> = {
-  'pass-night': Moon,
-  'pass-weekend': Clock,
-  'mem-bronze': Shield,
-  'mem-silver': Medal,
-  'mem-gold': Crown,
+  'pass-night': icons.night,
+  'pass-weekend': icons.calendar,
+  'mem-bronze': icons.tierBase,
+  'mem-silver': icons.tierMid,
+  'mem-gold': icons.premium,
 }
 
 /** Per-category fallback for a product whose image is missing or fails. */
 const CATEGORY_ICONS: Record<ProductCategory, LucideIcon> = {
-  drinks: CupSoda,
-  coffee: Coffee,
-  snacks: Cookie,
-  food: Pizza,
-  combo: UtensilsCrossed,
-  merch: Shirt,
-  time: Timer,
-  membership: Crown,
+  drinks: icons.drinks,
+  coffee: icons.coffee,
+  snacks: icons.snacks,
+  food: icons.food,
+  combo: icons.combo,
+  merch: icons.merch,
+  time: icons.timer,
+  membership: icons.premium,
 }
 
 function iconFor(item: ShopEntry): LucideIcon {
-  return ICONS[item.id] ?? CATEGORY_ICONS[item.category] ?? ShoppingBag
+  return ICONS[item.id] ?? CATEGORY_ICONS[item.category] ?? icons.shop
 }
 
 export function ShopView() {
@@ -109,7 +92,7 @@ export function ShopView() {
           onClick={() => setCartOpen(true)}
           className="glass relative flex w-fit items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold text-text-high transition-colors hover:border-border-strong"
         >
-          <ShoppingCart size={16} />
+          <icons.cart size={16} />
           Cart
           {count > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground shadow-[0_0_12px_rgba(229,53,43,0.8)]">
@@ -271,7 +254,7 @@ function ProductCard({ item }: { item: ShopEntry }) {
             'Sold out'
           ) : (
             <>
-              <Plus size={16} />
+              <icons.add size={16} />
               Add
             </>
           )}

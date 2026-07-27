@@ -1,6 +1,6 @@
 'use client'
 
-import { UserRound } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
 import { useStore } from '@/lib/store'
 
@@ -22,7 +22,7 @@ export function GuestNotice() {
     <div className="border-b border-border bg-white/[0.02]">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-8">
         <span className="label-mono flex items-center gap-1.5 rounded-sm border border-border-strong px-2 py-1 text-[9px] text-text-medium">
-          <UserRound size={11} />
+          <icons.guest size={11} />
           {guest?.label ?? t('guest.badge')}
         </span>
         <p className="min-w-0 flex-1 text-pretty text-xs leading-relaxed text-text-low">

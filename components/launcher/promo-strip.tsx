@@ -1,14 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CalendarDays,
-  ChevronRight,
-  Sparkles,
-  Swords,
-  Tag,
-  type LucideIcon,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useState } from 'react'
 import { ApiErrorState } from '@/components/data-boundary'
 import { AssetImage } from '@/components/ui/asset-image'
@@ -28,10 +21,10 @@ import { cn } from '@/lib/utils'
  * empty red box.
  */
 const KIND_ICONS: Record<PromoKind, LucideIcon> = {
-  sale: Tag,
-  tournament: Swords,
-  battlepass: Sparkles,
-  event: CalendarDays,
+  sale: icons.sale,
+  tournament: icons.tournament,
+  battlepass: icons.season,
+  event: icons.calendar,
 }
 
 const ROTATE_MS = 7000
@@ -147,7 +140,7 @@ export function PromoStrip({ surface = 'launcher' }: { surface?: LauncherSurface
                 className="mt-2 flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/15 px-4 py-2 font-display text-xs font-bold uppercase tracking-wide text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
               >
                 {promo.cta}
-                <ChevronRight size={14} />
+                <icons.forward size={14} />
               </button>
             )}
           </div>

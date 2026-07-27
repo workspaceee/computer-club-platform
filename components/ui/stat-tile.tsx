@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 type Tone = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'coin' | 'xp'
@@ -93,7 +93,7 @@ export function StatTile({
                 up ? 'text-success' : 'text-danger',
               )}
             >
-              {up ? <ArrowUpRight size={12} aria-hidden /> : <ArrowDownRight size={12} aria-hidden />}
+              {up ? <icons.deltaUp size={12} aria-hidden /> : <icons.deltaDown size={12} aria-hidden />}
               {up ? '+' : ''}
               {delta}
               {deltaSuffix}

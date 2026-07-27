@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useId } from 'react'
 import { IconButton } from '@/components/ui/button'
 import { Overlay } from '@/components/ui/overlay'
@@ -116,7 +116,7 @@ export function Modal({
             </div>
             {!hideClose && (
               <IconButton label="Close dialog" size="sm" onClick={onClose} className="relative">
-                <X />
+                <icons.close />
               </IconButton>
             )}
           </header>
