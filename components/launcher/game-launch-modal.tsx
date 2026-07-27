@@ -1,15 +1,18 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Check, Loader2, UserX, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Overlay } from '@/components/ui/overlay'
 import { useApi } from '@/hooks/use-api'
+import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useT } from '@/lib/i18n/provider'
 import { fetchGame, fetchHouseAccounts, launchGame, toApiError } from '@/lib/mock/api'
+import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +68,18 @@ export function GameLaunchModal() {
     setLaunchGame(null)
   }
 
+  // Escape, the focus trap and the body scroll lock all come from the shared
+  // layer core. This dialog used to hand-roll a scrim click instead, so it was
+  // dismissable by mouse only — and Tab walked straight out of it into the game
+  // grid behind. `closeOnEscape` follows `launching` because a sequence already
+  // running on the machine must not be abandoned by a stray keypress (F6.4).
+  const titleId = useId()
+  const panelRef = useDismissableLayer({
+    open,
+    onClose: close,
+    closeOnEscape: !launching,
+  })
+
   const handleLaunch = async () => {
     if (!game) return
     setLaunching(true)
@@ -87,23 +102,36 @@ export function GameLaunchModal() {
   }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={close}
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
-        >
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
-          >
-            <div className="relative">
+    <Overlay
+      open={open}
+      layer="modal"
+      blur="md"
+      // No dismiss while the agent is mid-launch: a stray click on the scrim
+      // would hide a sequence that is still running on the machine.
+      onDismiss={launching ? undefined : close}
+    >
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        // The visible title is painted inside `GameCover`, so the name is given
+        // directly rather than referenced — a screen reader still opens with
+        // "Launch Civilization VII" instead of an unnamed dialog.
+        aria-label={game ? `Launch ${game.name}` : 'Launch game'}
+        tabIndex={-1}
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        // The cap + inner scroll: this card carries a 160px cover, a list of
+        // house accounts and a footer, so it was the tallest dialog in the
+        // product and the first to lose its cover art off the top of a short
+        // window (F6.4).
+        className={cn(
+          'tick-corners flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2',
+          OVERLAY_MAX_H,
+        )}
+      >
+            <div className="relative shrink-0">
               {game ? (
                 <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
               ) : (
@@ -119,7 +147,9 @@ export function GameLaunchModal() {
               </button>
             </div>
 
-            <div className="p-6">
+            {/* Only the account list scrolls; the cover stays pinned so the
+                guest can always see which game they are about to start. */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {!launching ? (
                 <>
                   <p className="label-mono mb-3 text-[10px] text-text-low">
@@ -240,10 +270,8 @@ export function GameLaunchModal() {
                   </div>
                 </div>
               )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+      </motion.div>
+    </Overlay>
   )
 }

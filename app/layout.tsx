@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Chakra_Petch, Inter, Manrope } from 'next/font/google'
+import { RealtimeProvider } from '@/components/realtime/realtime-provider'
 import { I18nProvider } from '@/lib/i18n/provider'
 import './globals.css'
 
@@ -53,7 +54,11 @@ export default function RootLayout({
     >
       <body className="antialiased bg-background text-foreground">
         {/* `lang` above is the SSR default (EN); I18nProvider updates it on the client. */}
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          {/* One realtime stream for the whole shell (F4.3): pushes, SWR
+              invalidation, toasts and the offline banner (F4.5). */}
+          <RealtimeProvider>{children}</RealtimeProvider>
+        </I18nProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

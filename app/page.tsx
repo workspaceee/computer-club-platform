@@ -2,16 +2,22 @@
 
 import { AnimatePresence, motion } from "framer-motion"
 import { useStore } from "@/lib/store"
+import { surfaceOf } from "@/lib/launcher-nav"
+import { GlobalOverlays } from "@/components/app-shell"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { LockScreen } from "@/components/lock-screen"
 import { Launcher } from "@/components/launcher/launcher"
-import { SessionManager } from "@/components/session-manager"
-import { Toaster } from "@/components/toaster"
 
 export default function Page() {
   const screen = useStore((s) => s.screen)
 
   return (
-    <>
+    /* Shell-level boundary (F6.5). A throw in the lock screen or the launcher
+       frame lands on the product crash screen instead of blanking the station.
+       `resetKey` is the screen, so signing out of a broken launcher clears the
+       fault by itself. Section-level throws never reach here — the inner
+       boundary in `launcher.tsx` absorbs them and keeps the frame alive. */
+    <ErrorBoundary variant="page" resetKey={screen}>
       <AnimatePresence mode="wait">
         {screen === "lock" ? (
           <motion.div
@@ -36,13 +42,17 @@ export default function Page() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <Launcher />
+            {/* Members and PostPaid guests share one shell; the surface only
+                decides which sections the navigation offers (F6.2). */}
+            <Launcher surface={surfaceOf(screen)} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <SessionManager />
-      <Toaster />
-    </>
+      {/* Dialogs, drawers, toasts and the end-of-visit takeover live here — one
+          mount above both screens, so nothing is a child of the screen
+          transition and the lock screen has an overlay host too (F6.4). */}
+      <GlobalOverlays />
+    </ErrorBoundary>
   )
 }

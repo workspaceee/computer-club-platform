@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { overlayZ } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
 import type { Toast } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -44,9 +45,12 @@ function ToastCard({ toast }: { toast: Toast }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: 40, scale: 0.94 }}
+      // Slides in from the left edge, matching the bottom-left anchor of the
+      // column: a card must enter and leave toward the nearest screen edge,
+      // otherwise it reads as flying across the content.
+      initial={{ opacity: 0, x: -40, scale: 0.94 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 40, scale: 0.94, transition: { duration: 0.18 } }}
+      exit={{ opacity: 0, x: -40, scale: 0.94, transition: { duration: 0.18 } }}
       transition={{ type: 'spring', stiffness: 420, damping: 32 }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -102,7 +106,21 @@ export function Toaster() {
       role={hasError ? 'alert' : 'status'}
       aria-live={hasError ? 'assertive' : 'polite'}
       aria-relevant="additions"
-      className="pointer-events-none fixed right-4 top-4 z-[100] flex w-80 flex-col gap-2"
+      // Bottom-LEFT — the single anchor for every transient notification in the
+      // app. It started at `top-4`, inside the top bar, so a toast covered the
+      // very chip it was talking about ("+150 coins" landing on the coin
+      // balance); moving it down fixed that, and moving it left also keeps it
+      // clear of the right-hand column (slide dots, action buttons, drawers).
+      // `bottom-24` clears the fixed mobile bar on narrow screens, where
+      // covering the navigation would be worse than covering content.
+      //
+      // Newest last in the column: the queue is oldest → newest, so with a
+      // bottom anchor the freshest message is the one nearest the corner the
+      // eye is drawn to, and older ones drift upward out of the way.
+      className={cn(
+        'pointer-events-none fixed bottom-24 left-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 sm:bottom-4',
+        overlayZ.toast,
+      )}
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => (

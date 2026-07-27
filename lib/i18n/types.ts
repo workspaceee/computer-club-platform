@@ -63,6 +63,3 @@ export const PLURAL_ORDER: Record<Lang, Intl.LDMLPluralRule[]> = {
 
 export const isLang = (value: unknown): value is Lang =>
   typeof value === 'string' && LANGS.some((l) => l.code === value)
-
-/** localStorage key holding the device-level language choice (F2.5). */
-export const LANG_STORAGE_KEY = 'imba.lang'
