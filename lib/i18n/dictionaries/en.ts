@@ -314,6 +314,9 @@ export const en = {
     serverRegion: 'Server region',
     language: 'Interface language',
     languageHint: 'Applies to this station right away and is saved to your profile.',
+    languageHintGuest: 'Applies until the end of this session. Guests have no profile to save it to.',
+    languageSaved: 'Interface language saved to your profile.',
+    languageSaveFailed: 'Language changed for this session, but saving to your profile failed.',
   },
 
   guest: {

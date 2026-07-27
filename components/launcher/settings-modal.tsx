@@ -3,18 +3,21 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Monitor, Volume2, MousePointer2, Globe, type LucideIcon } from "lucide-react"
 import { useState } from "react"
+import { LangSwitcher } from "@/components/lang-switcher"
 import { Overlay } from "@/components/ui/overlay"
+import { useT } from "@/lib/i18n/provider"
+import type { TKey } from "@/lib/i18n/types"
 import { OVERLAY_MAX_H } from "@/lib/overlay"
 import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
 type TabId = "display" | "audio" | "controls" | "region"
 
-const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
-  { id: "display", label: "Display", icon: Monitor },
-  { id: "audio", label: "Audio", icon: Volume2 },
-  { id: "controls", label: "Controls", icon: MousePointer2 },
-  { id: "region", label: "Region", icon: Globe },
+const TABS: { id: TabId; labelKey: TKey; icon: LucideIcon }[] = [
+  { id: "display", labelKey: "settings.display", icon: Monitor },
+  { id: "audio", labelKey: "settings.audio", icon: Volume2 },
+  { id: "controls", labelKey: "settings.controls", icon: MousePointer2 },
+  { id: "region", labelKey: "settings.region", icon: Globe },
 ]
 
 function Slider({

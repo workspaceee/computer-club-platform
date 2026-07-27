@@ -7,6 +7,7 @@
  * slice can be cleared on logout by adding one line here rather than by
  * remembering four separate places.
  */
+import type { Lang } from '@/lib/i18n/types'
 import type { UserProfile } from '@/lib/types/user'
 import type { SliceCreator } from '../types'
 
@@ -30,6 +31,15 @@ export interface AuthSlice {
   /** Walk-in check-in: opens the `guest` surface instead of the member one. */
   guestSuccess: (guest: GuestIdentity) => void
   logout: () => void
+  /**
+   * Mirrors a saved interface language onto the signed-in profile (F2.5).
+   *
+   * Settings writes the language to the member's own preferences, and the
+   * profile in the store is what the shell re-reads on the next sign-in — so
+   * without this the saved choice would be invisible until a page reload. A
+   * no-op for guests, who have no profile to save anything to.
+   */
+  setUserLang: (lang: Lang) => void
   /** Keeps the visit, drops to the lock screen, stops the clock. */
   lockPc: () => void
   /** Unlock: back to the surface the visit started on, clock running. */
@@ -102,6 +112,12 @@ export const createAuthSlice: SliceCreator<AuthSlice> = (set, get) => ({
     get().resetSession()
     get().resetUi()
     get().setScreen('lock')
+  },
+
+  setUserLang: (lang) => {
+    const { user } = get()
+    if (!user || user.lang === lang) return
+    set({ user: { ...user, lang } })
   },
 
   lockPc: () => {
