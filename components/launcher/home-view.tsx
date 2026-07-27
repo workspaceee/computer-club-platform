@@ -179,7 +179,15 @@ function HeroCarousel() {
             {/* `hideTitle`: the hero writes the name itself, one line below, so
                 the cover must not anchor a second title to the same bottom edge —
                 that is what put a 60px game name on top of "Play now". */}
-            <GameCover game={game} className="h-full w-full" hideTitle />
+            <GameCover
+              game={game}
+              className="h-full w-full"
+              hideTitle
+              // The hero is the largest cover on screen and the first thing seen
+              // after unlock, so it loads eagerly rather than lazily.
+              priority
+              sizes="(min-width: 1280px) 70vw, 100vw"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
               <div className="flex items-center gap-3">
