@@ -288,23 +288,25 @@ export function LockScreen() {
       {/* =================== LEFT — station identity =================== */}
       {/* The lockup used to head this column; it now signs the bottom-right
           corner (see `BrandLabel`), which leaves the clock as the first thing
-          read and clears the neon sign in the backdrop art. With two children
-          left, `justify-between` would strand the clock at the ceiling — the
-          pair is centred as one block instead. */}
-      <div className="relative z-10 hidden flex-1 flex-col justify-center gap-12 p-10 lg:flex xl:p-14">
+          read and clears the neon sign in the backdrop art. The telemetry
+          strip stays pinned to the bottom edge (its original home), while
+          the clock's `my-auto` centres it in the space above — plain
+          `justify-between` with two children would strand the clock at the
+          ceiling. */}
+      <div className="relative z-10 hidden flex-1 flex-col gap-12 p-10 lg:flex xl:p-14">
         {/* giant clock */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: 'easeOut' }}
-          className="flex flex-col gap-3"
+          className="my-auto flex flex-col gap-3"
         >
           <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
             <span className="h-px w-8 bg-primary/60" />
             {t('auth.localTime')}
           </span>
           <div className="flex items-end gap-3">
-            <span className="neon-text font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
+            <span className="neon-text neon-digits font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
               {timeStr}
             </span>
             <span className="mb-2 font-clock text-2xl font-medium tabular-nums text-primary xl:mb-3 xl:text-3xl">
