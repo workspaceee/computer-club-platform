@@ -38,7 +38,10 @@ const CHROME = [
   { file: 'imba-logo-full.webp', w: 1024, h: 463, maxKB: 80, alpha: true },
   { file: 'imba-mark.webp',      w: 512,  h: 616, maxKB: 80, alpha: true },
   { file: 'imba-wordmark.webp',  w: 1024, h: 549, maxKB: 40, alpha: true },
-  { file: 'lock-bg.webp',        w: 1024, h: 576, maxKB: 70, alpha: false },
+  // The one backdrop a guest reads text over on a full-height panel, so it is
+  // encoded at its source's native width instead of the 1024 the attract frames
+  // use, and the ceiling is raised to match. Worst today 95 KB.
+  { file: 'lock-bg.webp',        w: 1664, h: 936, maxKB: 130, alpha: false },
 ]
 
 /**

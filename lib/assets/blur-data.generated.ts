@@ -4,7 +4,7 @@
 // lock-bg.webp or fallback.webp — `pnpm assets:verify` fails until you do.
 
 /** Content hash of the source art; checked by scripts/verify-assets.mjs (§13.8). */
-export const BLUR_FINGERPRINT = 'e42238131426'
+export const BLUR_FINGERPRINT = 'd7bdb1eac2e2'
 
 /** 16px-wide webp LQIPs, keyed by the public path they stand in for. */
 export const BLUR_DATA: Record<string, string> = {
@@ -33,5 +33,5 @@ export const BLUR_DATA: Record<string, string> = {
   '/fallback.webp':
     'data:image/webp;base64,UklGRigAAABXRUJQVlA4IBwAAAAwAQCdASoQAAkABUB8JZQAA3AA/vAEjf2CgAAA',
   '/lock-bg.webp':
-    'data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAACQAQCdASoQAAkABUB8JYwAAselznQA/t3vesCBLnaxky0n6Lrsq37+P+yM3a5zmnoTUAAA',
+    'data:image/webp;base64,UklGRkAAAABXRUJQVlA4IDQAAACQAQCdASoQAAkABUB8JYwAAselznQA/t3vesCBLnaxky0n6Lrsq37+P+yM3a5zmmFYAAAA',
 }

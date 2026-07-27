@@ -249,21 +249,31 @@ export function LockScreen() {
           fallback="plate"
         />
       </div>
-      {/* readability overlays: cool the red cast, darken globally, deepen toward edges */}
-      <div className="absolute inset-0 bg-black/45" />
-      <div className="absolute inset-0" style={{ background: 'rgba(8,10,18,0.35)' }} />
+      {/*
+        Readability veils (§3.1). Directional by design: the pie exists to buy
+        contrast *under the clock and the card*, not to dim the photograph.
+
+        The flat `bg-black/45` + cold `rgba(8,10,18,.35)` pair that used to sit
+        here was calibrated for a bright, red-blown room shot. The current
+        backdrop is already graded dark with crushed blacks, so those two layers
+        were subtracting detail it has none to spare — the neon sign went grey
+        and the figure went to mud, which reads as a *soft* image rather than a
+        dark one. A gentle 18 % floor is enough to keep a stray bright frame in
+        range; the shaping is left to the two gradients.
+      */}
+      <div className="absolute inset-0 bg-black/[0.18]" />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(90deg, rgba(5,6,10,0.6) 0%, rgba(5,6,10,0.12) 45%, rgba(5,6,10,0.78) 100%)',
+            'linear-gradient(90deg, rgba(5,6,10,0.55) 0%, rgba(5,6,10,0.05) 42%, rgba(5,6,10,0.5) 72%, rgba(5,6,10,0.82) 100%)',
         }}
       />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(5,6,10,0.55) 0%, transparent 25%, transparent 70%, rgba(5,6,10,0.7) 100%)',
+            'linear-gradient(180deg, rgba(5,6,10,0.5) 0%, transparent 22%, transparent 68%, rgba(5,6,10,0.72) 100%)',
         }}
       />
       <ParticleField />
