@@ -71,36 +71,49 @@ export function LangSwitcher({
 
   if (variant === 'rows') {
     return (
-      <div className={cn('flex flex-col gap-1.5', className)} role="radiogroup" aria-label={t('settings.language')}>
-        {LANGS.map((l) => {
-          const active = l.code === lang
-          return (
-            <button
-              key={l.code}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => choose(l.code)}
-              className={cn(
-                'flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 text-left transition-colors',
-                'outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
-                active
-                  ? 'border-primary/50 bg-primary/10 text-text-high'
-                  : 'border-border bg-surface text-text-medium hover:text-text-high',
-              )}
-            >
-              <span className="text-sm">{l.nativeName}</span>
-              <span
+      <div className={cn('flex flex-col gap-2', className)}>
+        {showLabel && (
+          <p className="flex items-center gap-1.5 text-sm text-text-high">
+            <Globe size={14} className="text-primary" />
+            {t('settings.language')}
+          </p>
+        )}
+        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label={t('settings.language')}>
+          {LANGS.map((l) => {
+            const active = l.code === lang
+            return (
+              <button
+                key={l.code}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => choose(l.code)}
                 className={cn(
-                  'label-mono text-[10px]',
-                  active ? 'text-primary' : 'text-text-low',
+                  'flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 text-left transition-colors',
+                  'outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
+                  active
+                    ? 'border-primary/50 bg-primary/10 text-text-high'
+                    : 'border-border bg-surface text-text-medium hover:text-text-high',
                 )}
               >
-                {l.label}
-              </span>
-            </button>
-          )
-        })}
+                <span className="text-sm">{l.nativeName}</span>
+                <span
+                  className={cn(
+                    'label-mono text-[10px]',
+                    active ? 'text-primary' : 'text-text-low',
+                  )}
+                >
+                  {l.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {/* The promise under the control has to match who is signed in: telling a
+            walk-in their language is "saved to your profile" would be a lie. */}
+        <p className="text-xs leading-relaxed text-text-low">
+          {t(user ? 'settings.languageHint' : 'settings.languageHintGuest')}
+        </p>
       </div>
     )
   }
@@ -116,7 +129,7 @@ export function LangSwitcher({
       <Segmented<Lang>
         options={LANGS.map((l) => ({ value: l.code, label: l.label }))}
         value={lang}
-        onChange={setLang}
+        onChange={choose}
         variant="pill"
         size="sm"
         round

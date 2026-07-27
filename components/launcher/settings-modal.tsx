@@ -158,6 +158,7 @@ export function SettingsModal() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
   const settings = useStore((s) => s.settings)
   const updateSettings = useStore((s) => s.updateSettings)
+  const { t } = useT()
   const [tab, setTab] = useState<TabId>("display")
 
   return (
@@ -165,7 +166,7 @@ export function SettingsModal() {
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-label="Settings"
+            aria-label={t('settings.title')}
             // Was `z-[60]`, the same rung the offline banner claimed — so during
             // an outage which of the two won depended on render order. The rung
             // now comes from the ladder, and `86vh` becomes the shared `svh` cap
@@ -185,13 +186,13 @@ export function SettingsModal() {
                 <span className="label-mono text-[10px] text-primary">SYS</span>
                 <span className="h-3 w-px bg-border-strong" />
                 <h2 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
-                  Settings
+                  {t('settings.title')}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
-                aria-label="Close settings"
+                aria-label={t('settings.close')}
                 className="relative rounded-md p-1.5 text-text-medium transition-colors hover:bg-white/10 hover:text-text-high"
               >
                 <X className="h-5 w-5" />
@@ -201,14 +202,14 @@ export function SettingsModal() {
             <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
               {/* Sidebar tabs */}
               <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 sm:w-44 sm:flex-col sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
-                {TABS.map((t) => {
-                  const Icon = t.icon
-                  const active = tab === t.id
+                {TABS.map((item) => {
+                  const Icon = item.icon
+                  const active = tab === item.id
                   return (
                     <button
-                      key={t.id}
+                      key={item.id}
                       type="button"
-                      onClick={() => setTab(t.id)}
+                      onClick={() => setTab(item.id)}
                       className={cn(
                         "relative flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
                         active ? "text-text-high" : "text-text-low hover:text-text-medium",
@@ -221,7 +222,7 @@ export function SettingsModal() {
                         />
                       )}
                       <Icon className="relative h-4 w-4" />
-                      <span className="relative">{t.label}</span>
+                      <span className="relative">{t(item.labelKey)}</span>
                     </button>
                   )
                 })}
@@ -241,7 +242,7 @@ export function SettingsModal() {
                     {tab === "display" && (
                       <>
                         <div>
-                          <p className="mb-2 text-sm text-text-high">Resolution</p>
+                          <p className="mb-2 text-sm text-text-high">{t('settings.resolution')}</p>
                           <Segmented
                             value={settings.resolution}
                             onChange={(v) => updateSettings({ resolution: v as typeof settings.resolution })}
@@ -253,13 +254,13 @@ export function SettingsModal() {
                         </div>
                         <Slider
                           id="brightness"
-                          label="Brightness"
+                          label={t('settings.brightness')}
                           suffix="%"
                           value={settings.brightness}
                           onChange={(v) => updateSettings({ brightness: v })}
                         />
                         <Toggle
-                          label="Reduce animations"
+                          label={t('settings.reduceAnimations')}
                           checked={settings.reduceAnimations}
                           onChange={() => updateSettings({ reduceAnimations: !settings.reduceAnimations })}
                         />
@@ -270,27 +271,27 @@ export function SettingsModal() {
                       <>
                         <Slider
                           id="master"
-                          label="Master volume"
+                          label={t('settings.masterVolume')}
                           suffix="%"
                           value={settings.masterVolume}
                           onChange={(v) => updateSettings({ masterVolume: v })}
                         />
                         <Slider
                           id="game"
-                          label="Game volume"
+                          label={t('settings.gameVolume')}
                           suffix="%"
                           value={settings.gameVolume}
                           onChange={(v) => updateSettings({ gameVolume: v })}
                         />
                         <Slider
                           id="chat"
-                          label="Chat volume"
+                          label={t('settings.chatVolume')}
                           suffix="%"
                           value={settings.chatVolume}
                           onChange={(v) => updateSettings({ chatVolume: v })}
                         />
                         <Select
-                          label="Output device"
+                          label={t('settings.outputDevice')}
                           value={settings.outputDevice}
                           onChange={(v) => updateSettings({ outputDevice: v })}
                         >
@@ -304,7 +305,7 @@ export function SettingsModal() {
                     {tab === "controls" && (
                       <Slider
                         id="sensitivity"
-                        label="Mouse sensitivity"
+                        label={t('settings.mouseSensitivity')}
                         value={settings.mouseSensitivity}
                         min={1}
                         max={10}
@@ -314,16 +315,22 @@ export function SettingsModal() {
                     )}
 
                     {tab === "region" && (
-                      <Select
-                        label="Server region"
-                        value={settings.region}
-                        onChange={(v) => updateSettings({ region: v })}
-                      >
-                        <option>EU West</option>
-                        <option>EU East</option>
-                        <option>US East</option>
-                        <option>Asia</option>
-                      </Select>
+                      <>
+                        {/* Interface language (F2.5). The control itself decides
+                            whether the pick is persisted, so this tab does not
+                            branch on guest vs member — it only places it. */}
+                        <LangSwitcher variant="rows" showLabel announce />
+                        <Select
+                          label={t("settings.serverRegion")}
+                          value={settings.region}
+                          onChange={(v) => updateSettings({ region: v })}
+                        >
+                          <option>EU West</option>
+                          <option>EU East</option>
+                          <option>US East</option>
+                          <option>Asia</option>
+                        </Select>
+                      </>
                     )}
                   </motion.div>
                 </AnimatePresence>
@@ -336,7 +343,7 @@ export function SettingsModal() {
                 onClick={() => setSettingsOpen(false)}
                 className="w-full rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground transition-colors hover:bg-primary-hover"
               >
-                Done
+                {t('common.done')}
               </button>
             </div>
           </motion.div>
