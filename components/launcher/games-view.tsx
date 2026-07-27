@@ -197,7 +197,10 @@ export function GamesView() {
         }
       >
         {() => (
-          <Grid>
+          // One tab stop for the whole library, arrows walk the cards, and the
+          // row jump is measured from the rendered layout so it follows the
+          // responsive column count (F6.7).
+          <Grid ref={gridRef}>
             {filtered.map((game) => (
               <GameCard key={game.id} game={game} players={players[game.id] ?? game.players} />
             ))}
@@ -208,13 +211,27 @@ export function GamesView() {
   )
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
+/**
+ * `ref` is forwarded because only the *results* grid is a composite widget — the
+ * skeleton variant holds no focusable items, so attaching the roving hook to it
+ * would leave the group empty while the library loads.
+ */
+function Grid({
+  children,
+  ref,
+}: {
+  children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
+}) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{children}</div>
+    <div ref={ref} className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {children}
+    </div>
   )
 }
 
 function GameCard({ game, players }: { game: Game; players: number }) {
+  const { t } = useT()
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const prev = useRef(players)
   const rising = players > prev.current
@@ -229,9 +246,18 @@ function GameCard({ game, players }: { game: Game; players: number }) {
     >
       <div className="relative">
         <GameCover game={game} className="h-40 w-full" />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+        {/* `group-focus-within` is not a nicety here: the launch button — the only
+            action on a card — was revealed by hover alone, so a keyboard player
+            focused a control they could not see press. The overlay now follows
+            focus as well as the pointer. */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             onClick={() => setLaunchGame(game.id)}
+            // The card carries the title, but a button announcing just "Play"
+            // repeats itself sixty times in the accessibility tree.
+            aria-label={`${t('games.launch')} ${game.name}`}
+            // The card is the roving item, via its only control (F6.7).
+            data-roving-item
             className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
           >
             <Play size={15} fill="currentColor" />

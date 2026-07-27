@@ -25,6 +25,7 @@ import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
+import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
 import { cartCount, useStore } from '@/lib/store'
@@ -85,6 +86,11 @@ export function ShopView() {
   const catalogue = useApi(['shop', tab], () => TAB_ENDPOINTS[tab]())
   const activeTab = TABS.find((t) => t.id === tab)!
 
+  // Two composite widgets, same rule as the library (F6.7): the tab strip walks
+  // with left/right, the product grid with all four arrows.
+  const tabsRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
+  const gridRef = useRovingFocus<HTMLDivElement>({ orientation: 'grid' })
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -112,11 +118,25 @@ export function ShopView() {
         </button>
       </div>
 
-      <div className="glass flex w-fit gap-1 rounded-md p-1">
+      {/* Toggle buttons rather than ARIA tabs: the sections below are fetched
+          per tab and swapped in place, so there is no persistent `tabpanel` to
+          point `aria-controls` at. `aria-pressed` also gives the roving group its
+          entry point — arriving here lands on the open section (F6.7). */}
+      <div
+        ref={tabsRef}
+        role="group"
+        aria-label={t('shop.title')}
+        className="glass flex w-fit gap-1 rounded-md p-1"
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            aria-pressed={tab === t.id}
+            // The label is `sm:inline` only, so on a narrow screen the button is
+            // an icon with no accessible name unless one is spelled out.
+            aria-label={t.label}
+            data-roving-item
             className={cn(
               'flex items-center gap-2 rounded-[5px] px-4 py-2 text-sm font-semibold transition-all',
               tab === t.id
@@ -149,7 +169,7 @@ export function ShopView() {
         }
       >
         {(items) => (
-          <Grid>
+          <Grid ref={gridRef}>
             {items.map((item) => (
               <ProductCard key={item.id} item={item} />
             ))}
@@ -160,13 +180,23 @@ export function ShopView() {
   )
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
+/** Only the results grid is a roving group — the skeleton has nothing to focus. */
+function Grid({
+  children,
+  ref,
+}: {
+  children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
+}) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {children}
+    </div>
   )
 }
 
 function ProductCard({ item }: { item: ShopItem }) {
+  const { t } = useT()
   const addToCart = useStore((s) => s.addToCart)
   const toast = useStore((s) => s.toast)
   const Icon = iconFor(item.id)
@@ -218,6 +248,11 @@ function ProductCard({ item }: { item: ShopItem }) {
             addToCart(item)
             toast('success', `${item.name} added to cart`)
           }}
+          // Nine buttons all reading "Add" tell a screen-reader user nothing
+          // about which product they are on.
+          aria-label={`${t('shop.addToCart')}: ${item.name}`}
+          // The card's single action, so it is the card's roving item (F6.7).
+          data-roving-item
           className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-primary-hover"
         >
           <Plus size={16} />

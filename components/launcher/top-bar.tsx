@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Coins, Lock, LogOut, Receipt, Settings, Timer } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
@@ -45,7 +45,8 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirm, setConfirm] = useState<'lock' | 'logout' | null>(null)
-  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  // No trigger ref: the layer's `restoreFocus` hands focus back to whatever was
+  // focused when the menu opened, which is the trigger by definition.
   const menuId = useId()
 
   // The bar is a composite widget: one tab stop, arrows walk the sections, and
@@ -220,7 +221,6 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
             control in the frame to leave unlabelled. */}
         <div ref={menuRef} className="relative">
           <button
-            ref={menuTriggerRef}
             onClick={() => setMenuOpen((v) => !v)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
