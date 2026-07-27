@@ -1,9 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import type { LucideIcon } from 'lucide-react'
-import { useState } from 'react'
 
+import { AssetImage } from '@/components/ui/asset-image'
 import { cn } from '@/lib/utils'
 
 interface ProductImageProps {
@@ -34,8 +33,13 @@ interface ProductImageProps {
  * visual here:
  *
  *  - `src === ''` — the category ships no photography. No request is made.
- *  - `onError` — a file was expected and did not arrive. The `img` is unmounted
- *    so the browser's own "broken image" glyph never paints over the icon.
+ *  - a load error — a file was expected and did not arrive.
+ *
+ * Both are handled by `AssetImage` (F7.5) rather than here: this component's job
+ * shrank to picking *which* fallback the category deserves, and for a 56px
+ * thumbnail that is the category icon, not the shared 16:9 plate. The icon is
+ * also why there is no blur data for `products/` — it is painted before the
+ * request starts and covers the decode window on its own.
  *
  * The box is always square and always sized by the caller, so a card's height is
  * decided before any image resolves. That is what keeps the grid's layout shift
@@ -49,9 +53,6 @@ export function ProductImage({
   className,
   sizes = '56px',
 }: ProductImageProps) {
-  const [failed, setFailed] = useState(false)
-  const showImage = src !== '' && !failed
-
   return (
     <div
       className={cn(
@@ -60,26 +61,22 @@ export function ProductImage({
         className,
       )}
     >
-      {showImage ? (
-        <Image
-          src={src}
-          // The card writes the product name in its own `h3` directly beside
-          // this, so the art is decorative — an alt repeating it would read
-          // every product twice.
-          alt=""
-          aria-hidden
-          fill
-          sizes={sizes}
-          onError={() => setFailed(true)}
-          className="object-cover"
-        />
-      ) : (
-        <Icon
-          size={22}
-          className={highlight ? 'text-primary' : 'text-text-medium'}
-          aria-hidden
-        />
-      )}
+      <AssetImage
+        src={src}
+        // The card writes the product name in its own `h3` directly beside this,
+        // so the art is decorative — an alt repeating it would read every
+        // product twice.
+        alt=""
+        sizes={sizes}
+        className="object-cover"
+        fallback={
+          <Icon
+            size={22}
+            className={highlight ? 'text-primary' : 'text-text-medium'}
+            aria-hidden
+          />
+        }
+      />
     </div>
   )
 }

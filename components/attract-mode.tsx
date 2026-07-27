@@ -13,7 +13,7 @@ import {
   Wifi,
   type LucideIcon,
 } from 'lucide-react'
-import Image from 'next/image'
+import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useMemo, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
@@ -196,16 +196,15 @@ export function AttractMode() {
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
             className="neon-logo relative h-12 w-64 md:h-14 md:w-80"
           >
-            <Image
+            <AssetImage
               src="/imba-logo-full.webp"
               // The screen's own `aria-label` names the club and states the way
               // out; naming the logo too would put "IMBA Cyber Club" in front of
               // "move the mouse to unlock" (F7.4).
               alt=""
-              aria-hidden
-              fill
               sizes="320px"
               className="object-contain"
+              fallback="none"
             />
           </motion.div>
           <span className="label-mono flex items-center gap-2 text-[10px] tracking-[0.35em] text-text-low">
@@ -388,16 +387,18 @@ function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
         }}
         className="absolute inset-0"
       >
-        <Image
-          src={slide.src || '/placeholder.svg'}
+        <AssetImage
+          src={slide.src}
           alt=""
-          fill
           // The idle screen is never the entry point of a page load — it appears
           // after minutes of inactivity, by which time nothing is competing for
           // bandwidth, so no frame needs `priority`.
           sizes="100vw"
           className="object-cover"
-          aria-hidden
+          // Was `slide.src || '/placeholder.svg'`, which put a pale stock glyph
+          // full-bleed on a dark idle screen visible from across the room. The
+          // plate is the point of F7.5: it reads as intended art, not as a fault.
+          fallback="plate"
         />
       </motion.div>
     </AnimatePresence>
