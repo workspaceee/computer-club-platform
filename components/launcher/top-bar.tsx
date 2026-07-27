@@ -7,9 +7,9 @@ import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
-import { formatCoins, formatEur, toCents } from '@/lib/money'
+import { formatCoins, formatEur, sumCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { cartTotal, timeChargeCents, useStore } from '@/lib/store'
+import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { overlayZ } from '@/lib/overlay'
@@ -35,9 +35,9 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   // What the guest owes so far: the bar order **plus** the time on the seat. On a
   // postpaid seat `seconds` is time *used*, and the counter bills it by the
   // minute, so leaving it out would show a tab that quietly understates the bill
-  // (F6.3). The legacy cart still carries float prices, so it goes through
-  // `toCents` to keep one money formatter.
-  const tabTotal = toCents(cartTotal(cart)) + timeChargeCents(seconds)
+  // (F6.3). Both terms are cents, so this is a plain sum — the basket no longer
+  // has to be converted back from floats first (F7.2).
+  const tabTotal = sumCents(cartTotalCents(cart), timeChargeCents(seconds))
   const lockPc = useStore((s) => s.lockPc)
   const logout = useStore((s) => s.logout)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)

@@ -12,7 +12,7 @@
 //    ledger rather than a number the UI decremented.
 import { mutate, newId, query, required, ApiError } from '@/lib/mock/api/client'
 import { db, getOpenTab, getPlayer, getProduct, getTransactions } from '@/lib/mock/db'
-import type { Product, ProductCategory, ShopItem } from '@/lib/types/catalog'
+import type { Product, ProductCategory, ShopEntry } from '@/lib/types/catalog'
 import type { Cents, ID } from '@/lib/types/common'
 import type { Order, OrderItem, OrderPaymentMethod, OrderStatus } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
@@ -22,21 +22,6 @@ import type { Wallet } from '@/lib/types/user'
 /* ------------------------------------------------------------------ *
  * Catalogue
  * ------------------------------------------------------------------ */
-
-/** Whole euros for the presentational `ShopItem`. Cents stay authoritative. */
-function toEuros(cents: Cents): number {
-  return cents / 100
-}
-
-function toShopItem(product: Product): ShopItem {
-  return {
-    id: product.id,
-    name: product.name,
-    price: toEuros(product.priceCents),
-    tag: product.tag,
-    description: product.description,
-  }
-}
 
 /** Same summary the counter menu prints, so passes read the same everywhere. */
 function describePass(pass: Pass): string {
@@ -79,36 +64,53 @@ export function fetchProduct(productId: ID): Promise<Product> {
   return query('shop.fetchProduct', () => required(getProduct(productId)))
 }
 
-/** `GET /api/shop/items` — bar and merch, in the shape the shop grid renders. */
-export function fetchShopItems(): Promise<ShopItem[]> {
+/**
+ * `GET /api/shop/items` — bar, kitchen and merch.
+ *
+ * Returns the catalogue rows as they are. The grid used to be handed a stripped
+ * copy that dropped `image`, so the product photography was unreachable from the
+ * UI no matter what the shop screen tried to render (F7.2).
+ */
+export function fetchShopItems(): Promise<Product[]> {
   return query('shop.fetchShopItems', () =>
-    db.products
-      .filter((p) => p.category !== 'membership' && p.category !== 'time')
-      .map(toShopItem),
+    db.products.filter((p) => p.category !== 'membership' && p.category !== 'time'),
   )
 }
 
-/** `GET /api/shop/time` — time passes on sale to this member. */
-export function fetchShopTime(): Promise<ShopItem[]> {
+/**
+ * `GET /api/shop/time` — time passes on sale to this member.
+ *
+ * A pass is not a `Product` (no stock, no shelf), so it is presented as the
+ * narrower `ShopEntry` the grid actually consumes rather than being faked into
+ * the product shape with invented stock numbers.
+ */
+export function fetchShopTime(): Promise<ShopEntry[]> {
   return query('shop.fetchShopTime', () =>
     db.passes
       .filter((p) => p.active && p.visibleTo === 'everyone')
       .map((pass) => ({
         id: pass.id,
         name: pass.name,
-        price: toEuros(pass.priceCents),
+        category: 'time' as const,
+        priceCents: pass.priceCents,
         tag: pass.id === 'pass-5h' ? 'Popular' : undefined,
         description: describePass(pass),
+        // A pass is always purchasable while it is active; there is nothing to
+        // run out of.
+        inStock: true,
+        image: '',
       })),
   )
 }
 
 /** `GET /api/shop/memberships` */
-export function fetchShopMemberships(): Promise<ShopItem[]> {
+export function fetchShopMemberships(): Promise<Product[]> {
   return query('shop.fetchShopMemberships', () =>
     db.products
       .filter((p) => p.category === 'membership')
-      .map((product) => ({ ...toShopItem(product), name: product.name.replace(' Membership', '') })),
+      // The tab header already says "Memberships"; repeating it in every tier
+      // name just makes three cards read "… Membership".
+      .map((product) => ({ ...product, name: product.name.replace(' Membership', '') })),
   )
 }
 

@@ -18,6 +18,8 @@
  * when reading the composition.
  */
 import { create } from 'zustand'
+import { mulCents, sumCents } from '@/lib/money'
+import type { Cents } from '@/lib/types/common'
 import type { CartItem } from '@/lib/types/order'
 import { createAuthSlice } from './slices/auth'
 import { createCartSlice } from './slices/cart'
@@ -62,8 +64,14 @@ export type { PendingFriendRequest, PendingPartyInvite } from './slices/social'
  */
 export type { LauncherSurface, LauncherView, Screen } from '@/lib/launcher-nav'
 
-export const cartTotal = (cart: CartItem[]) =>
-  cart.reduce((sum, item) => sum + item.price * item.qty, 0)
+/**
+ * Basket total in **cents**, named for its unit like every other money value in
+ * the system. It used to return a float number of euros, which is what made the
+ * top bar convert it back with `toCents(cartTotal(cart))` before it could add a
+ * time charge to it (F3.6 / F7.2).
+ */
+export const cartTotalCents = (cart: CartItem[]): Cents =>
+  sumCents(cart.map((item) => mulCents(item.priceCents, item.qty)))
 
 export const cartCount = (cart: CartItem[]) =>
   cart.reduce((sum, item) => sum + item.qty, 0)

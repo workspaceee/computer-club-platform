@@ -351,7 +351,10 @@ function product(
     tag: extra.tag,
     stock,
     inStock: stock > 0,
-    image: `/products/${id}.png`,
+    // `scripts/optimize-products.mjs` writes one WebP per id (F7.2). A
+    // membership is a product row with nothing to photograph, so it gets no
+    // path at all rather than one that would 404 on every render.
+    image: category === 'membership' ? '' : `/products/${id}.webp`,
   }
 }
 

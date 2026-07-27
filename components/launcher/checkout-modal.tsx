@@ -127,7 +127,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
                   <span className="text-sm text-text-medium">{t('shop.total')}</span>
                   <span className="font-display text-xl font-black text-text-high">
-                    ${total.toFixed(2)}
+                    {formatEur(totalCents)}
                   </span>
                 </div>
 
@@ -198,7 +198,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                   ) : (
                     <>
                       <Lock size={15} aria-hidden />
-                      Pay ${total.toFixed(2)}
+                      Pay {formatEur(totalCents)}
                     </>
                   )}
                 </button>

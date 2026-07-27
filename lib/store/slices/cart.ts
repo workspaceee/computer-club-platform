@@ -1,7 +1,7 @@
 /**
  * `cart` slice (F6.1) — bar order in progress.
  */
-import type { ShopItem } from '@/lib/types/catalog'
+import type { ShopEntry } from '@/lib/types/catalog'
 import type { CartItem } from '@/lib/types/order'
 import type { SliceCreator } from '../types'
 import { CHECKOUT_AWARD_COINS } from './loyalty'
@@ -9,7 +9,9 @@ import { CHECKOUT_AWARD_COINS } from './loyalty'
 export interface CartSlice {
   cart: CartItem[]
 
-  addToCart: (item: ShopItem) => void
+  /** Takes a catalogue row whole, so the basket keeps the price in cents and
+   *  the image the drawer draws its thumbnail from. */
+  addToCart: (item: ShopEntry) => void
   removeFromCart: (id: string) => void
   changeQty: (id: string, delta: number) => void
   clearCart: () => void
