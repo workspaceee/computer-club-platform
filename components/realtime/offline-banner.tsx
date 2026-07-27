@@ -46,7 +46,7 @@ export function OfflineBanner({
           exit={{ y: -64, opacity: 0 }}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           // Full width again: the `md:pr-88` reserve that used to dodge the toast
-          // column is gone, because toasts moved to the bottom-right corner and
+          // column is gone, because toasts moved to the bottom-left corner and
           // the top strip now has a single owner (F6.4). The rung comes from the
           // ladder — the banner used to share `z-60` with dialogs, so which one
           // covered the other depended on render order.
