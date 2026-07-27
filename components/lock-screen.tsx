@@ -1,24 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Activity,
-  Cpu,
-  Eye,
-  EyeOff,
-  Fingerprint,
-  Gauge,
-  Loader2,
-  Lock,
-  Mail,
-  QrCode,
-  ShieldCheck,
-  Sparkles,
-  User,
-  UserCog,
-  UserRound,
-  Wifi,
-} from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
@@ -341,11 +324,11 @@ export function LockScreen() {
           className="flex flex-wrap items-center gap-3"
         >
           <StationBadge />
-          <Telemetry icon={<Wifi size={13} />} label={t('auth.ping')} value="4 ms" />
-          <Telemetry icon={<Gauge size={13} />} label={t('auth.display')} value="240 Hz" />
-          <Telemetry icon={<Cpu size={13} />} label={t('auth.gpu')} value="RTX 4080" />
+          <Telemetry icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
+          <Telemetry icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
+          <Telemetry icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
           <Telemetry
-            icon={<Activity size={13} />}
+            icon={<icons.status size={13} />}
             label={t('auth.status')}
             value={t('auth.optimal')}
             accent
@@ -405,7 +388,7 @@ export function LockScreen() {
           <div className="relative z-[2] px-7 pt-7">
             <div className="flex items-center justify-between">
               <span className="label-mono flex items-center gap-2 text-[10px] text-primary">
-                <ShieldCheck size={12} />
+                <icons.secure size={12} />
                 {t('auth.accessTerminal')}
               </span>
               <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
@@ -482,7 +465,7 @@ export function LockScreen() {
                 >
                   <Field
                     label={t('auth.userOrEmail')}
-                    icon={<User size={15} />}
+                    icon={<icons.player size={15} />}
                     value={identifier}
                     onChange={setIdentifier}
                     placeholder={t('auth.userOrEmailPlaceholder')}
@@ -491,7 +474,7 @@ export function LockScreen() {
                   />
                   <Field
                     label={t('auth.password')}
-                    icon={<Lock size={15} />}
+                    icon={<icons.lock size={15} />}
                     type={showPass ? 'text' : 'password'}
                     value={password}
                     onChange={setPassword}
@@ -504,7 +487,7 @@ export function LockScreen() {
                         className="text-text-low transition-colors hover:text-text-high"
                         aria-label={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
                       >
-                        {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {showPass ? <icons.conceal size={18} /> : <icons.reveal size={18} />}
                       </button>
                     }
                   />
@@ -520,17 +503,17 @@ export function LockScreen() {
                   <div className="grid grid-cols-3 gap-2">
                     <SecondaryButton
                       onClick={startQr}
-                      icon={<QrCode size={16} />}
+                      icon={<icons.qr size={16} />}
                       label={t('auth.qrLogin')}
                     />
                     <SecondaryButton
                       onClick={demoLogin}
-                      icon={<Sparkles size={16} />}
+                      icon={<icons.demo size={16} />}
                       label={t('auth.demo')}
                     />
                     <SecondaryButton
                       onClick={demoAdmin}
-                      icon={<UserCog size={16} />}
+                      icon={<icons.staff size={16} />}
                       label={t('auth.admin')}
                     />
                   </div>
@@ -543,7 +526,7 @@ export function LockScreen() {
                     disabled={loading}
                     className="mt-1 flex items-center justify-center gap-2 rounded-sm py-1.5 text-xs font-medium text-text-low transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
                   >
-                    <UserRound size={14} />
+                    <icons.guest size={14} />
                     {t('guest.continueAsGuest')}
                   </button>
                 </motion.form>
@@ -559,7 +542,7 @@ export function LockScreen() {
                 >
                   <Field
                     label={t('auth.username')}
-                    icon={<User size={15} />}
+                    icon={<icons.player size={15} />}
                     value={rUser}
                     onChange={setRUser}
                     placeholder={t('auth.usernamePlaceholder')}
@@ -567,7 +550,7 @@ export function LockScreen() {
                   />
                   <Field
                     label={t('auth.email')}
-                    icon={<Mail size={15} />}
+                    icon={<icons.email size={15} />}
                     value={rEmail}
                     onChange={setREmail}
                     placeholder={t('auth.emailPlaceholder')}
@@ -576,7 +559,7 @@ export function LockScreen() {
                   <div>
                     <Field
                       label={t('auth.password')}
-                      icon={<Lock size={15} />}
+                      icon={<icons.lock size={15} />}
                       type="password"
                       value={rPass}
                       onChange={setRPass}
@@ -606,7 +589,7 @@ export function LockScreen() {
                   </div>
                   <Field
                     label={t('auth.confirmPassword')}
-                    icon={<Fingerprint size={15} />}
+                    icon={<icons.biometry size={15} />}
                     type="password"
                     value={rConfirm}
                     onChange={setRConfirm}
@@ -623,7 +606,7 @@ export function LockScreen() {
           {/* ------- card footer strip ------- */}
           <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
-              <Lock size={10} className="text-success" />
+              <icons.lock size={10} className="text-success" />
               {t('auth.encrypted')}
             </span>
             <span className="label-mono text-[9px] text-text-low">
@@ -695,7 +678,7 @@ function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
             {t('auth.scanWithApp')}
           </p>
           <p id={bodyId} className="flex items-center gap-2 text-sm text-text-medium">
-            <Loader2 size={14} className="animate-spin text-primary" aria-hidden />
+            <icons.pending size={14} className="animate-spin text-primary" aria-hidden />
             {t('auth.waitingConfirmation')}
           </p>
         </div>
@@ -805,7 +788,7 @@ function PrimaryButton({ loading, label }: { loading: boolean; label: string }) 
         className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
         aria-hidden
       />
-      {loading ? <Loader2 size={18} className="animate-spin" /> : label}
+      {loading ? <icons.pending size={18} className="animate-spin" /> : label}
     </button>
   )
 }

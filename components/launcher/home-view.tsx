@@ -1,21 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Coins,
-  Gift,
-  type LucideIcon,
-  Mouse,
-  Play,
-  Shirt,
-  Sticker,
-  Timer,
-  Trophy,
-  Zap,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
@@ -34,10 +20,10 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const PRIZE_ICONS: Record<string, LucideIcon> = {
-  sticker: Sticker,
-  clock: Clock,
-  shirt: Shirt,
-  mouse: Mouse,
+  sticker: icons.sticker,
+  clock: icons.timer,
+  shirt: icons.merch,
+  mouse: icons.mouse,
 }
 
 function SectionHeader({ index, children }: { index: string; children: React.ReactNode }) {
@@ -133,7 +119,7 @@ function HeroCarousel() {
           <Skeleton className="h-72 w-full rounded-xl md:h-96" />
         ) : (
           <EmptyState
-            icon={Play}
+            icon={icons.play}
             title={t('games.noFeatured')}
             description={t('games.noFeaturedBody')}
             className="h-72 md:h-96"
@@ -213,7 +199,7 @@ function HeroCarousel() {
                 onClick={() => setLaunchGame(game.id)}
                 className="flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
               >
-                <Play size={17} fill="currentColor" />
+                <icons.play size={17} fill="currentColor" />
                 Play now
               </button>
             </div>
@@ -225,14 +211,14 @@ function HeroCarousel() {
           className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
           aria-label="Previous game"
         >
-          <ChevronLeft size={20} />
+          <icons.back size={20} />
         </button>
         <button
           onClick={() => go(index + 1)}
           className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
           aria-label="Next game"
         >
-          <ChevronRight size={20} />
+          <icons.forward size={20} />
         </button>
 
         <div ref={dotsRef} role="group" aria-label="Slides" className="absolute bottom-6 right-8 flex gap-1.5">
@@ -278,10 +264,10 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
   // dropped instead of showing zeros the player can never move.
   const stats: { icon: LucideIcon; value: string; label: string }[] = [
     ...(showLoyalty
-      ? [{ icon: Coins, value: formatCoins(coins), label: 'IMBA Coins' }]
+      ? [{ icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' }]
       : []),
     {
-      icon: Timer,
+      icon: icons.timer,
       value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
       // Postpaid time is not a balance: it is time already used and billed, so
       // the tile has to be labelled as such.
@@ -290,7 +276,7 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
     ...(showLoyalty
       ? [
           {
-            icon: Trophy,
+            icon: icons.rewards,
             value: `${prizesUnlocked}/${ladder.length}`,
             label: 'Prizes unlocked',
           },
@@ -351,7 +337,7 @@ function PrizeLadder() {
             <EmptyState
               bare
               size="sm"
-              icon={Gift}
+              icon={icons.gift}
               title={t('loyalty.noRewards')}
               description={t('loyalty.noRewardsBody')}
             />
@@ -359,7 +345,7 @@ function PrizeLadder() {
         >
           {(rows) =>
             rows.map((prize) => {
-              const Icon = PRIZE_ICONS[prize.icon] ?? Gift
+              const Icon = PRIZE_ICONS[prize.icon] ?? icons.gift
               const reached = coins >= prize.coins
               return (
                 <div
@@ -432,7 +418,7 @@ function Leaderboard() {
             <EmptyState
               bare
               size="sm"
-              icon={Trophy}
+              icon={icons.rewards}
               title={t('loyalty.noLeaderboard')}
               description={t('loyalty.noLeaderboardBody')}
             />
@@ -480,7 +466,7 @@ function Leaderboard() {
                   animate={{ opacity: 1 }}
                   className="flex items-center justify-end gap-1 text-right tabular-nums text-text-high"
                 >
-                  <Zap size={11} className="text-warning" />
+                  <icons.energy size={11} className="text-warning" />
                   {formatCoins(row.coins)}
                 </motion.span>
               </div>

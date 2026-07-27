@@ -24,7 +24,7 @@
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { TimerOff } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect } from 'react'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
@@ -111,7 +111,7 @@ export function SessionManager() {
               animate={{ scale: 1 }}
               className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/15"
             >
-              <TimerOff size={40} className="text-primary" />
+              <icons.sessionEnded size={40} className="text-primary" />
             </motion.div>
             <h2 className="font-display text-2xl font-black uppercase text-text-high text-balance sm:text-3xl">
               {t('session.expired')}

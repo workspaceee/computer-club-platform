@@ -1,18 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Activity,
-  CalendarDays,
-  Cpu,
-  Gauge,
-  MousePointer2,
-  Sparkles,
-  Swords,
-  Tag,
-  Wifi,
-  type LucideIcon,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
@@ -57,10 +46,10 @@ const TICKER_FALLBACK = [
  * campaign is recognisable on both screens.
  */
 const KIND_ICONS: Record<PromoKind, LucideIcon> = {
-  sale: Tag,
-  tournament: Swords,
-  battlepass: Sparkles,
-  event: CalendarDays,
+  sale: icons.sale,
+  tournament: icons.tournament,
+  battlepass: icons.season,
+  event: icons.calendar,
 }
 
 /** One Ken Burns frame: either a room shot or a campaign banner. */
@@ -274,7 +263,7 @@ export function AttractMode() {
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
             className="neon-ring mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
           >
-            <MousePointer2 size={13} className="text-primary" />
+            <icons.controls size={13} className="text-primary" />
             Move mouse to unlock
           </motion.span>
         </motion.div>
@@ -282,10 +271,10 @@ export function AttractMode() {
         {/* bottom HUD: live station telemetry */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
           <HudChip dot label="PC #17" value="READY" accent />
-          <HudChip icon={<Wifi size={13} />} label="Ping" value={`${ping} ms`} />
-          <HudChip icon={<Gauge size={13} />} label="Display" value="240 Hz" />
-          <HudChip icon={<Cpu size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<Activity size={13} />} label="Status" value="Optimal" accent />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value={`${ping} ms`} />
+          <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
+          <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
+          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" accent />
         </div>
       </div>
 

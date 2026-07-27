@@ -1,6 +1,6 @@
 'use client'
 
-import { Gamepad2, Inbox, Plus, Save, Trash2, Wifi } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Grid, Row, Spec } from '@/components/dev-kit/kit-shell'
 import { Skeleton, SkeletonCard, SkeletonRow, SkeletonText, SkeletonTile } from '@/components/skeleton'
@@ -80,18 +80,18 @@ export function KitSurfaces() {
           </Button>
         </Row>
         <Row label="icons + cut CTA + block">
-          <Button iconLeft={<Plus />}>Add time</Button>
-          <Button variant="secondary" iconRight={<Save />}>
+          <Button iconLeft={<icons.add />}>Add time</Button>
+          <Button variant="secondary" iconRight={<icons.save />}>
             Save
           </Button>
           <Button cut size="lg">
             Start session
           </Button>
           <IconButton label="Delete" variant="danger">
-            <Trash2 />
+            <icons.delete />
           </IconButton>
           <IconButton label="Network" size="sm">
-            <Wifi />
+            <icons.network />
           </IconButton>
         </Row>
         <Row label="block">
@@ -260,7 +260,7 @@ export function KitSurfaces() {
           <Panel variant="flat" flush>
             <EmptyState
               bare
-              icon={Inbox}
+              icon={icons.empty}
               title="No notifications"
               description="When an admin sends you time or a message, it lands here."
               actionLabel="Refresh"
@@ -271,7 +271,7 @@ export function KitSurfaces() {
             <EmptyState
               bare
               size="sm"
-              icon={Gamepad2}
+              icon={icons.games}
               title="No games match"
               description="Try clearing the filters."
               actionLabel="Clear filters"

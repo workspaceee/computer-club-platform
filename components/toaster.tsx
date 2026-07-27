@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect, useRef, useState } from 'react'
 import { overlayZ } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
@@ -17,10 +17,10 @@ import { cn } from '@/lib/utils'
  * `role="alert"` and a longer default life because they matter more.
  */
 const CONFIG = {
-  success: { icon: CheckCircle2, color: 'var(--success)', life: 3500 },
-  error: { icon: XCircle, color: 'var(--danger)', life: 6000 },
-  warning: { icon: AlertTriangle, color: 'var(--warning)', life: 5000 },
-  info: { icon: Info, color: 'var(--steel)', life: 3500 },
+  success: { icon: icons.success, color: 'var(--success)', life: 3500 },
+  error: { icon: icons.error, color: 'var(--danger)', life: 6000 },
+  warning: { icon: icons.warning, color: 'var(--warning)', life: 5000 },
+  info: { icon: icons.info, color: 'var(--steel)', life: 3500 },
 } as const
 
 function ToastCard({ toast }: { toast: Toast }) {
@@ -77,7 +77,7 @@ function ToastCard({ toast }: { toast: Toast }) {
           className="-mr-1 -mt-1 rounded-sm p-1 text-text-low outline-none transition-colors hover:text-text-high focus-visible:ring-2 focus-visible:ring-primary/70"
           aria-label="Dismiss notification"
         >
-          <X size={16} aria-hidden />
+          <icons.close size={16} aria-hidden />
         </button>
       </div>
 

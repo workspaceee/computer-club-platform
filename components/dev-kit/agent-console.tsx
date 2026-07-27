@@ -10,7 +10,7 @@
  * — it is exactly what happens when a station reloads after the agent dies.
  */
 
-import { PlugZap, RotateCcw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { NativePanels } from '@/components/agent/native-panels'
 import { Badge } from '@/components/ui/badge'
@@ -74,7 +74,7 @@ export function AgentConsole() {
               variant="secondary"
               size="sm"
               onClick={reset}
-              iconLeft={<RotateCcw aria-hidden />}
+              iconLeft={<icons.retry aria-hidden />}
             >
               Reset mock
             </Button>
@@ -82,7 +82,7 @@ export function AgentConsole() {
               variant="ghost"
               size="sm"
               onClick={() => setNonce((n) => n + 1)}
-              iconLeft={<PlugZap aria-hidden />}
+              iconLeft={<icons.agentOffline aria-hidden />}
             >
               Re-handshake
             </Button>

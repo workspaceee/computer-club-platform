@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Monitor, Volume2, MousePointer2, Globe, type LucideIcon } from "lucide-react"
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from "react"
 import { LangSwitcher } from "@/components/lang-switcher"
 import { Overlay } from "@/components/ui/overlay"
@@ -14,10 +14,10 @@ import { cn } from "@/lib/utils"
 type TabId = "display" | "audio" | "controls" | "region"
 
 const TABS: { id: TabId; labelKey: TKey; icon: LucideIcon }[] = [
-  { id: "display", labelKey: "settings.display", icon: Monitor },
-  { id: "audio", labelKey: "settings.audio", icon: Volume2 },
-  { id: "controls", labelKey: "settings.controls", icon: MousePointer2 },
-  { id: "region", labelKey: "settings.region", icon: Globe },
+  { id: "display", labelKey: "settings.display", icon: icons.display },
+  { id: "audio", labelKey: "settings.audio", icon: icons.volume },
+  { id: "controls", labelKey: "settings.controls", icon: icons.controls },
+  { id: "region", labelKey: "settings.region", icon: icons.language },
 ]
 
 function Slider({
@@ -195,7 +195,7 @@ export function SettingsModal() {
                 aria-label={t('settings.close')}
                 className="relative rounded-md p-1.5 text-text-medium transition-colors hover:bg-white/10 hover:text-text-high"
               >
-                <X className="h-5 w-5" />
+                <icons.close className="h-5 w-5" />
               </button>
             </div>
 

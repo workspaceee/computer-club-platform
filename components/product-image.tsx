@@ -1,6 +1,6 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from '@/lib/icons'
 
 import { AssetImage } from '@/components/ui/asset-image'
 import { cn } from '@/lib/utils'

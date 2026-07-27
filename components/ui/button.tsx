@@ -1,7 +1,7 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Loader2 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 /**
@@ -103,7 +103,7 @@ export function Button({
 
       {loading ? (
         <>
-          <Loader2 className="animate-spin" aria-hidden />
+          <icons.pending className="animate-spin" aria-hidden />
           <span className="sr-only">Loading</span>
         </>
       ) : (
