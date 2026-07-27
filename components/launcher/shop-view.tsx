@@ -22,14 +22,16 @@ import {
 import { useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
+import { ProductImage } from '@/components/product-image'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
+import { formatEur } from '@/lib/money'
 import { cartCount, useStore } from '@/lib/store'
-import type { ShopItem } from '@/lib/types/catalog'
+import type { ProductCategory, ShopEntry } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
 
 type Tab = 'time' | 'memberships' | 'items'
@@ -41,13 +43,16 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 ]
 
 /** One endpoint per tab — the shop grid never slices a single big catalogue. */
-const TAB_ENDPOINTS: Record<Tab, () => Promise<ShopItem[]>> = {
+const TAB_ENDPOINTS: Record<Tab, () => Promise<ShopEntry[]>> = {
   time: fetchShopTime,
   memberships: fetchShopMemberships,
   items: fetchShopItems,
 }
 
-/** Exact matches first, then the prefix rules below. */
+/**
+ * Icons for the two tabs that have no photography, keyed by id so each tier and
+ * each pass reads as itself. Exact matches first, then the prefix rules below.
+ */
 const ICONS: Record<string, LucideIcon> = {
   'pass-night': Moon,
   'pass-weekend': Clock,
@@ -56,24 +61,20 @@ const ICONS: Record<string, LucideIcon> = {
   'mem-gold': Crown,
 }
 
-/**
- * Catalogue ids are namespaced by category (`drink-`, `merch-`, …), so one
- * prefix rule covers every product the club adds later without touching the UI.
- */
-const ICON_PREFIXES: [prefix: string, icon: LucideIcon][] = [
-  ['pass-', Timer],
-  ['drink-', CupSoda],
-  ['coffee-', Coffee],
-  ['snack-', Cookie],
-  ['food-', Pizza],
-  ['combo-', UtensilsCrossed],
-  ['merch-', Shirt],
-]
+/** Per-category fallback for a product whose image is missing or fails. */
+const CATEGORY_ICONS: Record<ProductCategory, LucideIcon> = {
+  drinks: CupSoda,
+  coffee: Coffee,
+  snacks: Cookie,
+  food: Pizza,
+  combo: UtensilsCrossed,
+  merch: Shirt,
+  time: Timer,
+  membership: Crown,
+}
 
-function iconFor(id: string): LucideIcon {
-  const exact = ICONS[id]
-  if (exact) return exact
-  return ICON_PREFIXES.find(([prefix]) => id.startsWith(prefix))?.[1] ?? ShoppingBag
+function iconFor(item: ShopEntry): LucideIcon {
+  return ICONS[item.id] ?? CATEGORY_ICONS[item.category] ?? ShoppingBag
 }
 
 export function ShopView() {
@@ -101,7 +102,7 @@ export function ShopView() {
             <h2 className="font-display text-2xl font-bold uppercase tracking-tighter text-text-high">
               Shop
             </h2>
-            <p className="text-sm text-text-low">Top up time, perks & merch</p>
+            <p className="text-sm text-text-low">Top up time, perks &amp; merch</p>
           </div>
         </div>
         <button
@@ -195,13 +196,13 @@ function Grid({
   )
 }
 
-function ProductCard({ item }: { item: ShopItem }) {
+function ProductCard({ item }: { item: ShopEntry }) {
   const { t } = useT()
   const addToCart = useStore((s) => s.addToCart)
   const toast = useStore((s) => s.toast)
-  const Icon = iconFor(item.id)
   const isBest = item.tag === 'Best Value'
   const isPopular = item.tag === 'Popular'
+  const soldOut = !item.inStock
 
   return (
     <motion.div
@@ -229,8 +230,18 @@ function ProductCard({ item }: { item: ShopItem }) {
       )}
 
       <div className="flex items-center gap-3">
-        <IconTile icon={Icon} size="md" variant={isBest ? 'primary' : 'default'} />
-        <div>
+        {/* Fixed 56px box whether it resolves to a photo, an icon or nothing:
+            the thumbnail must not be the reason a row of cards changes height
+            once the images land. */}
+        <ProductImage
+          src={item.image}
+          alt={item.name}
+          fallbackIcon={iconFor(item)}
+          highlight={isBest}
+          className="size-14 shrink-0"
+          sizes="56px"
+        />
+        <div className="min-w-0">
           <h3 className="font-display text-lg font-bold text-text-high">{item.name}</h3>
           {item.description && <p className="text-xs text-text-low">{item.description}</p>}
         </div>
@@ -238,12 +249,13 @@ function ProductCard({ item }: { item: ShopItem }) {
 
       <div className="mt-auto flex items-center justify-between">
         <span className="font-display text-2xl font-bold tabular-nums text-text-high">
-          ${item.price}
-          {item.id.startsWith('mem-') && (
+          {formatEur(item.priceCents)}
+          {item.category === 'membership' && (
             <span className="text-sm font-medium text-text-low">/mo</span>
           )}
         </span>
         <button
+          disabled={soldOut}
           onClick={() => {
             addToCart(item)
             toast('success', `${item.name} added to cart`)
@@ -253,10 +265,16 @@ function ProductCard({ item }: { item: ShopItem }) {
           aria-label={`${t('shop.addToCart')}: ${item.name}`}
           // The card's single action, so it is the card's roving item (F6.7).
           data-roving-item
-          className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-primary-hover"
+          className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-text-low"
         >
-          <Plus size={16} />
-          Add
+          {soldOut ? (
+            'Sold out'
+          ) : (
+            <>
+              <Plus size={16} />
+              Add
+            </>
+          )}
         </button>
       </div>
     </motion.div>

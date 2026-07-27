@@ -1,5 +1,5 @@
 import type { Cents, ID, ISODateTime, PaymentMethod } from './common'
-import type { ShopItem } from './catalog'
+import type { ShopEntry } from './catalog'
 
 /**
  * `orders.status` — the exact stages the player sees on the order tracker. The
@@ -44,7 +44,11 @@ export interface OrderItem {
   priceSnapshotCents: Cents
 }
 
-/** Client-side basket entry. Still built on the legacy `ShopItem` shape. */
-export interface CartItem extends ShopItem {
+/**
+ * Client-side basket entry: a catalogue row plus how many of it. Cents, like
+ * every other price in the system — the basket used to hold whole euros, which
+ * is what forced the drawer to format money by hand (F3.6 / F7.2).
+ */
+export interface CartItem extends ShopEntry {
   qty: number
 }

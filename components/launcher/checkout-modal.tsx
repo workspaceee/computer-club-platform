@@ -7,7 +7,8 @@ import { Modal } from '@/components/ui/modal'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { checkoutCart, toApiError } from '@/lib/mock/api'
-import { cartTotal, useStore } from '@/lib/store'
+import { formatEur } from '@/lib/money'
+import { cartTotalCents, useStore } from '@/lib/store'
 
 interface CheckoutModalProps {
   open: boolean
@@ -28,7 +29,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   const [name, setName] = useState('')
   const [status, setStatus] = useState<'form' | 'processing' | 'done'>('form')
 
-  const total = cartTotal(cart)
+  const totalCents = cartTotalCents(cart)
 
   const valid =
     onlyDigits(card).length === 16 &&
@@ -127,7 +128,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
                   <span className="text-sm text-text-medium">{t('shop.total')}</span>
                   <span className="font-display text-xl font-black text-text-high">
-                    ${total.toFixed(2)}
+                    {formatEur(totalCents)}
                   </span>
                 </div>
 
@@ -198,7 +199,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                   ) : (
                     <>
                       <Lock size={15} aria-hidden />
-                      Pay ${total.toFixed(2)}
+                      Pay {formatEur(totalCents)}
                     </>
                   )}
                 </button>

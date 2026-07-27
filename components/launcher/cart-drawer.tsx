@@ -4,9 +4,11 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
+import { ProductImage } from '@/components/product-image'
 import { Drawer } from '@/components/ui/drawer'
 import { useT } from '@/lib/i18n/provider'
-import { cartTotal, useStore } from '@/lib/store'
+import { formatEur, mulCents } from '@/lib/money'
+import { cartTotalCents, useStore } from '@/lib/store'
 
 /**
  * The cart (F1.9) — a `Drawer`, not a hand-rolled panel.
@@ -36,7 +38,7 @@ export function CartDrawer() {
   const removeFromCart = useStore((s) => s.removeFromCart)
 
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const total = cartTotal(cart)
+  const totalCents = cartTotalCents(cart)
 
   return (
     <>
@@ -50,7 +52,7 @@ export function CartDrawer() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-medium">{t('shop.total')}</span>
               <span className="font-display text-2xl font-black tabular-nums text-text-high">
-                ${total.toFixed(2)}
+                {formatEur(totalCents)}
               </span>
             </div>
             <button
@@ -81,9 +83,16 @@ export function CartDrawer() {
                   exit={{ opacity: 0, x: 40 }}
                   className="flex items-center gap-3 rounded-xl border border-border bg-black/20 p-3"
                 >
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-text-high">{item.name}</p>
-                    <p className="text-xs text-text-low">${item.price.toFixed(2)}</p>
+                  <ProductImage
+                    src={item.image}
+                    alt={item.name}
+                    fallbackIcon={ShoppingCart}
+                    className="size-10 shrink-0"
+                    sizes="40px"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-text-high">{item.name}</p>
+                    <p className="text-xs text-text-low">{formatEur(item.priceCents)}</p>
                   </div>
                   <div className="flex items-center gap-1 rounded-lg border border-border">
                     <button
@@ -109,7 +118,7 @@ export function CartDrawer() {
                     </button>
                   </div>
                   <span className="w-16 text-right text-sm font-bold tabular-nums text-text-high">
-                    ${(item.price * item.qty).toFixed(2)}
+                    {formatEur(mulCents(item.priceCents, item.qty))}
                   </span>
                   <button
                     onClick={() => removeFromCart(item.id)}

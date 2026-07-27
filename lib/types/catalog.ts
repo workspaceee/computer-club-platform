@@ -54,29 +54,37 @@ export type ProductCategory =
   | 'membership'
 
 /**
- * Bar and merch catalogue entry as the API delivers it: integer cents and a real
- * image path. `ShopItem` below is the legacy UI shape still used by the shop
- * views; it collapses into this once F3.6 lands.
+ * Everything the shop grid needs from anything sellable (F7.2).
+ *
+ * The grid has three tabs backed by two different tables — `products` for the
+ * bar, the kitchen, merch and memberships, `passes` for gaming time — so it
+ * needs one shape both can present as. `Product` *is* one of these, so the bar
+ * tabs pass their rows straight through; `fetchShopTime` maps a `Pass` into one.
+ *
+ * This replaces the old `ShopItem`, which carried whole euros and no image and
+ * was therefore the reason the artwork under `public/products/` was fetched by
+ * nothing: the grid rendered a `lucide` glyph because its data had nowhere to
+ * put a file path. Cents stay authoritative all the way to the card (F3.6).
  */
-export interface Product {
+export interface ShopEntry {
   id: ID
-  clubId: ID
   name: string
   category: ProductCategory
   priceCents: Cents
   description?: string
   /** Marketing badge such as "Popular" — optional and admin-editable. */
   tag?: string
-  stock: number
   inStock: boolean
+  /**
+   * `/products/<id>.webp`, or `''` for a category that ships no photography
+   * (time passes, memberships). Empty means "draw the category icon" — it is a
+   * real state, not a missing asset, so the card must not request a file for it.
+   */
   image: string
 }
 
-/** Legacy shop shape: `price` is whole euros. Superseded by `Product` (F3.6). */
-export interface ShopItem {
-  id: ID
-  name: string
-  price: number
-  tag?: string
-  description?: string
+/** Bar and merch catalogue row as the API delivers it. */
+export interface Product extends ShopEntry {
+  clubId: ID
+  stock: number
 }
