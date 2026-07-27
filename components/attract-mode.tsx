@@ -200,41 +200,37 @@ export function AttractMode() {
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          {/* Neon frame around the timepiece (clock + seconds + date) — same
-              travelling red/white ring as the wake hint below, so the whole
-              centre column speaks one visual language. Slideshow dots and the
-              hint stay outside: they're chrome, not part of the clock. */}
-          <div className="neon-ring flex flex-col items-center rounded-3xl bg-black/30 px-9 py-7 backdrop-blur-sm md:px-14 md:py-9">
-            <div className="neon-text flex items-center justify-center font-clock font-semibold leading-none tracking-tight tabular-nums text-text-high">
-              <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{hh}</span>
-              <motion.span
-                animate={{ opacity: [1, 0.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                className="mx-1 -translate-y-[0.06em] text-[4.25rem] font-normal text-primary md:mx-1.5 md:text-[6.25rem] xl:text-[7.5rem]"
-              >
-                :
-              </motion.span>
-              <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{mm}</span>
-            </div>
+          {/* Neon-tube digits: the red stroke traces the glyphs themselves —
+              no framing box, per request. */}
+          <div className="neon-text neon-digits flex items-center justify-center font-clock font-semibold leading-none tracking-tight tabular-nums text-text-high">
+            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{hh}</span>
+            <motion.span
+              animate={{ opacity: [1, 0.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              className="mx-1 -translate-y-[0.06em] text-[4.25rem] font-normal text-primary md:mx-1.5 md:text-[6.25rem] xl:text-[7.5rem]"
+            >
+              :
+            </motion.span>
+            <span className="text-[5rem] md:text-[7.5rem] xl:text-[9rem]">{mm}</span>
+          </div>
 
-            {/* seconds as a thin progress line filling over the minute */}
-            <div className="mt-6 flex w-56 items-center gap-3 md:mt-8 md:w-80">
-              <div className="relative h-px flex-1 overflow-hidden bg-white/12">
-                <div
-                  className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-1000 ease-linear"
-                  style={{ width: now ? `${(now.getSeconds() / 59) * 100}%` : '0%' }}
-                />
-              </div>
-              <span className="label-mono w-6 text-right text-[11px] tabular-nums tracking-widest text-primary">
-                {ss}
-              </span>
+          {/* seconds as a thin progress line filling over the minute */}
+          <div className="mt-6 flex w-56 items-center gap-3 md:mt-8 md:w-80">
+            <div className="relative h-px flex-1 overflow-hidden bg-white/12">
+              <div
+                className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-1000 ease-linear"
+                style={{ width: now ? `${(now.getSeconds() / 59) * 100}%` : '0%' }}
+              />
             </div>
-
-            {/* date */}
-            <span className="label-mono mt-5 text-xs tracking-[0.32em] text-text-medium md:mt-6 md:text-sm">
-              {dateStr}
+            <span className="label-mono w-6 text-right text-[11px] tabular-nums tracking-widest text-primary">
+              {ss}
             </span>
           </div>
+
+          {/* date */}
+          <span className="label-mono mt-5 text-xs tracking-[0.32em] text-text-medium md:mt-6 md:text-sm">
+            {dateStr}
+          </span>
 
           {/* slideshow progress */}
           {!useVideo && (

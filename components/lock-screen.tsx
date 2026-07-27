@@ -299,18 +299,14 @@ export function LockScreen() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: 'easeOut' }}
-          // Neon frame: the clock now sits in the same travelling red/white
-          // ring as the telemetry chips below, tying the column together.
-          // `self-start` keeps the frame hugging the digits instead of
-          // stretching across the whole column.
-          className="glass neon-ring my-auto flex flex-col gap-3 self-start rounded-2xl px-8 py-6 xl:px-10 xl:py-8"
+          className="my-auto flex flex-col gap-3"
         >
           <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
             <span className="h-px w-8 bg-primary/60" />
             {t('auth.localTime')}
           </span>
           <div className="flex items-end gap-3">
-            <span className="neon-text font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
+            <span className="neon-text neon-digits font-clock text-[7rem] font-semibold leading-[0.85] tracking-tight tabular-nums text-text-high xl:text-[9rem]">
               {timeStr}
             </span>
             <span className="mb-2 font-clock text-2xl font-medium tabular-nums text-primary xl:mb-3 xl:text-3xl">
