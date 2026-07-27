@@ -329,9 +329,16 @@
   }
 }
 .neon-digits {
-  -webkit-text-stroke: 4px rgba(229, 53, 43, 0.95);
+  /* Stroke width is in `em`, not `px`: a fixed 4px rim was tuned for 9rem
+     digits and turned the smaller sizes into a fat red slab. Tying it to the
+     font size keeps the tube equally crisp at every breakpoint. */
+  -webkit-text-stroke: 0.028em rgba(229, 53, 43, 0.95);
   paint-order: stroke fill;
   animation: neon-digits-breathe 3.2s ease-in-out infinite;
+  /* Chakra Petch is already narrow; the extra negative tracking pulls the
+     glyphs into one compact block instead of a wide marquee. */
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Breathing red/white neon edge for the brand mark.
