@@ -443,6 +443,8 @@ export const lt: Dictionary = {
     callStaff: 'Jei tai kartojasi, pakvieskite administratorių prie baro ir pasakykite žemiau esantį kodą.',
     retry: 'Bandyti dar kartą',
     reload: 'Perkrauti sąsają',
+    autoRecover: 'Automatinis atkūrimas po {seconds} s',
+    autoRecoverGaveUp: 'Automatinis atkūrimas nepadėjo — pakvieskite administratorių.',
     reference: 'Klaidos kodas',
     details: 'Techninė informacija',
     sectionTitle: 'Šis skyrius neįsikėlė',

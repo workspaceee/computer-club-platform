@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { AssetImage } from '@/components/ui/asset-image'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
 import type { Promo, PromoKind } from '@/lib/types/promo'
@@ -313,30 +313,105 @@ export function AttractMode() {
       <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
         {/* thin accent rule above the ticker */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-        <div className="marquee flex overflow-hidden py-3">
-          {[0, 1].map((copy) => (
-            <div
-              key={copy}
-              aria-hidden={copy === 1}
-              className="marquee-track flex shrink-0 items-center"
-            >
-              {tickerItems.map((item) => (
-                <span
-                  key={item}
-                  // `uppercase` in CSS, not in the data: the campaign rows are
-                  // the same ones Home renders in sentence case, and the crawl's
-                  // house style must not force the copy writer's hand.
-                  className="label-mono flex items-center gap-6 whitespace-nowrap px-6 text-[11px] uppercase tracking-[0.18em] text-text-medium"
-                >
-                  {item}
-                  <span className="h-1 w-1 rotate-45 bg-primary" />
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
+        <PromoTicker items={tickerItems} />
       </div>
     </motion.div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bottom crawl                                                       */
+/* ------------------------------------------------------------------ */
+
+/** Crawl speed. Constant px/s regardless of how much copy is live. */
+const TICKER_PX_PER_SECOND = 80
+
+/**
+ * The strip along the bottom edge.
+ *
+ * Two identical tracks translated by `-100%`: the second takes over exactly as
+ * the first leaves — but that is only seamless while **one track is at least as
+ * wide as the screen**. Three short evergreen lines measure ~700px against
+ * 2240px of kiosk glass, so the strip spent most of its cycle empty and the copy
+ * arrived late, sliding in from the right edge. An empty rule at the bottom of
+ * an idle screen reads as a half-drawn interface from across the room.
+ *
+ * So the sequence is repeated until it covers the viewport *before* it ever
+ * moves: the crawl is full at the first paint and stays full. The duration is
+ * derived from the resulting width instead of being a fixed `40s`, otherwise
+ * filling the screen would make the copy scroll several times faster than it
+ * can be read.
+ */
+function PromoTicker({ items }: { items: string[] }) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [repeat, setRepeat] = useState(1)
+  const [unitWidth, setUnitWidth] = useState(0)
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const viewport = viewportRef.current
+      const track = trackRef.current
+      if (!viewport || !track) return
+      const cells = Array.from(track.children) as HTMLElement[]
+      // Width of exactly one pass through `items`, never of the whole track:
+      // measuring the track would feed its own growth back into the next
+      // calculation and the repeat count would never settle.
+      const unit = cells
+        .slice(0, items.length)
+        .reduce((width, cell) => width + cell.offsetWidth, 0)
+      if (unit <= 0) return
+      setUnitWidth(unit)
+      setRepeat(Math.max(1, Math.ceil(viewport.clientWidth / unit)))
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewportRef.current as Element)
+    // Webfonts land after the first measure and change every cell's width, so
+    // the fill computed against fallback metrics has to be redone.
+    document.fonts?.ready.then(measure).catch(() => {})
+    return () => observer.disconnect()
+  }, [items])
+
+  // Flattened so both tracks render the same list; the copy index keeps keys
+  // unique when a line repeats, which it does by design here.
+  const sequence = useMemo(
+    () =>
+      Array.from({ length: repeat }, (_, pass) =>
+        items.map((item) => ({ key: `${pass}-${item}`, item })),
+      ).flat(),
+    [items, repeat],
+  )
+
+  const trackWidth = unitWidth * repeat
+  const duration = trackWidth > 0 ? trackWidth / TICKER_PX_PER_SECOND : undefined
+
+  return (
+    <div ref={viewportRef} className="marquee flex overflow-hidden py-3">
+      {[0, 1].map((copy) => (
+        <div
+          key={copy}
+          ref={copy === 0 ? trackRef : undefined}
+          aria-hidden={copy === 1}
+          className="marquee-track flex shrink-0 items-center"
+          style={duration ? { animationDuration: `${duration}s` } : undefined}
+        >
+          {sequence.map(({ key, item }) => (
+            <span
+              key={key}
+              // `uppercase` in CSS, not in the data: the campaign rows are the
+              // same ones Home renders in sentence case, and the crawl's house
+              // style must not force the copy writer's hand.
+              className="label-mono flex items-center gap-6 whitespace-nowrap px-6 text-[11px] uppercase tracking-[0.18em] text-text-medium"
+            >
+              {item}
+              <span className="h-1 w-1 rotate-45 bg-primary" />
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 

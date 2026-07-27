@@ -465,6 +465,13 @@ export const en = {
     callStaff: 'If this keeps coming back, call the admin at the counter and read them the code below.',
     retry: 'Try again',
     reload: 'Restart interface',
+    // The kiosk recovers on its own every few seconds — nobody may be standing
+    // in front of it. The countdown is stated so the guest understands the
+    // screen is about to change by itself rather than pressing at random.
+    // `{seconds} s` avoids a plural form on the failure path, where the crash
+    // screen translates without the provider's plural rules.
+    autoRecover: 'Recovering automatically in {seconds} s',
+    autoRecoverGaveUp: 'Automatic recovery did not help — please call the admin.',
     reference: 'Fault code',
     details: 'Technical details',
     // A single failed section inside a working shell — the frame, the clock and
