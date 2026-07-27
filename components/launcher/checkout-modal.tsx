@@ -1,16 +1,13 @@
 'use client'
 
 import confetti from 'canvas-confetti'
-import { motion } from 'framer-motion'
-import { CheckCircle2, CreditCard, Loader2, Lock, X } from 'lucide-react'
+import { CheckCircle2, CreditCard, Loader2, Lock } from 'lucide-react'
 import { useState } from 'react'
-import { Overlay } from '@/components/ui/overlay'
+import { Modal } from '@/components/ui/modal'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { checkoutCart, toApiError } from '@/lib/mock/api'
-import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cartTotal, useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
 
 interface CheckoutModalProps {
   open: boolean
@@ -85,55 +82,50 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   }
 
   return (
-    <Overlay
+    // `Modal`, not a bare `Overlay` (F1.8/F6.7). The dialog used to be a plain
+    // `motion.div` inside the overlay frame, which meant the *payment* form — the
+    // one surface where a stray keystroke costs money — had no dialog role, no
+    // `aria-modal`, no focus trap and no Escape. Tab walked straight out of it
+    // into the cart drawer and the shop grid behind that. Verified in the browser
+    // before this change: with the cart and this form both open the document held
+    // zero `role="dialog"` nodes.
+    //
+    // Escape ordering now comes from the shared layer stack rather than render
+    // order: this dialog is pushed after the drawer that raised it, so it is the
+    // topmost layer and answers Escape alone.
+    <Modal
       open={open}
-      layer="modal"
-      blur="md"
-      // A click outside must not abandon an in-flight charge.
-      onDismiss={status === 'processing' ? undefined : close}
+      onClose={close}
+      eyebrow={<CreditCard size={14} aria-hidden />}
+      title={t('shop.checkout')}
+      // A click outside or an Escape must not abandon an in-flight charge, and
+      // during processing that also hides the close button.
+      dismissable={status !== 'processing'}
+      hideClose={status === 'processing'}
+      // A card form is the worst case for a short window: at 693px tall the
+      // total, four fields and the Pay button do not fit at once. The cap lives
+      // in `Modal`; only the narrower width is ours.
+      className="max-w-md"
     >
-      <motion.div
-        initial={{ scale: 0.92, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.92, opacity: 0 }}
-        // A card form is the worst case for a short window: at 693px tall the
-        // total, four fields and the Pay button do not fit at once. The cap plus
-        // the scrolling body keeps the header visible and the button reachable,
-        // instead of the whole card overflowing the top of the screen.
-        className={cn(
-          'tick-corners flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2',
-          OVERLAY_MAX_H,
-        )}
-      >
-            <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-              <div className="flex items-center gap-2.5">
-                <CreditCard size={18} className="text-primary" />
-                <h3 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
-                  Checkout
-                </h3>
-              </div>
-              <button
-                onClick={close}
-                disabled={status === 'processing'}
-                className="text-text-low transition-colors hover:text-text-high disabled:opacity-40"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
+      <>
             {status === 'done' ? (
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-10 text-center">
-                <CheckCircle2 size={56} className="text-success" />
-                <h4 className="font-display text-xl font-bold text-text-high">Payment successful!</h4>
-                <p className="text-sm text-text-medium">
-                  Receipt sent to your email. Enjoy your session.
-                </p>
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto py-6 text-center">
+                <CheckCircle2 size={56} className="text-success" aria-hidden />
+                {/* The result has to reach a screen reader that is not looking at
+                    the tick: the region announces itself when the state flips. */}
+                <div role="status" aria-live="polite">
+                  <h4 className="font-display text-xl font-bold text-text-high">
+                    Payment successful!
+                  </h4>
+                  <p className="text-sm text-text-medium">
+                    Receipt sent to your email. Enjoy your session.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+              <div className="flex min-h-0 flex-1 flex-col gap-4">
                 <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
-                  <span className="text-sm text-text-medium">Total</span>
+                  <span className="text-sm text-text-medium">{t('shop.total')}</span>
                   <span className="font-display text-xl font-black text-text-high">
                     ${total.toFixed(2)}
                   </span>
@@ -192,13 +184,20 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 <button
                   onClick={pay}
                   disabled={!valid || status === 'processing'}
-                  className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-busy={status === 'processing'}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {status === 'processing' ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <>
+                      <Loader2 size={18} className="animate-spin" aria-hidden />
+                      {/* A spinner is not an accessible name: without this the
+                          button announces itself as "button, busy" and nothing
+                          says what is being waited on. */}
+                      <span className="sr-only">{t('common.loading')}</span>
+                    </>
                   ) : (
                     <>
-                      <Lock size={15} />
+                      <Lock size={15} aria-hidden />
                       Pay ${total.toFixed(2)}
                     </>
                   )}
@@ -208,18 +207,27 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                 </p>
               </div>
             )}
-      </motion.div>
-    </Overlay>
+      </>
+    </Modal>
   )
 }
 
+/**
+ * A field whose `<label>` *wraps* the input.
+ *
+ * It used to be a sibling `<label>` with no `htmlFor`, which associates with
+ * nothing: all four inputs announced themselves as bare text boxes and only the
+ * placeholder hinted at what to type — on the one form in the product that takes
+ * card details. Wrapping is the fix that needs no id plumbing through
+ * `children`.
+ */
 function CardField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</label>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</span>
       <div className="rounded-lg border border-border bg-black/20 px-3 py-2.5 focus-within:border-primary">
         {children}
       </div>
-    </div>
+    </label>
   )
 }

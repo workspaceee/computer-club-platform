@@ -64,6 +64,9 @@ export const en = {
     help: 'Help',
     more: 'More',
     landmark: 'Launcher sections',
+    // Landmarks and the skip link (F6.7).
+    mainLandmark: 'Section content',
+    skipToContent: 'Skip to content',
     accountMenu: 'Account menu, {name}',
     openSection: 'Open {section}',
     pendingTitle: 'This section is not live yet',
