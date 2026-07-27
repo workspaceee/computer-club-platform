@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { IconTile } from '@/components/icon-tile'
+import { PromoStrip } from '@/components/launcher/promo-strip'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
@@ -67,7 +68,11 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
     <div className="flex flex-col gap-10">
       <HeroCarousel />
       <QuickStats showLoyalty={!isGuest} />
-      {!isGuest && <PromoBanner />}
+      {/* The strip decides for itself what a guest may see: it asks the server as
+          `viewer: 'everyone'`, so members-only coin campaigns never reach it and
+          an open-to-all one (parties, VIP) still does — which a blanket
+          `!isGuest` gate here would have thrown away (F7.3). */}
+      <PromoStrip surface={surface} />
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
         <Leaderboard />
@@ -317,27 +322,6 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
           </div>
         </motion.div>
       ))}
-    </section>
-  )
-}
-
-function PromoBanner() {
-  return (
-    <section className="shimmer relative overflow-hidden rounded-xl border border-primary/30 bg-[linear-gradient(110deg,rgba(229,53,43,0.24),rgba(229,53,43,0.03)_62%)] p-6 md:p-7">
-      <div className="pointer-events-none absolute -right-8 -top-10 select-none font-display text-[9rem] font-bold leading-none text-primary/10">
-        2X
-      </div>
-      <div className="relative z-10 flex max-w-lg flex-col items-start gap-1">
-        <span className="label-mono rounded-md bg-primary px-2.5 py-1 text-[10px] text-primary-foreground">
-          Happy Hours
-        </span>
-        <h3 className="mt-3 font-display text-2xl font-bold uppercase tracking-tight text-text-high md:text-3xl">
-          Double coins until 18:00
-        </h3>
-        <p className="text-sm leading-relaxed text-text-medium">
-          Every session earns 2x rewards. Stack them up and climb the prize ladder.
-        </p>
-      </div>
     </section>
   )
 }
