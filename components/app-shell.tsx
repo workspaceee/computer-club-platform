@@ -36,6 +36,7 @@ import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { SessionManager } from '@/components/session-manager'
 import { Toaster } from '@/components/toaster'
+import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 
 export function AppShell({
@@ -45,11 +46,27 @@ export function AppShell({
   surface?: LauncherSurface
   children: React.ReactNode
 }) {
+  const { t } = useT()
+
   return (
     <div className="app-ambient flex min-h-svh flex-col">
       {/* Background plate. `-z-10` keeps it below the frame without entering the
           overlay ladder — it is scenery, not a layer. */}
       <div className="hairline-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
+
+      {/* The keyboard's way past the chrome (F6.7). Roving focus already cut the
+          bar to three stops, but the last of those — the avatar menu — is also
+          the only thing between the page and the content, and on the library the
+          content is where a player actually wants to be. `sr-only` until focused,
+          then it becomes a real button pinned above the bar; `focus:not-sr-only`
+          alone would leave it 1px, hence the explicit position. It sits above
+          `overlayZ.frame` because the sticky bar would otherwise cover it. */}
+      <a
+        href="#main-content"
+        className="sr-only rounded-md bg-primary px-4 py-2 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:outline-none focus:ring-2 focus:ring-text-high"
+      >
+        {t('nav.skipToContent')}
+      </a>
 
       <TopBar surface={surface} />
 
@@ -58,7 +75,15 @@ export function AppShell({
 
       {/* `pb-24` on narrow screens is the mobile bar's reserved space: the bar is
           fixed, so without it the last card would sit underneath the navigation. */}
-      <main className="flex-1 pb-24 sm:pb-10">
+      <main
+        id="main-content"
+        // The skip link's target has to be focusable itself, or the jump moves
+        // the scroll position and leaves focus in the bar — the next Tab would
+        // go back to the avatar menu instead of into the section.
+        tabIndex={-1}
+        aria-label={t('nav.mainLandmark')}
+        className="flex-1 pb-24 outline-none sm:pb-10"
+      >
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
       </main>
 
