@@ -117,6 +117,24 @@
     background: var(--primary);
     color: #fff;
   }
+
+  /* ---- Keyboard focus, by default (F6.7) ----
+     Every control used to bring its own `focus-visible:ring-*`, which made
+     visible focus an opt-in: the library filter chips, the shop tabs, the search
+     field and the sort select had simply forgotten it, so a keyboard player lost
+     the caret entirely on those rows. This is the floor, not the design — the
+     ring recipes in `button.tsx` and the nav still win because Tailwind
+     utilities outrank `@layer base`.
+
+     `:focus-visible`, never `:focus`: on a touch kiosk a plain `:focus` rule
+     leaves a ring stuck on the last thing a finger tapped. */
+  :focus-visible {
+    /* `outline` and not a `box-shadow` ring: an outline follows the element's
+       own `border-radius`, is never clipped by an ancestor's `overflow-hidden`
+       (every card in the product has one) and survives forced-colours mode. */
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 @utility font-display {

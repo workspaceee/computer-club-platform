@@ -9,6 +9,7 @@ import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
+import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import { fetchGames, type GameSort } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
@@ -46,6 +47,12 @@ export function GamesView() {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All')
   const [sort, setSort] = useState<Sort>('popularity')
   const [players, setPlayers] = useState<Record<string, number>>({})
+
+  // Two composite widgets on this screen (F6.7). The grid is the reason the
+  // pattern exists at all: with plain Tab, leaving a full library meant one
+  // keypress per remaining title.
+  const filtersRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
+  const gridRef = useRovingFocus<HTMLDivElement>({ orientation: 'grid' })
 
   // debounce search
   useEffect(() => {
@@ -142,11 +149,16 @@ export function GamesView() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {/* Nine filters were nine tab stops on the way to the results. As one
+          composite widget they are a single stop, and entering it lands on the
+          filter that is actually applied because `aria-pressed` marks it (F6.7). */}
+      <div ref={filtersRef} className="flex flex-wrap gap-2" role="group" aria-label="Category">
         {CATEGORIES.map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
+            aria-pressed={category === c}
+            data-roving-item
             className={cn(
               'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all',
               category === c
