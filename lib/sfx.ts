@@ -71,13 +71,19 @@ export const RETRIGGER_GAP_MS = 90
 export const LATE_PLAY_MS = 600
 
 /**
- * Default level: on, but quiet (F8.3's stated default).
+ * Default level: **on, at a middle level** (F8.3).
  *
- * Compounds with the files themselves peaking at −20…−14 dBFS, so a station
- * nobody has configured is audible from the seat and inaudible from the next one.
- * The persisted setting is F8.3's business; this is what applies until it speaks.
+ * Compounds with the files themselves peaking at −20…−14 dBFS, so half of the
+ * scale is not "half as loud as a game" — it is a cue that is clearly audible
+ * from the seat and still does not carry to the next one. The earlier 0.35 was
+ * quiet enough that a station nobody had touched read as broken sound rather
+ * than as discreet sound, and the fix for "too loud" is a slider the player can
+ * see; there is no fix for a cue nobody notices.
+ *
+ * `lib/store/slices/settings.ts` derives its default percent from this constant,
+ * so the launcher's stored value and the mixer's fallback cannot drift apart.
  */
-export const DEFAULT_SFX_VOLUME = 0.35
+export const DEFAULT_SFX_VOLUME = 0.5
 
 /* ------------------------------------------------------------------ *
  * Types

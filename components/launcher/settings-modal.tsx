@@ -5,6 +5,12 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from "react"
 import { LangSwitcher } from "@/components/lang-switcher"
 import { Overlay } from "@/components/ui/overlay"
+// The shared pair (F1.7) — same visuals as the local helpers below, but they
+// carry `disabled` and a description line, which the interface-sound row needs.
+// Aliased because this file still has its own `Slider`/`Toggle` for the rows the
+// extraction has not reached yet.
+import { Slider as RangeSlider } from "@/components/ui/slider"
+import { Toggle as SwitchRow } from "@/components/ui/toggle"
 import { useT } from "@/lib/i18n/provider"
 import type { TKey } from "@/lib/i18n/types"
 import { OVERLAY_MAX_H } from "@/lib/overlay"
@@ -299,6 +305,35 @@ export function SettingsModal() {
                           <option>Headset (HyperX)</option>
                           <option>Monitor (HDMI)</option>
                         </Select>
+
+                        {/* F8.3 — the launcher's own cues, fenced off from the
+                            three sliders above. Those belong to the machine
+                            (game, chat, output device); this pair belongs to us,
+                            and mixing them in one list is what makes a player
+                            turn the wrong thing down. */}
+                        <div className="flex flex-col gap-3 border-t border-border pt-4">
+                          <p className="label-mono text-[10px] text-text-low">
+                            {t('settings.interfaceGroup')}
+                          </p>
+                          <SwitchRow
+                            label={t('settings.interfaceSounds')}
+                            description={t('settings.interfaceSoundsHint')}
+                            checked={settings.interfaceSounds}
+                            onChange={(next) => updateSettings({ interfaceSounds: next })}
+                          />
+                          {/* Disabled rather than hidden when the cues are off:
+                              a control that vanishes takes its remembered level
+                              with it, and the player cannot see what they will
+                              get back by switching sound on again. */}
+                          <RangeSlider
+                            id="interface-volume"
+                            label={t('settings.interfaceVolume')}
+                            suffix="%"
+                            value={settings.interfaceVolume}
+                            disabled={!settings.interfaceSounds}
+                            onChange={(v) => updateSettings({ interfaceVolume: v })}
+                          />
+                        </div>
                       </>
                     )}
 
