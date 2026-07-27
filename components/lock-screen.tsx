@@ -16,19 +16,31 @@ import {
   Sparkles,
   User,
   UserCog,
+  UserRound,
   Wifi,
 } from 'lucide-react'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
+import { Overlay } from '@/components/ui/overlay'
+import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import { ApiError, login } from '@/lib/mock/api'
-import { DEMO_USER } from '@/lib/mock/data'
+import {
+  ApiError,
+  confirmQrChallenge,
+  continueAsGuest,
+  login,
+  loginAsDemo,
+  register,
+  requestQrChallenge,
+} from '@/lib/mock/api'
+import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 type Mode = 'login' | 'register'
 
@@ -49,6 +61,7 @@ function useClock() {
 
 export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
+  const guestSuccess = useStore((s) => s.guestSuccess)
   const toast = useStore((s) => s.toast)
   const now = useClock()
   const idle = useIdle(IDLE_TIMEOUT_MS)
@@ -120,10 +133,14 @@ export function LockScreen() {
     } catch (err) {
       setLoading(false)
       triggerShake()
-      // The API returns a code, the UI decides the wording (F2.2).
-      const code = err instanceof ApiError ? err.code : 'generic'
-      toast('error', t(`errors.${code}` as TKey))
+      reportError(err)
     }
+  }
+
+  /** Turns any thrown value into the localized copy for its code (F2.2). */
+  const reportError = (err: unknown) => {
+    const code = err instanceof ApiError ? err.code : 'generic'
+    toast('error', t(`errors.${code}` as TKey))
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -134,35 +151,83 @@ export function LockScreen() {
       return
     }
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const { profile } = await register({
+        nickname: rUser,
+        email: rEmail,
+        password: rPass,
+        confirmPassword: rConfirm,
+      })
       toast('success', t('auth.accountCreated'))
       // A brand-new profile keeps the language picked on this station.
-      setTimeout(
-        () => loginSuccess({ ...DEMO_USER, nickname: rUser, email: rEmail, lang }),
-        900,
-      )
-    }, 1500)
+      loginSuccess({ ...profile, lang })
+    } catch (err) {
+      setLoading(false)
+      triggerShake()
+      reportError(err)
+    }
   }
 
-  const demoLogin = () => {
+  const demoLogin = async () => {
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const { profile } = await loginAsDemo()
       toast('info', t('auth.enteringDemo'))
-      loginSuccess({ ...DEMO_USER, nickname: 'DemoPlayer' })
-    }, 600)
+      loginSuccess(profile)
+    } catch (err) {
+      setLoading(false)
+      reportError(err)
+    }
   }
 
   const demoAdmin = () => {
     toast('info', t('auth.adminSeparateApp'))
   }
 
-  const startQr = () => {
+  // Walk-in check-in. `guestCheckoutEnabled` can be off, so the failure path is
+  // a normal API error, not a silently dead button.
+  const startGuest = async () => {
+    setLoading(true)
+    try {
+      const { guestId, label } = await continueAsGuest()
+      toast('info', t('guest.startedToast', { label }))
+      guestSuccess({ guestId, label })
+    } catch (err) {
+      setLoading(false)
+      reportError(err)
+    }
+  }
+
+  // Cancelling the QR handshake has to *outrank* the in-flight promise, or a
+  // guest who backs out and starts typing their password gets signed in as
+  // whoever the phone confirmed a second later. The generation counter is the
+  // guard: `cancelQr` bumps it, and a resolved challenge from an older
+  // generation is discarded instead of logging anyone in.
+  const qrRun = useRef(0)
+
+  const cancelQr = () => {
+    qrRun.current += 1
+    setQrOpen(false)
+  }
+
+  const startQr = async () => {
+    const run = ++qrRun.current
     setQrOpen(true)
-    setTimeout(() => {
+    try {
+      const challenge = await requestQrChallenge()
+      // The mock confirms immediately, but the real handshake waits for the phone —
+      // so the pending state stays up for a beat before polling.
+      await new Promise((resolve) => setTimeout(resolve, 2500))
+      const { profile } = await confirmQrChallenge(challenge.challengeId)
+      if (qrRun.current !== run) return
       setQrOpen(false)
       toast('success', t('auth.qrVerified'))
-      loginSuccess({ ...DEMO_USER, nickname: 'MobileScan' })
-    }, 4000)
+      loginSuccess(profile)
+    } catch (err) {
+      if (qrRun.current !== run) return
+      setQrOpen(false)
+      reportError(err)
+    }
   }
 
   const switchMode = (m: Mode) => {
@@ -461,6 +526,18 @@ export function LockScreen() {
                       label={t('auth.admin')}
                     />
                   </div>
+
+                  {/* Walk-in check-in — opens the guest surface of the same
+                      launcher shell, not a separate app (F6.2 / F6.8). */}
+                  <button
+                    type="button"
+                    onClick={startGuest}
+                    disabled={loading}
+                    className="mt-1 flex items-center justify-center gap-2 rounded-sm py-1.5 text-xs font-medium text-text-low transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+                  >
+                    <UserRound size={14} />
+                    {t('guest.continueAsGuest')}
+                  </button>
                 </motion.form>
               ) : (
                 <motion.form
@@ -557,34 +634,77 @@ export function LockScreen() {
       {/* Idle attract mode overlay */}
       <AnimatePresence>{idle && <AttractMode />}</AnimatePresence>
 
-      {/* QR modal */}
-      <AnimatePresence>
-        {qrOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-strong flex flex-col items-center gap-4 rounded-3xl p-8"
-            >
-              <MockQr />
-              <p className="font-display text-lg font-bold text-text-high">
-                {t('auth.scanWithApp')}
-              </p>
-              <p className="flex items-center gap-2 text-sm text-text-medium">
-                <Loader2 size={14} className="animate-spin text-primary" />
-                {t('auth.waitingConfirmation')}
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <QrDialog open={qrOpen} onCancel={cancelQr} />
     </div>
+  )
+}
+
+/**
+ * Sign-in-by-phone dialog (F6.4).
+ *
+ * The last hand-rolled overlay in the product, and it carried every defect the
+ * `F6.1` pass fixed elsewhere:
+ *
+ *   • it was `absolute inset-0` inside the lock-screen root rather than a
+ *     portalled `fixed` layer, so it centred against the *page* — on a short
+ *     window the QR block grew past both edges with no scroll port to recover it;
+ *   • it hard-coded `z-50`, which is the `banner` rung: a reconnect strip and
+ *     this dialog fought over the same plane, winner decided by render order;
+ *   • it had **no way out**. No Escape, no scrim click, no button — the guest who
+ *     opened it by mistake watched a spinner until the handshake timed out. On a
+ *     kiosk, with a queue behind them, that is the worst possible dead end.
+ *
+ * Routing it through `Overlay` fixes the geometry and the ladder; the explicit
+ * cancel button fixes the dead end, because a scrim click alone is not a
+ * discoverable exit for a first-time walk-in guest.
+ */
+function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
+  const { t } = useT()
+  const titleId = useId()
+  const bodyId = useId()
+  const panelRef = useDismissableLayer({ open, onClose: onCancel })
+
+  return (
+    <Overlay open={open} layer="modal" onDismiss={onCancel}>
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
+        tabIndex={-1}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className={cn(
+          'glass-strong flex w-full max-w-sm flex-col overflow-hidden rounded-3xl outline-none',
+          OVERLAY_MAX_H,
+        )}
+      >
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto p-8">
+          <MockQr />
+          <p id={titleId} className="font-display text-lg font-bold text-text-high text-balance">
+            {t('auth.scanWithApp')}
+          </p>
+          <p id={bodyId} className="flex items-center gap-2 text-sm text-text-medium">
+            <Loader2 size={14} className="animate-spin text-primary" aria-hidden />
+            {t('auth.waitingConfirmation')}
+          </p>
+        </div>
+
+        {/* Pinned outside the scroll body — the way out must never be the thing
+            you have to scroll to find. */}
+        <div className="shrink-0 px-8 pb-8">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full rounded-md border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          >
+            {t('common.cancel')}
+          </button>
+        </div>
+      </motion.div>
+    </Overlay>
   )
 }
 

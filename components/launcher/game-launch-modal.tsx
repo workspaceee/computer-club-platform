@@ -1,36 +1,59 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Loader2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Check, Loader2, UserX, X } from 'lucide-react'
+import { useEffect, useId, useState } from 'react'
+import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
-import { launchGame } from '@/lib/mock/api'
-import { GAMES, HOUSE_ACCOUNTS } from '@/lib/mock/data'
+import { Skeleton } from '@/components/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Overlay } from '@/components/ui/overlay'
+import { useApi } from '@/hooks/use-api'
+import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
+import { useT } from '@/lib/i18n/provider'
+import { fetchGame, fetchHouseAccounts, launchGame, toApiError } from '@/lib/mock/api'
+import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const LAUNCH_STEPS = ['Preparing account...', 'Injecting session...', 'Starting game...']
 
 export function GameLaunchModal() {
+  const { t } = useT()
   const launchGameId = useStore((s) => s.launchGameId)
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const toast = useStore((s) => s.toast)
 
-  const game = GAMES.find((g) => g.id === launchGameId) ?? null
+  // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
+  // conditional on the modal being open, so nothing is fetched while it is shut.
+  const { data: game } = useApi(launchGameId ? ['game', launchGameId] : null, () =>
+    fetchGame(launchGameId as string),
+  )
+  const accounts = useApi(launchGameId ? 'catalog/house-accounts' : null, fetchHouseAccounts)
 
-  const [account, setAccount] = useState('house-1')
+  const open = launchGameId !== null
+  const houseAccounts = accounts.data ?? []
+
+  const [account, setAccount] = useState<string | null>(null)
   const [remember, setRemember] = useState(false)
   const [launching, setLaunching] = useState(false)
   const [step, setStep] = useState(0)
 
   useEffect(() => {
-    if (game) {
-      setAccount('house-1')
+    if (launchGameId) {
+      setAccount(null)
       setRemember(false)
       setLaunching(false)
       setStep(0)
     }
-  }, [game])
+  }, [launchGameId])
+
+  // Preselect the first seat the club has free — the server owns availability.
+  useEffect(() => {
+    if (account !== null || houseAccounts.length === 0) return
+    const free = houseAccounts.find((a) => a.status !== 'in-use')
+    if (free) setAccount(free.id)
+  }, [account, houseAccounts])
 
   useEffect(() => {
     if (!launching) return
@@ -45,40 +68,75 @@ export function GameLaunchModal() {
     setLaunchGame(null)
   }
 
+  // Escape, the focus trap and the body scroll lock all come from the shared
+  // layer core. This dialog used to hand-roll a scrim click instead, so it was
+  // dismissable by mouse only — and Tab walked straight out of it into the game
+  // grid behind. `closeOnEscape` follows `launching` because a sequence already
+  // running on the machine must not be abandoned by a stray keypress (F6.4).
+  const titleId = useId()
+  const panelRef = useDismissableLayer({
+    open,
+    onClose: close,
+    closeOnEscape: !launching,
+  })
+
   const handleLaunch = async () => {
     if (!game) return
     setLaunching(true)
     setStep(0)
-    // The endpoint answers in a few hundred ms, but the agent's own steps are the
-    // slow part — wait for both so the checklist is never cut short.
-    await Promise.all([
-      launchGame(game.id),
-      new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
-    ])
-    toast('success', `${game.name} launched! Minimizing...`)
-    setLaunching(false)
-    setLaunchGame(null)
+    try {
+      // The endpoint answers in a few hundred ms, but the agent's own steps are the
+      // slow part — wait for both so the checklist is never cut short.
+      await Promise.all([
+        launchGame(game.id),
+        new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
+      ])
+      toast('success', `${game.name} launched! Minimizing...`)
+      setLaunching(false)
+      setLaunchGame(null)
+    } catch (err) {
+      setLaunching(false)
+      // The API answers with a code; the wording stays in the UI (F2.2).
+      toast('error', `Launch failed (${toApiError(err).code})`)
+    }
   }
 
   return (
-    <AnimatePresence>
-      {game && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={close}
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
-        >
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="tick-corners w-full max-w-md overflow-hidden rounded-xl border border-border-strong bg-surface-2"
-          >
-            <div className="relative">
-              <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
+    <Overlay
+      open={open}
+      layer="modal"
+      blur="md"
+      // No dismiss while the agent is mid-launch: a stray click on the scrim
+      // would hide a sequence that is still running on the machine.
+      onDismiss={launching ? undefined : close}
+    >
+      <motion.div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        // The visible title is painted inside `GameCover`, so the name is given
+        // directly rather than referenced — a screen reader still opens with
+        // "Launch Civilization VII" instead of an unnamed dialog.
+        aria-label={game ? `Launch ${game.name}` : 'Launch game'}
+        tabIndex={-1}
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        // The cap + inner scroll: this card carries a 160px cover, a list of
+        // house accounts and a footer, so it was the tallest dialog in the
+        // product and the first to lose its cover art off the top of a short
+        // window (F6.4).
+        className={cn(
+          'tick-corners flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2',
+          OVERLAY_MAX_H,
+        )}
+      >
+            <div className="relative shrink-0">
+              {game ? (
+                <GameCover game={game} className="h-40 w-full" titleClassName="text-2xl" />
+              ) : (
+                <Skeleton className="h-40 w-full" radius="sm" />
+              )}
               <button
                 onClick={close}
                 disabled={launching}
@@ -89,14 +147,39 @@ export function GameLaunchModal() {
               </button>
             </div>
 
-            <div className="p-6">
+            {/* Only the account list scrolls; the cover stays pinned so the
+                guest can always see which game they are about to start. */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
               {!launching ? (
                 <>
                   <p className="label-mono mb-3 text-[10px] text-text-low">
                     Select account
                   </p>
-                  <div className="flex flex-col gap-2">
-                    {HOUSE_ACCOUNTS.map((acc) => {
+                  <DataBoundary
+                    state={accounts}
+                    errorBare
+                    errorSize="sm"
+                    loading={
+                      <div className="flex flex-col gap-2">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className="h-[58px] w-full" />
+                        ))}
+                      </div>
+                    }
+                    isEmpty={(rows) => rows.length === 0}
+                    empty={
+                      <EmptyState
+                        bare
+                        size="sm"
+                        icon={UserX}
+                        title={t('games.noAccounts')}
+                        description={t('games.noAccountsBody')}
+                      />
+                    }
+                  >
+                    {(rows) => (
+                      <div className="flex flex-col gap-2">
+                        {rows.map((acc) => {
                       const disabled = acc.status === 'in-use'
                       const selected = account === acc.id
                       return (
@@ -131,8 +214,10 @@ export function GameLaunchModal() {
                           </span>
                         </button>
                       )
-                    })}
-                  </div>
+                        })}
+                      </div>
+                    )}
+                  </DataBoundary>
 
                   <label className="mt-4 flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
                     <input
@@ -153,7 +238,8 @@ export function GameLaunchModal() {
                     </button>
                     <button
                       onClick={handleLaunch}
-                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover"
+                      disabled={!game || !account}
+                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Launch
                     </button>
@@ -184,10 +270,8 @@ export function GameLaunchModal() {
                   </div>
                 </div>
               )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+      </motion.div>
+    </Overlay>
   )
 }

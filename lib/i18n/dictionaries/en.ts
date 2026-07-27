@@ -50,6 +50,27 @@ export const en = {
     slots: '{n} slot left|{n} slots left',
   },
 
+  // Section names of the launcher — the only label source for the top bar, the
+  // avatar menu and the mobile bar (F6.2, see lib/launcher-nav.ts).
+  nav: {
+    home: 'Home',
+    games: 'Games',
+    shop: 'Shop',
+    rewards: 'Rewards',
+    tournaments: 'Tournaments',
+    social: 'Friends',
+    wallet: 'Wallet',
+    profile: 'Profile',
+    help: 'Help',
+    more: 'More',
+    landmark: 'Launcher sections',
+    accountMenu: 'Account menu, {name}',
+    openSection: 'Open {section}',
+    pendingTitle: 'This section is not live yet',
+    pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',
+    guestLimited: 'Guests get games, the bar and help. Create a profile to unlock the rest.',
+  },
+
   auth: {
     localTime: 'Local time',
     accessTerminal: 'Access Terminal',
@@ -113,6 +134,11 @@ export const en = {
     expiredBody: 'Your paid time has run out. Top up at the counter or in the app to keep playing.',
     lockedTitle: 'Station locked',
     lockedBody: 'The timer is paused. Sign in again to continue where you left off.',
+    lockConfirmTitle: 'Lock this station?',
+    lockConfirmBody: 'Your session pauses. Sign back in to pick up your remaining time.',
+    lockedToast: 'Station locked. Session paused.',
+    logoutConfirmTitle: 'Log out?',
+    logoutConfirmBody: 'This ends your session and returns the station to the lock screen.',
     // plural: one | other
     minutesLeft: '{n} minute left|{n} minutes left',
     warningLowTime: 'Less than {n} min of session time left.',
@@ -133,6 +159,12 @@ export const en = {
     playersOnline: '{n} playing|{n} playing',
     noResults: 'No games found',
     noResultsBody: 'Try a different name or clear the category filter.',
+    clearFilters: 'Clear filters',
+    noFeatured: 'No featured games',
+    noFeaturedBody: 'The club has not picked highlights yet — browse the full library.',
+    openLibrary: 'Open library',
+    noAccounts: 'No accounts available',
+    noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
   },
 
   shop: {
@@ -153,6 +185,8 @@ export const en = {
     catDrinks: 'Drinks',
     catTime: 'Time',
     catGear: 'Gear',
+    sectionEmpty: 'Nothing in this section',
+    sectionEmptyBody: 'The club is restocking. Try another tab or ask at the counter.',
   },
 
   wallet: {
@@ -184,6 +218,20 @@ export const en = {
     tierRegular: 'Regular',
     tierVeteran: 'Veteran',
     tierElite: 'Elite',
+    achievements: 'Achievements',
+    noAchievements: 'No achievements yet',
+    noAchievementsBody: 'Play a session and the first badges start unlocking.',
+    activity: 'Recent activity',
+    noActivity: 'No activity yet',
+    noActivityBody: 'Sessions, purchases and unlocks show up here.',
+    prizeLadder: 'Prize Ladder',
+    noRewards: 'No rewards on the ladder',
+    noRewardsBody: 'The club is preparing a new prize ladder — check back soon.',
+    leaderboard: 'Leaderboard',
+    noLeaderboard: 'Leaderboard is empty',
+    noLeaderboardBody: 'Be the first to log hours this week.',
+    unlocked: 'Unlocked',
+    prizesUnlocked: 'Prizes unlocked',
   },
 
   social: {
@@ -272,6 +320,87 @@ export const en = {
     badge: 'Guest',
     limits: 'Guests cannot collect XP, coins or Battle Pass rewards.',
     createAccount: 'Create a profile',
+    startedToast: 'Checked in as {label}. Anything you order goes on your tab.',
+    tab: 'Open tab',
+    endSession: 'End guest session',
+    endConfirmTitle: 'End the guest session?',
+    endConfirmBody: 'Settle the open tab at the bar. Nothing from this session is saved.',
+  },
+
+  // PC-side surfaces served by the station agent (F5.4). Every string here
+  // describes hardware, so it must also cover the "no agent" seat.
+  agent: {
+    title: 'This PC',
+    subtitle: 'Windows and driver panels for this station.',
+    statusChecking: 'Looking for the station agent…',
+    statusConnected: 'Station agent connected',
+    statusUnavailable: 'No station agent',
+    version: 'Agent {version}',
+    unavailable: 'Unavailable on this PC',
+    unavailableBody:
+      'The station agent is not running, so the launcher cannot open Windows panels or change hardware here.',
+    unavailableHint: 'Ask staff to restart the station agent.',
+    unsupported: 'Not available on this hardware',
+    recheck: 'Check again',
+    open: 'Open',
+    opening: 'Opening…',
+    openedToast: '{panel} opened on the desktop',
+    panelNvidia: 'NVIDIA Control Panel',
+    panelNvidiaHint: 'Sharpening, latency mode, colour.',
+    panelWindowsDisplay: 'Display settings',
+    panelWindowsDisplayHint: 'Resolution, refresh rate, scaling.',
+    panelAudioOutput: 'Speakers and headphones',
+    panelAudioOutputHint: 'Output device and levels.',
+    panelAudioInput: 'Microphone',
+    panelAudioInputHint: 'Input device and gain.',
+    panelMouse: 'Mouse',
+    panelMouseHint: 'Pointer speed and buttons.',
+    panelKeyboard: 'Keyboard',
+    panelKeyboardHint: 'Repeat delay and layouts.',
+  },
+
+  // Copy for pushed events (F4). Payloads carry ids and numbers only, so every
+  // line a player reads about a server event lives here and gets translated.
+  realtime: {
+    // Connection banner (F4.5). The reassurance matters: club time is server
+    // time, so a dropped link never costs the player a minute.
+    offlineTitle: 'No connection to the club server',
+    offlineBody: 'Your time keeps running — nothing is lost. Reconnecting automatically.',
+    reconnecting: 'Reconnecting…',
+    retryIn: 'Next try in {n} s',
+    retryNow: 'Try now',
+    attempt: 'Attempt {n}',
+    restored: 'Connection restored',
+    // plural: one | other
+    pendingUpdates: '{n} update waiting|{n} updates waiting',
+
+    timeAdded: '+{minutes} min added to your session',
+    timeAddedByStaff: '+{minutes} min from the admin',
+    sessionPaused: 'Session paused',
+    sessionPausedStaff: 'An admin paused your session',
+    sessionResumed: 'Session resumed — go ahead',
+    sessionEnded: 'Session ended',
+    sessionMoved: 'Move to seat {seat}',
+    sessionMovedBody: 'Please move within {n} min. Your session and time move with you.',
+    orderNew: 'Order received',
+    orderAccepted: 'Order accepted at the bar',
+    orderPreparing: 'Your order is being prepared',
+    orderDelivering: 'Your order is on the way',
+    orderDelivered: 'Order delivered — enjoy',
+    orderCancelled: 'Order cancelled',
+    tabUpdated: 'Your tab is now {total}',
+    tabSettled: 'Tab settled — thank you',
+    passGranted: '{name} added: {minutes} min banked',
+    walletTopUp: 'Balance topped up by {amount}',
+    walletSpent: '{amount} spent',
+    coinsEarned: '+{n} coins',
+    messageReceived: 'Reply from the club',
+    questCompleted: 'Quest done: {title}',
+    battlePassTier: 'Battle Pass tier {n} unlocked',
+    tournamentCall: '{name}: you are called to a match',
+    bookingReminder: 'Your booking starts soon',
+    friendRequest: '{name} wants to be friends',
+    partyInvite: '{name} invited you to a party',
   },
 
   errors: {
@@ -296,5 +425,45 @@ export const en = {
     required: 'This field is required',
     tooShort: 'Minimum {min} characters',
     passwordsMismatch: 'Passwords do not match',
+    // AgentErrorCode — one key per code, so `errors.<code>` always resolves.
+    agentUnavailable: 'No station agent on this PC',
+    unsupported: 'This PC cannot do that',
+    agentTimeout: 'The station agent did not answer',
+    gameNotInstalled: 'That game is not installed here',
+    gameAlreadyRunning: 'A game is already running',
+    gameNotRunning: 'That game is not running',
+    launcherFailed: 'The game launcher failed to start',
+    permissionDenied: 'Windows blocked that action',
+    invalidValue: 'That value is not supported by the hardware',
+    blockedByPolicy: 'Not allowed during a paid session',
+    agentFailed: 'The station agent reported an error',
+  },
+
+  /**
+   * Crash screen (F6.5) — the copy shown when the shell itself throws, not when
+   * a request fails. `errors.*` describes a failed *action* and lives next to a
+   * retry button; these strings describe a broken *interface* and must answer
+   * three questions in the first two seconds: what happened, is my money and
+   * time safe, what do I press.
+   *
+   * Reassurance is not decoration here. The player paid for minutes that are
+   * still ticking on the server, so the screen says so explicitly — otherwise a
+   * crash reads as "I just lost my session".
+   */
+  crash: {
+    eyebrow: 'Shell fault',
+    title: 'Interface',
+    titleAccent: 'stopped',
+    body: 'An unexpected error interrupted the launcher. No order was placed and nothing was charged.',
+    timeSafe: 'Your session time is counted by the club server and keeps running — restarting the interface costs you no minutes.',
+    callStaff: 'If this keeps coming back, call the admin at the counter and read them the code below.',
+    retry: 'Try again',
+    reload: 'Restart interface',
+    reference: 'Fault code',
+    details: 'Technical details',
+    // A single failed section inside a working shell — the frame, the clock and
+    // the navigation are all still alive, so the copy must not imply a restart.
+    sectionTitle: 'This section failed to load',
+    sectionBody: 'The rest of the launcher works as usual. Reload the section or open another one.',
   },
 } as const
