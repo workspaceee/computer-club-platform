@@ -201,7 +201,7 @@ export function CrashScreen({
         {/* Plain <img>: `next/image` depends on an app runtime that may be the
             thing that just failed. Decorative — the heading carries the meaning. */}
         <img
-          src="/imba-mark.png"
+          src="/imba-mark.webp"
           alt=""
           aria-hidden
           width={60}

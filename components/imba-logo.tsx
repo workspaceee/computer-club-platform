@@ -9,8 +9,12 @@ interface ImbaLogoProps {
 
 /**
  * Official IMBA Cyber Club identity.
- * /imba-mark.png     — mascot shield (732x880)
- * /imba-wordmark.png — IMBA / CYBER CLUB lettering (1182x634)
+ * /imba-mark.webp     — mascot shield (512x616, alpha)
+ * /imba-wordmark.webp — IMBA / CYBER CLUB lettering (1024x549, alpha)
+ *
+ * The intrinsic ratios below are still written as the original PNG dimensions:
+ * they are the *proportions* the layout maths needs, and F7.4's width cap
+ * preserved them exactly (512/616 === 732/880).
  */
 export function ImbaLogo({ size = 'sm', showText = true, className }: ImbaLogoProps) {
   const h = size === 'lg' ? 96 : 36
@@ -25,8 +29,12 @@ export function ImbaLogo({ size = 'sm', showText = true, className }: ImbaLogoPr
         style={{ width: markW, height: h }}
       >
         <Image
-          src="/imba-mark.png"
-          alt="IMBA Cyber Club mascot"
+          src="/imba-mark.webp"
+          // One accessible name per logo (F7.4). With the wordmark visible the
+          // shield is the decorative half of a single composite mark; naming
+          // both would make a screen reader read the club twice in a row.
+          alt={showText ? '' : 'IMBA Cyber Club'}
+          aria-hidden={showText || undefined}
           fill
           sizes={`${markW}px`}
           className="object-contain"
@@ -36,7 +44,7 @@ export function ImbaLogo({ size = 'sm', showText = true, className }: ImbaLogoPr
       {showText && (
         <div className="relative shrink-0" style={{ width: wordW, height: wordH }}>
           <Image
-            src="/imba-wordmark.png"
+            src="/imba-wordmark.webp"
             alt="IMBA Cyber Club"
             fill
             sizes={`${wordW}px`}
