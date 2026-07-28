@@ -1,7 +1,20 @@
 'use client'
 
-import { useId, useRef } from 'react'
+import { useId, useImperativeHandle, useRef } from 'react'
 import { cn } from '@/lib/utils'
+
+/**
+ * The one thing a parent needs to *do* to this control: put the caret back.
+ *
+ * A rejected code is cleared by the parent, and the row it was typed into was
+ * disabled while the request was in flight — which blurs it. Without a way to
+ * refocus, the player has to aim at a 56 px box with a mouse before they can
+ * retype six digits they already have in front of them.
+ */
+export interface CodeInputHandle {
+  /** Focus and select a cell; defaults to the first. */
+  focus: (index?: number) => void
+}
 
 interface CodeInputProps {
   /** Digits entered so far, `''` … `'123456'`. Shorter than `length` is normal. */
@@ -21,6 +34,8 @@ interface CodeInputProps {
   autoFocus?: boolean
   /** Hides the digits (PIN on a shared station). */
   mask?: boolean
+  /** React 19 passes refs as a plain prop — no `forwardRef` wrapper needed. */
+  ref?: React.Ref<CodeInputHandle>
   className?: string
 }
 
@@ -60,6 +75,7 @@ export function CodeInput({
   disabled,
   autoFocus,
   mask,
+  ref,
   className,
 }: CodeInputProps) {
   const groupId = useId()
@@ -74,6 +90,8 @@ export function CodeInput({
     target?.focus()
     target?.select()
   }
+
+  useImperativeHandle(ref, () => ({ focus: (index = 0) => focusCell(index) }))
 
   /** Writes `next`, reports it, and moves the caret where a human expects it. */
   const commit = (next: string, caret: number) => {
