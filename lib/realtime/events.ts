@@ -265,6 +265,35 @@ export interface PartyInviteEvent {
   expiresAt: ISODateTime
 }
 
+/**
+ * `login.qr.confirmed` — a phone approved the QR handshake shown on a station
+ * (C1.5).
+ *
+ * The only event in this catalogue addressed to a station that has **nobody
+ * signed in yet**, and that is precisely why it exists: the lock screen cannot
+ * poll for an answer it has no session to poll with, so the confirmation is
+ * pushed to the *seat*. `scope.machineId` is therefore always set and
+ * `scope.userId` never is — filtering by a user id the station does not know yet
+ * would drop the frame that is supposed to give it one.
+ *
+ * It carries a `grantToken`, not a session: the payload of a pushed frame is not
+ * a credential, and the station still has to spend the ticket at
+ * `GET /api/auth/qr/:id` to get a real `AuthResult`. So a frame that arrives
+ * late, twice, or for a code the screen has already replaced logs nobody in.
+ */
+export interface LoginQrConfirmedEvent {
+  challengeId: ID
+  /** The seat the phone approved. Also the address of the frame. */
+  machineId: ID
+  userId: ID
+  /** Who is coming in — shown while the station exchanges the ticket. */
+  nickname: string
+  /** Single-use ticket for `confirmQrChallenge`. Not a session, not a token. */
+  grantToken: string
+  /** Which phone confirmed, when the companion app reports it. */
+  device: string | null
+}
+
 /* ------------------------------------------------------------------ *
  * The map
  * ------------------------------------------------------------------ */
@@ -293,6 +322,7 @@ export interface RealtimeEventMap {
   'booking.reminder': BookingReminderEvent
   'friend.request': FriendRequestEvent
   'party.invite': PartyInviteEvent
+  'login.qr.confirmed': LoginQrConfirmedEvent
 }
 
 export type RealtimeEventName = keyof RealtimeEventMap
@@ -317,6 +347,7 @@ export const REALTIME_EVENT_NAMES = [
   'booking.reminder',
   'friend.request',
   'party.invite',
+  'login.qr.confirmed',
 ] as const satisfies readonly RealtimeEventName[]
 
 export const isRealtimeEventName = (value: unknown): value is RealtimeEventName =>
@@ -406,6 +437,7 @@ export const EVENT_LEVEL: Record<RealtimeEventName, NotificationLevel> = {
   'booking.reminder': 'info',
   'friend.request': 'info',
   'party.invite': 'info',
+  'login.qr.confirmed': 'success',
 }
 
 /**
@@ -435,6 +467,9 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'booking.reminder': ['booking'],
   'friend.request': ['social'],
   'party.invite': ['social'],
+  // Nothing to refresh: the station has no data for this player yet, and the
+  // sign-in that follows the ticket exchange loads the first screen anyway.
+  'login.qr.confirmed': [],
 }
 
 /* ------------------------------------------------------------------ *

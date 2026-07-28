@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import {
   PasswordRecovery,
@@ -21,20 +21,12 @@ import { Button, IconButton } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
-import { MockQr } from '@/components/mock-qr'
-import { Modal } from '@/components/ui/modal'
+import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import {
-  ApiError,
-  confirmQrChallenge,
-  continueAsGuest,
-  login,
-  loginAsDemo,
-  requestQrChallenge,
-} from '@/lib/mock/api'
+import { ApiError, continueAsGuest, login, loginAsDemo } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { UserProfile } from '@/lib/types/user'
 
@@ -187,36 +179,20 @@ export function LockScreen() {
     }
   }
 
-  // Cancelling the QR handshake has to *outrank* the in-flight promise, or a
-  // guest who backs out and starts typing their password gets signed in as
-  // whoever the phone confirmed a second later. The generation counter is the
-  // guard: `cancelQr` bumps it, and a resolved challenge from an older
-  // generation is discarded instead of logging anyone in.
-  const qrRun = useRef(0)
-
-  const cancelQr = () => {
-    qrRun.current += 1
+  /**
+   * QR sign-in (C1.5) lives in `QrLogin`, which owns the whole handshake: the
+   * station code, its deadline, the `login.qr.confirmed` subscription and the
+   * ticket exchange. The screen keeps only the two things that are its own — the
+   * dialog's open state and what "signed in" means here.
+   *
+   * The generation guard that used to sit on this screen moved into the flow with
+   * the promises it was guarding: cancelling has to outrank an in-flight
+   * exchange, or a guest who backs out and starts typing their password gets
+   * signed in as whoever the phone confirmed a second later.
+   */
+  const finishQr = (profile: UserProfile) => {
     setQrOpen(false)
-  }
-
-  const startQr = async () => {
-    const run = ++qrRun.current
-    setQrOpen(true)
-    try {
-      const challenge = await requestQrChallenge()
-      // The mock confirms immediately, but the real handshake waits for the phone —
-      // so the pending state stays up for a beat before polling.
-      await new Promise((resolve) => setTimeout(resolve, 2500))
-      const { profile } = await confirmQrChallenge(challenge.challengeId)
-      if (qrRun.current !== run) return
-      setQrOpen(false)
-      toast('success', t('auth.qrVerified'))
-      loginSuccess(profile)
-    } catch (err) {
-      if (qrRun.current !== run) return
-      setQrOpen(false)
-      reportError(err)
-    }
+    loginSuccess(profile)
   }
 
   const switchMode = (m: Mode) => {
@@ -598,7 +574,7 @@ export function LockScreen() {
 
                   <div className="grid grid-cols-3 gap-2">
                     <OptionButton
-                      onClick={startQr}
+                      onClick={() => setQrOpen(true)}
                       icon={icons.qr}
                       label={t('auth.qrLogin')}
                       disabled={loading}
@@ -670,7 +646,12 @@ export function LockScreen() {
       {/* Idle attract mode overlay */}
       <AnimatePresence>{idle && <AttractMode />}</AnimatePresence>
 
-      <QrDialog open={qrOpen} onCancel={cancelQr} />
+      <QrLogin
+        open={qrOpen}
+        onCancel={() => setQrOpen(false)}
+        onSuccess={finishQr}
+        onToast={toast}
+      />
     </div>
   )
 }
@@ -749,50 +730,6 @@ function GuestPanel() {
         {t('guest.startVisit')}
       </Button>
     </motion.div>
-  )
-}
-
-/**
- * Sign-in-by-phone dialog (F6.4).
- *
- * Was the last hand-rolled overlay in the product: `absolute inset-0` inside
- * the lock-screen root (so it centred against the page and overflowed on a
- * short window), a hard-coded `z-50` fighting the banner rung, and no way out
- * at all — the guest who opened it by mistake watched a spinner until the
- * handshake timed out.
- *
- * C1.1 hands all of that to `Modal` (F1.8): portalled layer, the `modal` rung
- * of the ladder, `svh`-based height, focus trap, Escape and scrim click. The
- * explicit cancel button stays in the pinned footer, because a scrim click
- * alone is not a discoverable exit for a first-time walk-in guest.
- */
-function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
-  const { t } = useT()
-
-  return (
-    <Modal
-      open={open}
-      onClose={onCancel}
-      size="sm"
-      eyebrow="QR"
-      title={t('auth.qrLogin')}
-      footer={
-        <Button variant="secondary" size="md" block onClick={onCancel}>
-          {t('common.cancel')}
-        </Button>
-      }
-    >
-      <div className="flex flex-col items-center gap-4 py-2">
-        <MockQr />
-        <p className="font-display text-lg font-bold text-text-high text-balance">
-          {t('auth.scanWithApp')}
-        </p>
-        <p className="flex items-center gap-2 text-sm text-text-medium">
-          <icons.pending size={14} className="animate-spin text-primary" aria-hidden />
-          {t('auth.waitingConfirmation')}
-        </p>
-      </div>
-    </Modal>
   )
 }
 

@@ -691,37 +691,200 @@ export function continueAsGuest(): Promise<GuestSessionResult> {
   })
 }
 
-export interface QrChallenge {
-  challengeId: ID
-  /** What the phone app encodes. Never a credential. */
-  payload: string
-  expiresAt: string
+/* ------------------------------------------------------------------ *
+ * QR sign-in — the station shows, the phone confirms (C1.5)
+ * ------------------------------------------------------------------ */
+
+/**
+ * A live QR handshake. Server-side state, like both OTP flows above: the station
+ * never learns anything about it beyond the id, the code it prints and the
+ * deadline.
+ *
+ * The important field is `approval`. Until a phone fills it in, the challenge is
+ * an *offer* and `confirmQrChallenge` refuses — which is what makes the flow real
+ * instead of the old "ask and you are in": the answer arrives out of band, on the
+ * bus, and only then does the station have a ticket worth spending.
+ */
+interface QrHandshake {
+  /** The seat the code belongs to. A code printed on PC-17 opens PC-17. */
+  machineId: ID
+  /** The typeable form, for a camera that will not focus. */
+  stationCode: string
+  /** Epoch ms — the same wall clock as the codes above (see `otpClock()`). */
+  expiresAt: number
+  approval: { userId: ID; grantToken: string; device: string } | null
 }
 
-/** `POST /api/auth/qr` — opens a QR handshake for the companion app. */
+const qrHandshakes = new Map<ID, QrHandshake>()
+
+/** Seconds a station code is worth showing. Short: it is on a public screen. */
+const QR_TTL_SEC = 120
+
+/**
+ * Alphabet of the station code. No `O/0`, `I/1` or `S/5` — the code exists to be
+ * read off a monitor and typed into a phone by somebody who is standing up.
+ */
+const QR_CODE_ALPHABET = 'ACDEFGHJKLMNPQRTUVWXY2346789'
+/** Characters per group. Two groups of three read back faster than one six. */
+const QR_GROUP = 3
+
+function generateStationCode(): string {
+  let code = ''
+  for (let i = 0; i < QR_GROUP * 2; i += 1) {
+    code += QR_CODE_ALPHABET[Math.floor(Math.random() * QR_CODE_ALPHABET.length)]
+  }
+  return `${code.slice(0, QR_GROUP)}-${code.slice(QR_GROUP)}`
+}
+
+export interface QrChallenge {
+  challengeId: ID
+  /** What the camera reads. An id and a seat — never a credential. */
+  payload: string
+  /**
+   * The same handshake as six typeable characters, shown *on the station*. The
+   * QR is the fast path, not the only one: a phone with a dead camera, a cracked
+   * screen or no camera permission still has to be able to open the seat.
+   */
+  stationCode: string
+  /** Which seat this code opens. The client shows it, the server enforces it. */
+  machineId: ID
+  /** Seconds until the code dies. A duration, not a stamp (see `otpClock`). */
+  expiresInSec: number
+}
+
+/**
+ * `POST /api/auth/qr` — opens a QR handshake for the companion app.
+ *
+ * Returns the code and the deadline and nothing else. Confirmation does **not**
+ * come back through this endpoint or a poll of it: it arrives as
+ * `login.qr.confirmed` on the realtime channel, addressed to the seat (C1.5).
+ */
 export function requestQrChallenge(): Promise<QrChallenge> {
   return query('auth.requestQrChallenge', () => {
     const challengeId = newId('qr')
+    const machineId = db.currentMachineId
+    const stationCode = generateStationCode()
+    qrHandshakes.set(challengeId, {
+      machineId,
+      stationCode,
+      expiresAt: otpClock() + QR_TTL_SEC * 1000,
+      approval: null,
+    })
+    // Housekeeping: a station left overnight would otherwise grow one dead
+    // handshake per refresh, and a dead one must never be findable by code.
+    for (const [id, handshake] of qrHandshakes) {
+      if (handshake.expiresAt < otpClock()) qrHandshakes.delete(id)
+    }
     return {
       challengeId,
-      payload: `imba://auth/${challengeId}`,
-      expiresAt: new Date(Date.parse(db.now) + 120_000).toISOString(),
+      payload: `imba://auth/${challengeId}?station=${machineId}`,
+      stationCode,
+      machineId,
+      expiresInSec: QR_TTL_SEC,
     }
   })
 }
 
+export interface QrApproval {
+  challengeId: ID
+  machineId: ID
+  userId: ID
+  nickname: string
+  grantToken: string
+  device: string
+}
+
 /**
- * `GET /api/auth/qr/:id` — poll for confirmation. The mock confirms immediately;
- * the UI still has to handle the pending state because the real one will not.
+ * MOCK ONLY — `POST /api/auth/qr/:id/approve`, the **phone's** endpoint.
+ *
+ * Synchronous and outside `mutate()` on purpose: this is not the station calling
+ * the club, it is the other actor. `lib/realtime/admin-sim.ts` plays that actor
+ * and publishes the frame afterwards, in the same "write, then announce" order
+ * every other simulated action follows.
+ *
+ * Accepts either the challenge id (scanned) or the station code (typed), because
+ * those are the two things a phone can possibly know. Returns `null` when there
+ * is nothing live to approve — an expired code must not be approvable, or the
+ * countdown on the screen would be a decoration.
  */
-export function confirmQrChallenge(challengeId: ID): Promise<AuthResult> {
+export function approveQrChallenge(
+  userId: ID = 'u-demo',
+  ref?: ID,
+  device = 'iPhone · IMBA app',
+): QrApproval | null {
+  const now = otpClock()
+  const wanted = ref?.trim().toUpperCase() ?? null
+
+  let challengeId: ID | null = null
+  let handshake: QrHandshake | null = null
+
+  for (const [id, live] of qrHandshakes) {
+    if (live.expiresAt < now) continue
+    const matches = wanted
+      ? id === ref || live.stationCode.toUpperCase() === wanted
+      : live.machineId === db.currentMachineId
+    if (!matches) continue
+    // Newest wins: refreshing the code on the station must not leave an older
+    // one approvable behind the player's back.
+    if (!handshake || live.expiresAt > handshake.expiresAt) {
+      challengeId = id
+      handshake = live
+    }
+  }
+
+  if (!challengeId || !handshake) return null
+
+  const player = db.players.get(userId)
+  if (!player) return null
+
+  const grantToken = newId('qrg')
+  handshake.approval = { userId, grantToken, device }
+
+  return {
+    challengeId,
+    machineId: handshake.machineId,
+    userId,
+    nickname: player.user.nickname,
+    grantToken,
+    device,
+  }
+}
+
+/**
+ * `GET /api/auth/qr/:id` — spend the ticket the phone handed out.
+ *
+ * The station calls this *after* `login.qr.confirmed` arrives, and the token is
+ * checked rather than trusted: a frame is not a credential, and on a shared bus
+ * a replayed or stale one has to be worth nothing. The handshake is deleted on
+ * success, so the same ticket cannot open a second session.
+ */
+export function confirmQrChallenge(challengeId: ID, grantToken: string): Promise<AuthResult> {
   return mutate('auth.confirmQrChallenge', () => {
-    if (!challengeId) throw new ApiError('validation')
-    db.currentUserId = 'u-demo'
+    if (!challengeId || !grantToken) throw new ApiError('validation')
+
+    const handshake = qrHandshakes.get(challengeId)
+    if (!handshake) throw new ApiError('notFound')
+    if (otpClock() > handshake.expiresAt) {
+      qrHandshakes.delete(challengeId)
+      // Expired ≠ refused: `timeout` tells the dialog to offer a new code, the
+      // way the OTP flows offer a resend.
+      throw new ApiError('timeout')
+    }
+    // Nobody confirmed, or somebody replayed an old frame. Either way this
+    // station has not been let in.
+    if (!handshake.approval) throw new ApiError('unauthorized')
+    if (handshake.approval.grantToken !== grantToken) throw new ApiError('unauthorized')
+
+    const { userId } = handshake.approval
+    const player = db.players.get(userId)
+    if (!player) throw new ApiError('notFound')
+
+    qrHandshakes.delete(challengeId)
+    db.currentUserId = userId
     return {
-      profile: buildProfile('u-demo'),
+      profile: buildProfile(userId),
       token: newId('tok'),
-      role: 'member' as UserRole,
+      role: player.user.role,
     }
   })
 }

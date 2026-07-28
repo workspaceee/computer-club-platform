@@ -12,6 +12,7 @@
 // realtime bug this whole layer exists to prevent.
 //
 // Nothing in the launcher UI may import this file: it is the *other* actor.
+import { approveQrChallenge } from '@/lib/mock/api/auth'
 import { newId, serverTime } from '@/lib/mock/api/client'
 import { db, getMachine, getOpenTab, getPlayer, getSession } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
@@ -715,6 +716,45 @@ export function friendRequest(fromUserId = 'u-smoke'): RealtimeEnvelope<'friend.
       machineLabel: sender.machineId ? (getMachine(sender.machineId)?.label ?? null) : null,
     },
     { scope: { userId: db.currentUserId } },
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * The companion app (C1.5)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The **phone** confirms the QR code shown on this station.
+ *
+ * Not a staff action, but it belongs here for the same reason everything else
+ * does: it is the *other* actor. The prototype has no companion app, so this is
+ * the only way the lock screen's handshake can be answered — and the order is the
+ * usual one: approve the challenge server-side first (`approveQrChallenge`), then
+ * publish the frame.
+ *
+ * Addressed to the **seat**, not to a user: the station showing the code has
+ * nobody signed in, so a `userId` in the scope would filter the frame out of the
+ * one client that needs it.
+ */
+export function confirmQrLogin(
+  userId: ID = 'u-demo',
+  /** Challenge id or the typed station code. Defaults to this seat's live one. */
+  ref?: ID,
+): RealtimeEnvelope<'login.qr.confirmed'> | null {
+  const approval = approveQrChallenge(userId, ref)
+  if (!approval) return null
+
+  return mockBus.publish(
+    'login.qr.confirmed',
+    {
+      challengeId: approval.challengeId,
+      machineId: approval.machineId,
+      userId: approval.userId,
+      nickname: approval.nickname,
+      grantToken: approval.grantToken,
+      device: approval.device,
+    },
+    { scope: { machineId: approval.machineId } },
   )
 }
 

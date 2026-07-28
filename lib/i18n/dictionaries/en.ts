@@ -174,6 +174,16 @@ export const en = {
     // own subline: nothing exists to recover, the account is being *created*.
     signupCodeSub: 'Enter the {n}-digit code sent to {email} to finish signing up.',
     accountCreatedToast: 'Welcome to the club, {name}!',
+    // QR sign-in — the station shows a code, the phone confirms it (C1.5).
+    qrSub: 'No camera? Type the station code into the app instead.',
+    qrStationCode: 'Station code',
+    qrExpired: 'The code has expired.',
+    qrNewCode: 'Show a new code',
+    qrConfirmedBy: 'Confirmed by {name} — unlocking…',
+    qrOffline: 'This station is offline: your phone cannot confirm until the link is back.',
+    qrDemoTitle: 'Demo confirmation',
+    qrDemoNote:
+      'The prototype has no phone app, so the confirmation comes from /dev/bus → "Confirm QR login".',
   },
 
   session: {
