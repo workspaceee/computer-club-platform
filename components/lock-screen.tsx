@@ -5,6 +5,11 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
+import {
+  PasswordRecovery,
+  RECOVERY_COPY,
+  type RecoveryStep,
+} from '@/components/auth/password-recovery'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
@@ -65,6 +70,14 @@ export function LockScreen() {
   const { t, lang, formatTime, formatFullDate } = useT()
 
   const [mode, setMode] = useState<Mode>('login')
+  /**
+   * Password recovery (C1.3) is a *state of the sign-in door*, not a fourth
+   * segment: it is the repair path for one of the three, and putting it in the
+   * switcher would advertise "forgot my password" as a way to enter the club.
+   * `null` means the normal form; anything else takes the card body over and the
+   * switcher hides, so the screen still offers exactly one committing action.
+   */
+  const [recovery, setRecovery] = useState<RecoveryStep | null>(null)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)

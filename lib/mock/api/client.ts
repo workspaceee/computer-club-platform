@@ -33,6 +33,17 @@ export type ApiErrorCode =
   | 'conflict'
   | 'validation'
   | 'invalidCredentials'
+  /**
+   * A one-time code was wrong, already used, or belongs to a dead challenge
+   * (C1.3). Deliberately *not* `invalidCredentials`: "wrong username or
+   * password" under a six-digit field sends the player back to the login form
+   * to fix a password they cannot remember. Expiry is `timeout`, like the QR
+   * handshake — a code that ran out is a different repair (resend) than a code
+   * that was mistyped (retype).
+   */
+  | 'invalidCode'
+  /** Too many requests in the cooldown window — the 60 s resend guard (C1.3). */
+  | 'rateLimited'
   | 'sessionExpired'
   | 'insufficientFunds'
   | 'insufficientCoins'
@@ -51,6 +62,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   conflict: 409,
   validation: 422,
   invalidCredentials: 401,
+  invalidCode: 401,
+  rateLimited: 429,
   sessionExpired: 410,
   insufficientFunds: 402,
   insufficientCoins: 402,
