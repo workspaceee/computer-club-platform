@@ -250,32 +250,19 @@ export function LockScreen() {
         />
       </div>
       {/*
-        Readability veils (§3.1). Directional by design: the pie exists to buy
-        contrast *under the clock and the card*, not to dim the photograph.
+        Readability veils (§3.1): floor, then two shaping gradients. Directional
+        by design — the pie exists to buy contrast *under the clock and the
+        card*, not to dim the photograph, which is already graded dark.
 
-        The flat `bg-black/45` + cold `rgba(8,10,18,.35)` pair that used to sit
-        here was calibrated for a bright, red-blown room shot. The current
-        backdrop is already graded dark with crushed blacks, so those two layers
-        were subtracting detail it has none to spare — the neon sign went grey
-        and the figure went to mud, which reads as a *soft* image rather than a
-        dark one. A gentle 18 % floor is enough to keep a stray bright frame in
-        range; the shaping is left to the two gradients.
+        The densities used to live here as inline `style` gradients and now live
+        in `globals.css` (`.veil-login-*`, F9.2), where the reasoning behind
+        every stop is written down and where the third screen with a background
+        medium can reuse them instead of re-eyeballing them. Order is meaningful:
+        these composite in DOM order.
       */}
-      <div className="absolute inset-0 bg-black/[0.18]" />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(90deg, rgba(5,6,10,0.55) 0%, rgba(5,6,10,0.05) 42%, rgba(5,6,10,0.5) 72%, rgba(5,6,10,0.82) 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(5,6,10,0.5) 0%, transparent 22%, transparent 68%, rgba(5,6,10,0.72) 100%)',
-        }}
-      />
+      <div aria-hidden className="veil-login-floor absolute inset-0" />
+      <div aria-hidden className="veil-login-h absolute inset-0" />
+      <div aria-hidden className="veil-login-v absolute inset-0" />
       <ParticleField />
 
       {/* =================== Language switcher (F2.4) =================== */}

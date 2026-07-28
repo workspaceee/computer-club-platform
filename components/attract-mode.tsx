@@ -148,32 +148,15 @@ export function AttractMode() {
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
       {useVideo ? <VideoPlaylist sources={ATTRACT_VIDEOS} /> : <KenBurnsSlideshow slide={current} />}
 
-      {/* readability veils: base dim + radial scrim behind the clock + edge gradient */}
-      <div className="absolute inset-0 bg-black/35" />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 62% 44% at 50% 47%, rgba(3,4,8,0.72) 0%, rgba(3,4,8,0.35) 55%, transparent 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(3,4,8,0.8) 0%, transparent 26%, transparent 58%, rgba(3,4,8,0.92) 100%)',
-        }}
-      />
-
-      {/* subtle scanline texture for the CRT / broadcast feel */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0.8) 1px, transparent 1px, transparent 3px)',
-        }}
-      />
+      {/* Readability veils (§3.2): floor, radial scrim under the clock, edge
+          gradient, CRT texture. The densities live in `globals.css`
+          (`.veil-attract-*`, `.scanlines` — F9.2) rather than inline here,
+          because this stack has to survive media nobody previewed: whatever the
+          admin panel uploads passes through the same four layers, in this order. */}
+      <div aria-hidden className="veil-attract-floor absolute inset-0" />
+      <div aria-hidden className="veil-attract-scrim absolute inset-0" />
+      <div aria-hidden className="veil-attract-v absolute inset-0" />
+      <div aria-hidden className="scanlines absolute inset-0" />
 
       {/* ---------- ambient layer ---------- */}
       <div className="relative z-10 flex h-full flex-col items-center justify-between pb-16 pt-9 md:pb-20">
