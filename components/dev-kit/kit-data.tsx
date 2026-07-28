@@ -7,7 +7,6 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
 import { Field } from '@/components/ui/field'
-import { HudChip } from '@/components/ui/hud-chip'
 import { Money } from '@/components/ui/money'
 import { Panel } from '@/components/ui/panel'
 import { Progress } from '@/components/ui/progress'
@@ -19,7 +18,7 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { Toggle } from '@/components/ui/toggle'
 import { useStore } from '@/lib/store'
 
-/** Form controls, data display and loyalty primitives (F1.5–F1.7, F1.11, F1.12, F1.17–F1.20, F1.23). */
+/** Form controls, data display and loyalty primitives (F1.5–F1.7, F1.11, F1.12, F1.17–F1.20). */
 export function KitData() {
   const [text, setText] = useState('')
   const [tab, setTab] = useState<'login' | 'guest'>('login')
@@ -300,30 +299,6 @@ export function KitData() {
           >
             duration=0
           </Button>
-        </Row>
-      </Spec>
-
-      <Spec
-        id="F1.23"
-        name="HudChip"
-        note="telemetry chip — the shared bottom row of the login and idle screens (§5.3)"
-      >
-        <Row label="the seam, exactly as both screens render it">
-          <HudChip dot variant="station" label="PC #17" value="READY" />
-          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
-          <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
-        </Row>
-        <Row label="tone: default / accent (icon + value, never the surface)">
-          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
-          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" tone="accent" />
-        </Row>
-        <Row label="variants + optional parts (no icon, dot only, icon + dot)">
-          <HudChip variant="station" label="PC #17" value="READY" />
-          <HudChip label="Zone" value="VIP" />
-          <HudChip dot label="Session" value="LIVE" tone="accent" />
-          <HudChip dot icon={<icons.status size={13} />} label="Uplink" value="Stable" />
         </Row>
       </Spec>
     </>

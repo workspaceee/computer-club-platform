@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { BrandLabel } from '@/components/brand-label'
-import { HudChip } from '@/components/ui/hud-chip'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
@@ -143,23 +142,38 @@ export function AttractMode() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { duration: 1.2, ease: 'easeOut' } }}
       exit={{ opacity: 0, filter: 'blur(12px)', transition: { duration: 0.5, ease: 'easeIn' } }}
-      // `veil-base` (§3), not `bg-black`: the opaque floor under the media is
-      // still a black picked for a screen, so it comes from a token (F9.7b).
-      className="veil-base absolute inset-0 z-40 overflow-hidden"
+      className="absolute inset-0 z-40 overflow-hidden bg-black"
       aria-label="Idle screen. Move the mouse or press any key to unlock."
     >
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
       {useVideo ? <VideoPlaylist sources={ATTRACT_VIDEOS} /> : <KenBurnsSlideshow slide={current} />}
 
-      {/* Readability veils (§3.2): floor, radial scrim under the clock, edge
-          gradient, CRT texture. The densities live in `globals.css`
-          (`.veil-attract-*`, `.scanlines` — F9.2) rather than inline here,
-          because this stack has to survive media nobody previewed: whatever the
-          admin panel uploads passes through the same four layers, in this order. */}
-      <div aria-hidden className="veil-attract-floor absolute inset-0" />
-      <div aria-hidden className="veil-attract-scrim absolute inset-0" />
-      <div aria-hidden className="veil-attract-v absolute inset-0" />
-      <div aria-hidden className="scanlines absolute inset-0" />
+      {/* readability veils: base dim + radial scrim behind the clock + edge gradient */}
+      <div className="absolute inset-0 bg-black/35" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 62% 44% at 50% 47%, rgba(3,4,8,0.72) 0%, rgba(3,4,8,0.35) 55%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(3,4,8,0.8) 0%, transparent 26%, transparent 58%, rgba(3,4,8,0.92) 100%)',
+        }}
+      />
+
+      {/* subtle scanline texture for the CRT / broadcast feel */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0.8) 1px, transparent 1px, transparent 3px)',
+        }}
+      />
 
       {/* ---------- ambient layer ---------- */}
       <div className="relative z-10 flex h-full flex-col items-center justify-between pb-16 pt-9 md:pb-20">
@@ -242,13 +256,7 @@ export function AttractMode() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.9, ease: 'easeOut' }}
-            // `pill-deep` (§3.3): a plate on media nobody previewed — the video
-            // or the slideshow — which is why this rung exists at all.
-            // `neon-ring` is T1 (§4.2) and this is the idle screen's only one:
-            // the hint is the single actionable thing on a screen with no
-            // controls, so the traveling light and its own attention loop
-            // belong to the same element rather than competing across seven.
-            className="neon-ring wake-hint pill-deep relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
+            className="neon-ring wake-hint relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 bg-black/55 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
           >
             <span
               aria-hidden
@@ -269,11 +277,11 @@ export function AttractMode() {
 
         {/* bottom HUD: live station telemetry */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
-          <HudChip dot variant="station" label="PC #17" value="READY" />
+          <HudChip dot label="PC #17" value="READY" accent />
           <HudChip icon={<icons.network size={13} />} label="Ping" value={`${ping} ms`} />
           <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
           <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
+          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" accent />
         </div>
       </div>
 
@@ -305,9 +313,7 @@ export function AttractMode() {
       />
 
       {/* ---------- promo ticker ---------- */}
-      {/* `scrim` (§3.3): the band's job is to erase the frame under a moving
-          marquee, which is the same job a modal backdrop does — same depth. */}
-      <div className="scrim absolute inset-x-0 bottom-0 z-20 backdrop-blur-md">
+      <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
         {/* thin accent rule above the ticker */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
         <PromoTicker items={tickerItems} />
@@ -487,10 +493,7 @@ function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
 function PromoCaption({ promo }: { promo: Promo }) {
   const Icon = KIND_ICONS[promo.kind]
   return (
-    // T3 (§4.2): no neon. This panel is already the largest, brightest thing
-    // on the banner and it carries a red spine of its own — the ring was
-    // spending the screen's one animated accent on copy nobody has to act on.
-    <div aria-hidden className="glass rounded-xl border-l-2 border-l-primary p-5 md:p-6">
+    <div aria-hidden className="glass neon-ring rounded-xl border-l-2 border-l-primary p-5 md:p-6">
       <span className="label-mono flex items-center gap-1.5 text-[10px] tracking-[0.28em] text-primary">
         <Icon size={12} />
         {promo.badge}
@@ -500,6 +503,37 @@ function PromoCaption({ promo }: { promo: Promo }) {
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-text-medium text-pretty">{promo.subtitle}</p>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  HUD bits                                                           */
+/* ------------------------------------------------------------------ */
+
+function HudChip({
+  icon,
+  dot,
+  label,
+  value,
+  accent,
+}: {
+  icon?: React.ReactNode
+  dot?: boolean
+  label: string
+  value: string
+  accent?: boolean
+}) {
+  return (
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+      {dot && <span className="h-2 w-2 animate-pulse rounded-full bg-success" />}
+      {icon && <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>}
+      <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
+      <span
+        className={`text-xs font-semibold tabular-nums ${accent ? 'text-success' : 'text-text-high'}`}
+      >
+        {value}
+      </span>
+    </span>
   )
 }
 
