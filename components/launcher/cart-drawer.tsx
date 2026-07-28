@@ -81,8 +81,7 @@ export function CartDrawer() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, x: 40 }}
-                  // Line item recessed into the drawer (`well-shallow`, §3.3).
-                  className="well-shallow flex items-center gap-3 rounded-xl border border-border p-3"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-black/20 p-3"
                 >
                   <ProductImage
                     src={item.image}

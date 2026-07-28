@@ -156,10 +156,7 @@ export function GameLaunchModal() {
               <button
                 onClick={close}
                 disabled={launching}
-                // A plate sitting directly on cover art, so `pill` — and the
-                // hover goes to `pill-deep`, the rung the depth scale keeps for
-                // exactly this (a plate on unvetted media, §3.3).
-                className="pill absolute right-3 top-3 rounded-lg p-1.5 text-text-high transition-colors hover:pill-deep disabled:opacity-40"
+                className="absolute right-3 top-3 rounded-lg bg-black/40 p-1.5 text-white transition-colors hover:bg-black/70 disabled:opacity-40"
                 aria-label="Close"
               >
                 <icons.close size={18} />
@@ -210,7 +207,7 @@ export function GameLaunchModal() {
                             'flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors',
                             selected
                               ? 'border-primary bg-primary/10'
-                              : 'border-border well-shallow hover:border-border-strong',
+                              : 'border-border bg-black/20 hover:border-border-strong',
                             disabled && 'cursor-not-allowed opacity-45',
                           )}
                         >
