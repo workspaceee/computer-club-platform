@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { KitCrash } from '@/components/dev-kit/kit-crash'
 import { KitData } from '@/components/dev-kit/kit-data'
+import { KitMaterials } from '@/components/dev-kit/kit-materials'
 import { KitSurfaces } from '@/components/dev-kit/kit-surfaces'
 import { Toaster } from '@/components/toaster'
 
@@ -74,6 +75,11 @@ export default function DevKitPage() {
           </div>
         </section>
 
+        {/* Sits directly after the tokens and before the primitives: materials,
+            neon tiers, veils and radii are the layer the primitives are built
+            out of, and the only part of the system a component gallery cannot
+            show (F9.6). */}
+        <KitMaterials />
         <KitSurfaces />
         <KitData />
         {/* Not an F1 primitive, but the only place the crash screen can be
@@ -81,7 +87,7 @@ export default function DevKitPage() {
         <KitCrash />
 
         <footer className="border-t border-border pt-6 text-xs text-text-low">
-          F1.1 – F1.23 · F6.5 · docs/DESIGN.md is the written counterpart to this page.
+          F1.1 – F1.23 · F6.5 · F9.6 · docs/DESIGN.md is the written counterpart to this page.
         </footer>
       </main>
 
