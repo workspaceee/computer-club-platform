@@ -20,6 +20,24 @@
       a.pause()
     } catch {}
   })
+  /* Stop the product's own timers before touching any text.
+   *
+   * Normalising text alone does not hold: the clock re-renders once a second
+   * (`useClock`), and React rewrites exactly the nodes whose value changed —
+   * so on a minute rollover the hours node keeps the frozen `15` while the
+   * minutes node is repainted with the real minute, and the pair reads `15:39`
+   * against `15:40`. Observed, not theoretical: it is what the first attract
+   * noise pair produced. Clearing the timers also parks the two other
+   * script-driven states — the ping re-roll (2.2 s) and the slide rotation
+   * (9 s) — so a capture no longer depends on how fast the screenshot follows
+   * the freeze. Ids are shared between intervals and timeouts, so the sweep
+   * covers both. */
+  const top = setInterval(() => {}, 1e6)
+  for (let i = 1; i <= Number(top); i++) {
+    try {
+      clearInterval(i)
+    } catch {}
+  }
   /* Freeze the live readouts. Two of them, both real diff generators:
    *   • wall-clock digits — the minute rolling over between the two captures
    *     reads as a diff in the largest type on either screen;
