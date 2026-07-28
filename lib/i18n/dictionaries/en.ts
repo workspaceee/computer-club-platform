@@ -168,6 +168,13 @@ export const en = {
     openLibrary: 'Open library',
     noAccounts: 'No accounts available',
     noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
+    // F8.4 — the strip that *names* the silence. A launcher that simply stops
+    // making sounds is indistinguishable from a broken one, and the player has
+    // no way to learn the rule or to end the state.
+    inGame: 'In game',
+    inGameNow: 'Playing {name}',
+    inGameQuiet: 'Launcher sounds are paused. Time warnings and admin messages still come through.',
+    backToLauncher: 'Game closed',
   },
 
   shop: {

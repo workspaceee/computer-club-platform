@@ -24,10 +24,15 @@
  *   Different cues may overlap, up to `MAX_VOICES`.
  *
  *   **Silence is a valid outcome, and it is reported.** `play()` returns *why*
- *   nothing was heard (`'muted' | 'suppressed' | 'blocked' | 'unsupported' |
- *   'unavailable'`) instead of throwing or lying. The dev console reads that, and
- *   so will F8.3/F8.5 — "no sound" must be debuggable without a spectrum
- *   analyser, and audio must never be able to break a screen.
+ *   nothing was heard (`'muted' | 'in-game' | 'suppressed' | 'blocked' |
+ *   'unsupported' | 'unavailable'`) instead of throwing or lying. The dev console
+ *   reads that, and so do F8.3/F8.4 — "no sound" must be debuggable without a
+ *   spectrum analyser, and audio must never be able to break a screen.
+ *
+ * Two gates decide whether a cue is heard at all, and their order is the policy:
+ * `muted` is checked first and applies to **everything**, `in-game` second and
+ * spares the `critical` pair. The player switching sound off outranks our idea of
+ * what is important; a running game does not.
  *
  * Web Audio only, with no `<audio>` fallback. Overlap suppression, per-cue gain
  * and a hard voice cap all need a mixer; an element pool would be a second,
@@ -102,6 +107,14 @@ export type SfxOutcome =
   | 'suppressed'
   /** Muted, or volume at zero (F8.3). */
   | 'muted'
+  /**
+   * A game holds the machine and this cue is not `critical` (F8.4).
+   *
+   * Named separately from `'muted'` on purpose: nobody switched sound off, the
+   * launcher simply has no right to speak over a match. Support reading a log
+   * must be able to tell "the player muted us" from "we stayed out of the way".
+   */
+  | 'in-game'
   /** The browser has not granted playback yet — no gesture so far (F8.5). */
   | 'blocked'
   /** No Web Audio in this browser. The launcher stays silent, on purpose. */
@@ -143,6 +156,8 @@ export interface SfxSnapshot {
   muted: boolean
   /** `0…1`, the user's level (F8.3). */
   volume: number
+  /** A game holds the machine: only `critical` cues may sound (F8.4). */
+  gameRunning: boolean
   /** Cues decoded and ready. */
   loaded: number
   /** Cues that failed to load — silent, never fatal. */
@@ -187,6 +202,12 @@ let voices: Voice[] = []
 
 let volume = DEFAULT_SFX_VOLUME
 let muted = false
+/**
+ * F8.4's one flag. `false` until something tells the engine a title took the
+ * machine — the default has to be "the launcher is what the player is looking
+ * at", because that is the state every screen renders in.
+ */
+let gameRunning = false
 let seq = 0
 
 const listeners = new Set<() => void>()
@@ -225,6 +246,7 @@ let snapshot: SfxSnapshot = {
   blocked: false,
   muted: false,
   volume: DEFAULT_SFX_VOLUME,
+  gameRunning: false,
   loaded: 0,
   failed: 0,
   total: SFX_IDS.length,
@@ -247,6 +269,7 @@ function sync(extra: Partial<SfxSnapshot> = {}): void {
     armed: ctx?.state === 'running',
     muted,
     volume,
+    gameRunning,
     loaded,
     failed,
     total: SFX_IDS.length,
@@ -411,6 +434,10 @@ function start(id: SfxId, buffer: AudioBuffer, options: SfxPlayOptions): SfxOutc
 function play(id: SfxId, options: SfxPlayOptions = {}): SfxOutcome {
   if (!supported()) return record(id, 'unsupported')
   if (muted || volume <= 0) return record(id, 'muted')
+  // F8.4, and it sits *here* rather than at the call sites for the same reason
+  // the mute switch does: a rule spread across every screen that plays a cue is
+  // a rule with a hole in it the week someone adds the eighth screen.
+  if (gameRunning && !isCriticalSfx(id)) return record(id, 'in-game')
 
   const now = typeof performance === 'undefined' ? 0 : performance.now()
   if (!options.allowOverlap && now < (quietUntil.get(id) ?? 0)) {
@@ -439,6 +466,9 @@ function play(id: SfxId, options: SfxPlayOptions = {}): SfxOutcome {
     if (!late) return void record(id, 'unavailable')
     if (performance.now() - requestedAt > LATE_PLAY_MS) return void record(id, 'unavailable')
     if (muted || volume <= 0) return void record(id, 'muted')
+    // Re-read, never trust the check from before the decode: a launch takes
+    // seconds and this branch is what a cue fired *during* one goes through.
+    if (gameRunning && !isCriticalSfx(id)) return void record(id, 'in-game')
     if (ctx?.state !== 'running') return void record(id, 'blocked')
     start(id, late, options)
   })
@@ -457,6 +487,26 @@ function stopAll(): void {
   voices = []
   quietUntil.clear()
   sync()
+}
+
+/**
+ * Cut the decorative voices, leave the ones the player must hear (F8.4).
+ *
+ * The suppression windows are deliberately left alone: they belong to the cues,
+ * not to the voices, and clearing them would let a burst that was already
+ * collapsed into one event retrigger the moment the game exits.
+ */
+function stopNonCritical(): void {
+  for (const voice of voices) {
+    if (voice.critical) continue
+    try {
+      voice.source.stop()
+    } catch {
+      // Finished already — `onended` has it.
+    }
+  }
+  // `voices` is not filtered here: `onended` fires for each stopped source and
+  // removes it, which is also the path that disconnects its gain node.
 }
 
 /* ------------------------------------------------------------------ *
@@ -483,6 +533,31 @@ function setMuted(next: boolean): void {
   muted = next
   if (muted) stopAll()
   applyLevel()
+}
+
+/**
+ * F8.4 — a title took the machine, or gave it back.
+ *
+ * While this is `true` only `critical` cues (`time-warning`, `admin-message`)
+ * are allowed through; everything else returns `'in-game'`. The exception list
+ * is not written here — it is the `critical` flag in `lib/assets/sfx.ts`, so
+ * adding a cue means deciding the question once, in the catalogue.
+ *
+ * Entering the state also **cuts what is already ringing**, and only the
+ * non-critical part of it. The moment a game takes the screen is exactly the
+ * moment a `notify` fired 200 ms earlier is still sounding, and a cue that
+ * started legally does not become a cue the player wants to hear over their
+ * match. Leaving the state cuts nothing: silence needs no cleanup.
+ *
+ * Idempotent — the wire that calls this re-runs on unrelated state changes, and
+ * a repeated `true` must not keep chopping voices that are legally playing
+ * (a `time-warning` half-way through, in particular).
+ */
+function setGameRunning(next: boolean): void {
+  if (gameRunning === next) return
+  gameRunning = next
+  if (gameRunning) stopNonCritical()
+  sync()
 }
 
 /**
@@ -545,6 +620,7 @@ export const sfx = {
   arm,
   setVolume,
   setMuted,
+  setGameRunning,
   subscribe,
   getSnapshot,
   /** Test/dev hook: forget the suppression windows without cutting voices. */
