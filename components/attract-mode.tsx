@@ -241,6 +241,10 @@ export function AttractMode() {
             transition={{ duration: 0.7, delay: 0.9, ease: 'easeOut' }}
             // `pill-deep` (§3.3): a plate on media nobody previewed — the video
             // or the slideshow — which is why this rung exists at all.
+            // `neon-ring` is T1 (§4.2) and this is the idle screen's only one:
+            // the hint is the single actionable thing on a screen with no
+            // controls, so the traveling light and its own attention loop
+            // belong to the same element rather than competing across seven.
             className="neon-ring wake-hint pill-deep relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
           >
             <span
@@ -480,7 +484,10 @@ function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
 function PromoCaption({ promo }: { promo: Promo }) {
   const Icon = KIND_ICONS[promo.kind]
   return (
-    <div aria-hidden className="glass neon-ring rounded-xl border-l-2 border-l-primary p-5 md:p-6">
+    // T3 (§4.2): no neon. This panel is already the largest, brightest thing
+    // on the banner and it carries a red spine of its own — the ring was
+    // spending the screen's one animated accent on copy nobody has to act on.
+    <div aria-hidden className="glass rounded-xl border-l-2 border-l-primary p-5 md:p-6">
       <span className="label-mono flex items-center gap-1.5 text-[10px] tracking-[0.28em] text-primary">
         <Icon size={12} />
         {promo.badge}
@@ -511,7 +518,9 @@ function HudChip({
   accent?: boolean
 }) {
   return (
-    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+    // T2 (§4.2): status plate, frozen tube. The idle screen's single T1 is the
+    // wake hint — the only thing here anyone is meant to act on.
+    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3.5 py-1.5">
       {dot && <span className="h-2 w-2 animate-pulse rounded-full bg-success" />}
       {icon && <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>}
       <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
