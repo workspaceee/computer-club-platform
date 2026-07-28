@@ -200,9 +200,9 @@ export function AttractMode() {
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          {/* Neon-tube digits: the red stroke traces the glyphs themselves —
+          {/* Neon-tube digits: hollow glyphs, all the light on the contour —
               no framing box, per request. */}
-          <div className="neon-text neon-digits flex items-center justify-center font-clock font-semibold leading-none tabular-nums text-text-high">
+          <div className="neon-digits flex items-center justify-center font-clock font-semibold leading-none tabular-nums text-text-high">
             {/* Halfway between the 5/7.5/9rem original (a marquee that ate the
                 frame) and the 3.75/5.25/6.25rem correction (too small for a
                 clock read from across the room). */}
@@ -211,6 +211,11 @@ export function AttractMode() {
               animate={{ opacity: [1, 0.2, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               className="mx-0.5 -translate-y-[0.06em] text-[3.75rem] font-normal text-primary md:mx-1 md:text-[5.4rem] xl:text-[6.4rem]"
+              // The hollow treatment inherits (`-webkit-text-fill-color` /
+              // `-webkit-text-stroke` both cascade), and an outlined colon at
+              // this size all but disappears — so the separator opts back into
+              // a solid red glyph.
+              style={{ WebkitTextFillColor: 'currentColor', WebkitTextStroke: '0' }}
             >
               :
             </motion.span>
