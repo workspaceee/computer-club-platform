@@ -6,7 +6,6 @@ import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import { BrandLabel } from '@/components/brand-label'
-import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
 import { Overlay } from '@/components/ui/overlay'
@@ -235,9 +234,7 @@ export function LockScreen() {
   const dateStr = now ? formatFullDate(now) : ''
 
   return (
-    // `veil-base` (§3), not `bg-black`: the opaque floor under the backdrop is
-    // the same hole as `bg-black/NN` — a black chosen in JSX (F9.7b).
-    <div className="veil-base relative flex h-full min-h-dvh w-full overflow-hidden">
+    <div className="relative flex h-full min-h-dvh w-full overflow-hidden bg-black">
       {/* ------- cinematic backdrop ------- */}
       <div className="absolute inset-0">
         <AssetImage
@@ -253,19 +250,32 @@ export function LockScreen() {
         />
       </div>
       {/*
-        Readability veils (§3.1): floor, then two shaping gradients. Directional
-        by design — the pie exists to buy contrast *under the clock and the
-        card*, not to dim the photograph, which is already graded dark.
+        Readability veils (§3.1). Directional by design: the pie exists to buy
+        contrast *under the clock and the card*, not to dim the photograph.
 
-        The densities used to live here as inline `style` gradients and now live
-        in `globals.css` (`.veil-login-*`, F9.2), where the reasoning behind
-        every stop is written down and where the third screen with a background
-        medium can reuse them instead of re-eyeballing them. Order is meaningful:
-        these composite in DOM order.
+        The flat `bg-black/45` + cold `rgba(8,10,18,.35)` pair that used to sit
+        here was calibrated for a bright, red-blown room shot. The current
+        backdrop is already graded dark with crushed blacks, so those two layers
+        were subtracting detail it has none to spare — the neon sign went grey
+        and the figure went to mud, which reads as a *soft* image rather than a
+        dark one. A gentle 18 % floor is enough to keep a stray bright frame in
+        range; the shaping is left to the two gradients.
       */}
-      <div aria-hidden className="veil-login-floor absolute inset-0" />
-      <div aria-hidden className="veil-login-h absolute inset-0" />
-      <div aria-hidden className="veil-login-v absolute inset-0" />
+      <div className="absolute inset-0 bg-black/[0.18]" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(5,6,10,0.55) 0%, rgba(5,6,10,0.05) 42%, rgba(5,6,10,0.5) 72%, rgba(5,6,10,0.82) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(5,6,10,0.5) 0%, transparent 22%, transparent 68%, rgba(5,6,10,0.72) 100%)',
+        }}
+      />
       <ParticleField />
 
       {/* =================== Language switcher (F2.4) =================== */}
@@ -321,15 +331,15 @@ export function LockScreen() {
           transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
           className="flex flex-wrap items-center gap-3"
         >
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
-          <HudChip icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
-          <HudChip icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
-          <HudChip
+          <StationBadge />
+          <Telemetry icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
+          <Telemetry icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
+          <Telemetry icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
+          <Telemetry
             icon={<icons.status size={13} />}
             label={t('auth.status')}
             value={t('auth.optimal')}
-            tone="accent"
+            accent
           />
         </motion.div>
       </div>
@@ -352,15 +362,6 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
-          // T1 (§4.2) — this screen's one traveling ring. Everything else here
-          // (station badge, five telemetry chips) is T2 static, so the moving
-          // light points at the only thing you can act on: the way in.
-          // Kept on idle even though the attract overlay spends its own T1 on
-          // the wake hint: the budget is one per *visible* screen, and for the
-          // 1.2s cross-fade both are in the tree on purpose. Dropping the class
-          // when `idle` flips would pop the card's brightest feature off while
-          // the card itself is still half-opaque — a rule tidier than the
-          // screen, which F9 forbids.
           className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/40 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* subtle top accent line */}
@@ -412,9 +413,7 @@ export function LockScreen() {
             </AnimatePresence>
 
             {/* ------- mode switch : segmented tabs ------- */}
-            {/* A track is a `well` (§3.3) — the pill slides inside a recess. No
-                focus rung: the ring and the pill already say where focus is. */}
-            <div className="well mt-6 grid grid-cols-2 rounded-lg border border-border p-1">
+            <div className="mt-6 grid grid-cols-2 rounded-lg border border-border bg-black/40 p-1">
               {(['login', 'register'] as Mode[]).map((m) => (
                 <button
                   key={m}
@@ -594,8 +593,7 @@ export function LockScreen() {
           </div>
 
           {/* ------- card footer strip ------- */}
-          {/* Firmware strip — a plate on the card, so `pill` (§3.3). */}
-          <div className="pill relative z-[2] flex items-center justify-end border-t border-border px-7 py-3">
+          <div className="relative z-[2] flex items-center justify-end border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono text-[9px] text-text-low">
               {t('common.shell')} v2.4
             </span>
@@ -605,7 +603,7 @@ export function LockScreen() {
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
           <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
+          <StationBadge />
         </div>
       </div>
 
@@ -686,6 +684,39 @@ function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
   )
 }
 
+function StationBadge() {
+  const { t } = useT()
+  return (
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+      <span className="font-display text-sm font-bold tracking-wide text-text-high">PC #17</span>
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-success">
+        {t('auth.stationReady')}
+      </span>
+    </span>
+  )
+}
+
+function Telemetry({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  accent?: boolean
+}) {
+  return (
+    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3 py-1.5">
+      <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>
+      <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
+      <span className="text-xs font-semibold tabular-nums text-text-high">{value}</span>
+    </span>
+  )
+}
+
 function Field({
   label,
   icon,
@@ -711,7 +742,7 @@ function Field({
     <div className="flex flex-col gap-1.5">
       <label className="label-mono text-[10px] text-text-low">{label}</label>
       <div
-        className="well flex items-center gap-2.5 rounded-lg border px-3.5 transition-all focus-within:border-primary focus-within:well-deep focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
+        className="flex items-center gap-2.5 rounded-lg border bg-black/40 px-3.5 transition-all focus-within:border-primary focus-within:bg-black/60 focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
         style={{ borderColor: error ? 'var(--danger)' : 'var(--border)' }}
       >
         {icon && <span className="shrink-0 text-text-low">{icon}</span>}

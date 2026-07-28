@@ -98,14 +98,7 @@ export function SessionManager() {
           // scrolled back — so on a short window (or in a long translation) the
           // "time is up" heading was cut off above the top edge.
           className={cn(
-            // `scrim` (§3.3), not the hand-picked 85 % this used to carry. The
-            // end of a visit is the *strongest* rung on the depth axis, but it
-            // is still the same kind of darkening as a dialog backdrop, and what
-            // actually makes the launcher unreadable behind it is `backdrop-blur`
-            // plus `overlayZ.blocking` — the extra 15 % of black only made one
-            // screen in the product darker than every other layer, for no reason
-            // anybody had written down.
-            'scrim fixed inset-0 overflow-y-auto overscroll-contain backdrop-blur',
+            'fixed inset-0 overflow-y-auto overscroll-contain bg-black/85 backdrop-blur',
             overlayZ.blocking,
           )}
         >

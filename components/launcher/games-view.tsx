@@ -250,9 +250,7 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             action on a card — was revealed by hover alone, so a keyboard player
             focused a control they could not see press. The overlay now follows
             focus as well as the pointer. */}
-        {/* `scrim` (§3.3): the cover is darkened so a raised control on top of it
-            reads — the same job a modal backdrop does, so the same depth. */}
-        <div className="scrim absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             onClick={() => setLaunchGame(game.id)}
             // The card carries the title, but a button announcing just "Play"

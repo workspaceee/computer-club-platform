@@ -60,9 +60,7 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       className={cn(
-        // A track is a well (§3.3): the pill slides inside a recess, not on top
-        // of the panel. No `focus-within` rung here — see `.well-deep`.
-        'well relative flex border border-border',
+        'relative flex border border-border bg-black/40',
         round ? 'rounded-full' : 'rounded-md',
         pad,
         className,
@@ -102,13 +100,11 @@ export function Segmented<T extends string>({
                   variant === 'pill'
                     ? // Translucent instead of a solid red fill, so the pill
                       // reads as lit glass over the track: the shell's shared
-                      // neon edge is what marks the active segment now, not a
-                      // block of colour. `-edge` and not `-ring` because this
-                      // overlay is already positioned and `position: relative`
-                      // would collapse it; `-static` because a selection
-                      // marker is a status plate — T2 (§4.2). It already moves
-                      // when you switch tabs, and that motion is the signal.
-                      'neon-edge-static bg-primary/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_20px_rgba(229,53,43,0.32)] backdrop-blur-sm'
+                      // neon (`.neon-edge` — same paint as `.neon-ring`, minus
+                      // the `position: relative` that would collapse this
+                      // `absolute inset-0` overlay) is what marks the active
+                      // segment now, not a block of colour.
+                      'neon-edge bg-primary/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_20px_rgba(229,53,43,0.32)] backdrop-blur-sm'
                     : 'border border-primary/40 bg-primary/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_18px_rgba(229,53,43,0.18)]',
                 )}
                 transition={
