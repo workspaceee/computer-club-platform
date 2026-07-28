@@ -357,7 +357,7 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
-          className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
+          className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/45 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* subtle top accent line */}
           <div
