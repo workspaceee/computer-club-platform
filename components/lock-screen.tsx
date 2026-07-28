@@ -1,16 +1,19 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { icons } from '@/lib/icons'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import { BrandLabel } from '@/components/brand-label'
+import { IconTile } from '@/components/icon-tile'
+import { Button, IconButton } from '@/components/ui/button'
+import { Field } from '@/components/ui/field'
 import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
-import { Overlay } from '@/components/ui/overlay'
-import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
+import { Modal } from '@/components/ui/modal'
+import { Segmented } from '@/components/ui/segmented'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
@@ -23,9 +26,7 @@ import {
   register,
   requestQrChallenge,
 } from '@/lib/mock/api'
-import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
 
 type Mode = 'login' | 'register'
 
@@ -412,32 +413,20 @@ export function LockScreen() {
             </AnimatePresence>
 
             {/* ------- mode switch : segmented tabs ------- */}
-            {/* A track is a `well` (§3.3) — the pill slides inside a recess. No
-                focus rung: the ring and the pill already say where focus is. */}
-            <div className="well mt-6 grid grid-cols-2 rounded-lg border border-border p-1">
-              {(['login', 'register'] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMode(m)}
-                  className={`relative rounded-md py-2 font-display text-xs font-semibold uppercase tracking-widest transition-colors ${
-                    mode === m ? 'text-text-high' : 'text-text-low hover:text-text-medium'
-                  }`}
-                  aria-pressed={mode === m}
-                >
-                  {mode === m && (
-                    <motion.span
-                      layoutId="mode-pill"
-                      className="absolute inset-0 rounded-md border border-primary/40 bg-primary/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_18px_rgba(229,53,43,0.18)]"
-                      transition={{ type: 'spring', bounce: 0.2, duration: 0.45 }}
-                    />
-                  )}
-                  <span className="relative z-[1]">
-                    {m === 'login' ? t('auth.signIn') : t('auth.register')}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {/* Was a hand-rolled track with its own `layoutId` pill. `Segmented`
+                (F1.6) owns that geometry now, including the reduced-motion
+                escape the local copy never had, and it renders a real
+                `radiogroup` instead of two `aria-pressed` buttons. */}
+            <Segmented<Mode>
+              className="mt-6"
+              label={t('auth.accessTerminal')}
+              options={[
+                { value: 'login', label: t('auth.signIn') },
+                { value: 'register', label: t('auth.register') },
+              ]}
+              value={mode}
+              onChange={switchMode}
+            />
           </div>
 
           {/* ------- form body ------- */}
@@ -457,9 +446,10 @@ export function LockScreen() {
                     label={t('auth.userOrEmail')}
                     icon={<icons.player size={15} />}
                     value={identifier}
-                    onChange={setIdentifier}
+                    onValueChange={setIdentifier}
                     placeholder={t('auth.userOrEmailPlaceholder')}
                     error={touched ? loginErrors.identifier : undefined}
+                    autoComplete="username"
                     autoFocus
                   />
                   <Field
@@ -467,22 +457,28 @@ export function LockScreen() {
                     icon={<icons.lock size={15} />}
                     type={showPass ? 'text' : 'password'}
                     value={password}
-                    onChange={setPassword}
+                    onValueChange={setPassword}
                     placeholder={t('auth.passwordPlaceholder')}
                     error={touched ? loginErrors.password : undefined}
+                    autoComplete="current-password"
                     trailing={
-                      <button
-                        type="button"
+                      <IconButton
+                        size="sm"
+                        variant="ghost"
+                        label={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
                         onClick={() => setShowPass((v) => !v)}
-                        className="text-text-low transition-colors hover:text-text-high"
-                        aria-label={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
+                        className="-mr-1.5 size-8 text-text-low"
                       >
-                        {showPass ? <icons.conceal size={18} /> : <icons.reveal size={18} />}
-                      </button>
+                        {showPass ? <icons.conceal /> : <icons.reveal />}
+                      </IconButton>
                     }
                   />
 
-                  <PrimaryButton loading={loading} label={t('auth.unlock')} />
+                  {/* The one bevelled CTA of the screen (§4) — `cut` is reserved
+                      for the single action that commits. */}
+                  <Button type="submit" size="lg" block cut loading={loading}>
+                    {t('auth.unlock')}
+                  </Button>
 
                   <div className="my-1 flex items-center gap-3 text-text-low">
                     <span className="h-px flex-1 bg-border" />
@@ -491,34 +487,39 @@ export function LockScreen() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <SecondaryButton
+                    <OptionButton
                       onClick={startQr}
-                      icon={<icons.qr size={16} />}
+                      icon={icons.qr}
                       label={t('auth.qrLogin')}
+                      disabled={loading}
                     />
-                    <SecondaryButton
+                    <OptionButton
                       onClick={demoLogin}
-                      icon={<icons.demo size={16} />}
+                      icon={icons.demo}
                       label={t('auth.demo')}
+                      disabled={loading}
                     />
-                    <SecondaryButton
+                    <OptionButton
                       onClick={demoAdmin}
-                      icon={<icons.staff size={16} />}
+                      icon={icons.staff}
                       label={t('auth.admin')}
+                      disabled={loading}
                     />
                   </div>
 
                   {/* Walk-in check-in — opens the guest surface of the same
                       launcher shell, not a separate app (F6.2 / F6.8). */}
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    voice="plain"
                     onClick={startGuest}
                     disabled={loading}
-                    className="mt-1 flex items-center justify-center gap-2 rounded-sm py-1.5 text-xs font-medium text-text-low transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+                    iconLeft={<icons.guest size={14} />}
+                    className="mt-1 self-center text-text-low hover:bg-transparent hover:text-text-high"
                   >
-                    <icons.guest size={14} />
                     {t('guest.continueAsGuest')}
-                  </button>
+                  </Button>
                 </motion.form>
               ) : (
                 <motion.form
@@ -534,17 +535,20 @@ export function LockScreen() {
                     label={t('auth.username')}
                     icon={<icons.player size={15} />}
                     value={rUser}
-                    onChange={setRUser}
+                    onValueChange={setRUser}
                     placeholder={t('auth.usernamePlaceholder')}
+                    autoComplete="username"
                     autoFocus
                   />
                   <Field
                     label={t('auth.email')}
                     icon={<icons.email size={15} />}
+                    type="email"
                     value={rEmail}
-                    onChange={setREmail}
+                    onValueChange={setREmail}
                     placeholder={t('auth.emailPlaceholder')}
                     error={touched ? registerErrors.email : undefined}
+                    autoComplete="email"
                   />
                   <div>
                     <Field
@@ -552,9 +556,10 @@ export function LockScreen() {
                       icon={<icons.lock size={15} />}
                       type="password"
                       value={rPass}
-                      onChange={setRPass}
+                      onValueChange={setRPass}
                       placeholder={t('auth.minChars')}
                       error={touched ? registerErrors.password : undefined}
+                      autoComplete="new-password"
                     />
                     {rPass && (
                       <div className="mt-2 flex gap-1">
@@ -582,12 +587,15 @@ export function LockScreen() {
                     icon={<icons.biometry size={15} />}
                     type="password"
                     value={rConfirm}
-                    onChange={setRConfirm}
+                    onValueChange={setRConfirm}
                     placeholder={t('auth.repeat')}
                     error={touched ? registerErrors.confirm : undefined}
+                    autoComplete="new-password"
                   />
 
-                  <PrimaryButton loading={loading} label={t('auth.createAccount')} />
+                  <Button type="submit" size="lg" block cut loading={loading}>
+                    {t('auth.createAccount')}
+                  </Button>
                 </motion.form>
               )}
             </AnimatePresence>
@@ -620,153 +628,83 @@ export function LockScreen() {
 /**
  * Sign-in-by-phone dialog (F6.4).
  *
- * The last hand-rolled overlay in the product, and it carried every defect the
- * `F6.1` pass fixed elsewhere:
+ * Was the last hand-rolled overlay in the product: `absolute inset-0` inside
+ * the lock-screen root (so it centred against the page and overflowed on a
+ * short window), a hard-coded `z-50` fighting the banner rung, and no way out
+ * at all — the guest who opened it by mistake watched a spinner until the
+ * handshake timed out.
  *
- *   • it was `absolute inset-0` inside the lock-screen root rather than a
- *     portalled `fixed` layer, so it centred against the *page* — on a short
- *     window the QR block grew past both edges with no scroll port to recover it;
- *   • it hard-coded `z-50`, which is the `banner` rung: a reconnect strip and
- *     this dialog fought over the same plane, winner decided by render order;
- *   • it had **no way out**. No Escape, no scrim click, no button — the guest who
- *     opened it by mistake watched a spinner until the handshake timed out. On a
- *     kiosk, with a queue behind them, that is the worst possible dead end.
- *
- * Routing it through `Overlay` fixes the geometry and the ladder; the explicit
- * cancel button fixes the dead end, because a scrim click alone is not a
- * discoverable exit for a first-time walk-in guest.
+ * C1.1 hands all of that to `Modal` (F1.8): portalled layer, the `modal` rung
+ * of the ladder, `svh`-based height, focus trap, Escape and scrim click. The
+ * explicit cancel button stays in the pinned footer, because a scrim click
+ * alone is not a discoverable exit for a first-time walk-in guest.
  */
 function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
   const { t } = useT()
-  const titleId = useId()
-  const bodyId = useId()
-  const panelRef = useDismissableLayer({ open, onClose: onCancel })
 
   return (
-    <Overlay open={open} layer="modal" onDismiss={onCancel}>
-      <motion.div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        tabIndex={-1}
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className={cn(
-          'glass-strong flex w-full max-w-sm flex-col overflow-hidden rounded-3xl outline-none',
-          OVERLAY_MAX_H,
-        )}
-      >
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto p-8">
-          <MockQr />
-          <p id={titleId} className="font-display text-lg font-bold text-text-high text-balance">
-            {t('auth.scanWithApp')}
-          </p>
-          <p id={bodyId} className="flex items-center gap-2 text-sm text-text-medium">
-            <icons.pending size={14} className="animate-spin text-primary" aria-hidden />
-            {t('auth.waitingConfirmation')}
-          </p>
-        </div>
-
-        {/* Pinned outside the scroll body — the way out must never be the thing
-            you have to scroll to find. */}
-        <div className="shrink-0 px-8 pb-8">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="w-full rounded-md border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
-      </motion.div>
-    </Overlay>
-  )
-}
-
-function Field({
-  label,
-  icon,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  error,
-  trailing,
-  autoFocus,
-}: {
-  label: string
-  icon?: React.ReactNode
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  type?: string
-  error?: string
-  trailing?: React.ReactNode
-  autoFocus?: boolean
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="label-mono text-[10px] text-text-low">{label}</label>
-      <div
-        className="well flex items-center gap-2.5 rounded-lg border px-3.5 transition-all focus-within:border-primary focus-within:well-deep focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
-        style={{ borderColor: error ? 'var(--danger)' : 'var(--border)' }}
-      >
-        {icon && <span className="shrink-0 text-text-low">{icon}</span>}
-        <input
-          type={type}
-          value={value}
-          autoFocus={autoFocus}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent py-2.5 text-sm text-text-high outline-none placeholder:text-text-low"
-        />
-        {trailing}
-      </div>
-      {error && <span className="text-xs text-danger">{error}</span>}
-    </div>
-  )
-}
-
-function PrimaryButton({ loading, label }: { loading: boolean; label: string }) {
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="group relative flex h-12 items-center justify-center gap-2 overflow-hidden bg-primary font-display text-sm font-bold uppercase tracking-[0.14em] text-primary-foreground shadow-[0_0_24px_rgba(229,53,43,0.35)] transition-all hover:bg-primary-hover hover:shadow-[0_0_36px_rgba(229,53,43,0.55)] disabled:opacity-70 [clip-path:polygon(0_0,100%_0,100%_calc(100%-12px),calc(100%-12px)_100%,0_100%)]"
+    <Modal
+      open={open}
+      onClose={onCancel}
+      size="sm"
+      eyebrow="QR"
+      title={t('auth.qrLogin')}
+      footer={
+        <Button variant="secondary" size="md" block onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+      }
     >
-      {/* sheen sweep on hover */}
-      <span
-        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full"
-        aria-hidden
-      />
-      {loading ? <icons.pending size={18} className="animate-spin" /> : label}
-    </button>
+      <div className="flex flex-col items-center gap-4 py-2">
+        <MockQr />
+        <p className="font-display text-lg font-bold text-text-high text-balance">
+          {t('auth.scanWithApp')}
+        </p>
+        <p className="flex items-center gap-2 text-sm text-text-medium">
+          <icons.pending size={14} className="animate-spin text-primary" aria-hidden />
+          {t('auth.waitingConfirmation')}
+        </p>
+      </div>
+    </Modal>
   )
 }
 
-function SecondaryButton({
+/**
+ * Tertiary way-in tile — icon over label, three to a row under the CTA.
+ *
+ * A composition, not a component: `Button` supplies the frame, the focus ring
+ * and the `stack` layout, `IconTile` the framed glyph. `voice="plain"` is the
+ * F2.6 fix — LT renders `admin` as "Administratorius", and tracked uppercase
+ * made that three lines in a ~90 px cell.
+ */
+function OptionButton({
   onClick,
   icon,
   label,
+  disabled,
 }: {
   onClick: () => void
-  icon: React.ReactNode
+  icon: LucideIcon
   label: string
+  disabled?: boolean
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
+      voice="plain"
+      stack
       onClick={onClick}
-      className="group flex flex-col items-center gap-2 rounded-md border border-border bg-white/[0.03] px-2 py-3 text-[11px] font-medium text-text-medium transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-text-high hover:shadow-[0_0_20px_-4px_rgba(229,53,43,0.45)]"
+      disabled={disabled}
+      className="h-auto px-2 text-[11px] leading-tight text-text-medium hover:text-text-high"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary shadow-[0_0_12px_rgba(229,53,43,0.22),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all group-hover:border-primary/60 group-hover:bg-primary/20 group-hover:text-white group-hover:shadow-[0_0_18px_rgba(229,53,43,0.5),0_0_4px_rgba(255,255,255,0.3)]">
-        {icon}
-      </span>
+      <IconTile
+        icon={icon}
+        variant="primary"
+        size="sm"
+        className="transition-all group-hover/button:border-primary/60 group-hover/button:bg-primary/20"
+      />
       {label}
-    </button>
+    </Button>
   )
 }
 

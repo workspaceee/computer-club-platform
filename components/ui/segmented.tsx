@@ -68,7 +68,7 @@ export function Segmented<T extends string>({
         // A track is a well (§3.3): the pill slides inside a recess, not on top
         // of the panel. No `focus-within` rung here — see `.well-deep`.
         'well relative flex border border-border',
-        round ? 'rounded-full' : 'rounded-md',
+        trackRadius,
         pad,
         className,
       )}
@@ -86,7 +86,7 @@ export function Segmented<T extends string>({
             className={cn(
               'relative flex items-center justify-center gap-1.5 font-display font-semibold uppercase tracking-widest transition-colors',
               'outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
-              round ? 'rounded-full' : 'rounded-sm',
+              segRadius,
               seg,
               fill && 'flex-1',
               active
@@ -103,7 +103,7 @@ export function Segmented<T extends string>({
                 aria-hidden
                 className={cn(
                   'absolute inset-0',
-                  round ? 'rounded-full' : 'rounded-sm',
+                  segRadius,
                   variant === 'pill'
                     ? // Translucent instead of a solid red fill, so the pill
                       // reads as lit glass over the track: the shell's shared
