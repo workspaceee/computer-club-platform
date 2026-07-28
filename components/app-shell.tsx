@@ -29,6 +29,7 @@
  */
 
 import { GuestNotice } from '@/components/launcher/guest-notice'
+import { InGameStrip } from '@/components/launcher/in-game-strip'
 import { MobileNav } from '@/components/launcher/mobile-nav'
 import { TopBar } from '@/components/launcher/top-bar'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
@@ -75,6 +76,13 @@ export function AppShell({
 
       {/* The one line that explains a guest's missing sections (F6.2). */}
       {surface === 'guest' && <GuestNotice />}
+
+      {/* The one line that explains a quiet launcher (F8.4). In the frame rather
+          than in a section, because the silence outlives any section change —
+          and directly under the bar, next to the session clock, because the
+          clock is the exception it promises still gets through. Renders nothing
+          unless a title holds the machine. */}
+      <InGameStrip />
 
       {/* `pb-24` on narrow screens is the mobile bar's reserved space: the bar is
           fixed, so without it the last card would sit underneath the navigation. */}

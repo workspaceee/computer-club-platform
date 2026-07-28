@@ -162,6 +162,11 @@ export const lt: Dictionary = {
     openLibrary: 'Atidaryti biblioteką',
     noAccounts: 'Laisvų paskyrų nėra',
     noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
+    inGame: 'Žaidime',
+    inGameNow: 'Veikia {name}',
+    inGameQuiet:
+      'Paleidyklės garsai pristabdyti. Laiko įspėjimai ir administratoriaus žinutės vis tiek skambės.',
+    backToLauncher: 'Žaidimas uždarytas',
   },
 
   shop: {

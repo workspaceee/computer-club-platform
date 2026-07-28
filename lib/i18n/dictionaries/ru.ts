@@ -161,6 +161,11 @@ export const ru: Dictionary = {
     openLibrary: 'Открыть библиотеку',
     noAccounts: 'Свободных аккаунтов нет',
     noAccountsBody: 'Все клубные аккаунты для этой игры заняты. Попросите администратора освободить место.',
+    inGame: 'В игре',
+    inGameNow: 'Идёт {name}',
+    inGameQuiet:
+      'Звуки лаунчера на паузе. Предупреждение о времени и сообщение админа всё равно прозвучат.',
+    backToLauncher: 'Игра закрыта',
   },
 
   shop: {
@@ -217,7 +222,7 @@ export const ru: Dictionary = {
     achievements: 'Достижения',
     noAchievements: 'Достижений пока нет',
     noAchievementsBody: 'Проведите сессию — первые награды начнут открываться.',
-    activity: 'Последняя активность',
+    activity: '��оследняя активность',
     noActivity: 'Активности пока нет',
     noActivityBody: 'Сессии, покупки и открытия появятся здесь.',
     prizeLadder: 'Лестница призов',
