@@ -182,7 +182,7 @@ export const ru: Dictionary = {
     catTime: 'Время',
     catGear: 'Девайсы',
     sectionEmpty: 'В этом разделе пусто',
-    sectionEmptyBody: 'Клуб пополняет запасы. Откройте другую вкладку или спросите на стойке.',
+    sectionEmptyBody: 'К��уб пополняет запасы. Откройте другую вкладку или спросите на стойке.',
   },
 
   wallet: {
@@ -303,6 +303,11 @@ export const ru: Dictionary = {
     gameVolume: 'Громкость игры',
     chatVolume: 'Громкость чата',
     outputDevice: 'Устройство вывода',
+    interfaceGroup: 'Лаунчер',
+    interfaceSounds: 'Звуки интерфейса',
+    interfaceSoundsHint:
+      'Только сигналы лаунчера: уведомления, подтверждения, предупреждения о времени. Игры и голосовой чат не затрагиваются.',
+    interfaceVolume: 'Громкость интерфейса',
     mouseSensitivity: 'Чувствительность мыши',
     serverRegion: 'Игровой регион',
     language: 'Язык интерфейса',
@@ -337,11 +342,11 @@ export const ru: Dictionary = {
     unavailableBody:
       'Агент станции не запущен, поэтому лончер не может открывать панели Windows и менять настройки железа.',
     unavailableHint: 'Попросите администратора перезапустить агента станции.',
-    unsupported: 'Нед��ступно на этом оборудовании',
+    unsupported: 'Нед����ступно на этом оборудовании',
     recheck: 'Проверить снова',
     open: 'Открыть',
     opening: 'Открываем…',
-    openedToast: '{panel} открыт на рабочем столе',
+    openedToast: '{panel} открыт на рабоч��м столе',
     panelNvidia: 'Панель управления NVIDIA',
     panelNvidiaHint: 'Резкость, режим задержки, цвет.',
     panelWindowsDisplay: 'Настройки экрана',

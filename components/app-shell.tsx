@@ -35,6 +35,7 @@ import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { SessionManager } from '@/components/session-manager'
+import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
 import { useSfxPreload } from '@/hooks/use-sfx'
 import { useT } from '@/lib/i18n/provider'
@@ -104,12 +105,17 @@ export function AppShell({
  * `useSfxPreload()` is here for the same reason (F8.2): the sound set is decoded
  * once per station, during idle time, so the first cue is instant instead of
  * arriving after its own fetch. It renders nothing and never blocks boot.
+ *
+ * `SfxSettingsBridge` (F8.3) is mounted here rather than inside the settings
+ * modal for the same reason: the modal is unmounted most of the time, and a mute
+ * switch that only applies while its own panel is open is not a setting.
  */
 export function GlobalOverlays() {
   useSfxPreload()
 
   return (
     <>
+      <SfxSettingsBridge />
       <GameLaunchModal />
       <CartDrawer />
       <SettingsModal />

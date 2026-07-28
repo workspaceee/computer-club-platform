@@ -304,6 +304,11 @@ export const lt: Dictionary = {
     gameVolume: 'Žaidimo garsas',
     chatVolume: 'Pokalbio garsas',
     outputDevice: 'Išvesties įrenginys',
+    interfaceGroup: 'Paleidyklė',
+    interfaceSounds: 'Sąsajos garsai',
+    interfaceSoundsHint:
+      'Tik paleidyklės signalai: pranešimai, patvirtinimai, laiko įspėjimai. Žaidimų ir pokalbių garsas nekeičiamas.',
+    interfaceVolume: 'Sąsajos garsas',
     mouseSensitivity: 'Pelės jautrumas',
     serverRegion: 'Serverio regionas',
     language: 'Sąsajos kalba',
