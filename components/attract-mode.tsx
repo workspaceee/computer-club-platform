@@ -246,14 +246,32 @@ export function AttractMode() {
             </div>
           )}
 
-          {/* wake hint */}
+          {/* Wake hint — the only instruction on the idle screen, so it gets a
+              deliberate entrance (fades up once the clock lockup has landed)
+              and then a permanent, legible attention loop: breathing halo,
+              warming copy and a red scan beam. `overflow-hidden` clips the
+              beam to the pill; the neon ring still paints over it because its
+              pseudo-elements sit at z-index 3. */}
           <motion.span
-            animate={{ opacity: [0.45, 1, 0.45] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="neon-ring mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.9, ease: 'easeOut' }}
+            className="neon-ring wake-hint relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 bg-black/55 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
           >
-            <icons.controls size={13} className="text-primary" />
-            Move mouse to unlock
+            <span
+              aria-hidden
+              className="wake-hint-scan pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+            />
+            {/* The mark mimes the gesture it is asking for — a small horizontal
+                nudge reads as "move", which a static mouse icon does not. */}
+            <motion.span
+              animate={{ x: [0, 5, 0] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              className="relative flex"
+            >
+              <icons.controls size={13} className="text-primary" />
+            </motion.span>
+            <span className="wake-hint-copy relative">Move mouse to unlock</span>
           </motion.span>
         </motion.div>
 

@@ -607,6 +607,60 @@
   animation: urgency-pulse 1.4s ease-in-out infinite;
 }
 
+/* Idle-screen wake hint ("Move mouse to unlock").
+   It competes with fullscreen banner art, so it can't rely on the old
+   opacity flicker down to 0.45 — that made the one instruction on the
+   screen the dimmest thing on it. Instead the pill keeps full contrast and
+   the *glow* breathes around it: the halo swells, the copy warms up, and a
+   red scan beam crosses the pill so the eye is caught by movement rather
+   than by the text disappearing. */
+@keyframes wake-hint-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.45),
+      0 0 16px rgba(229, 53, 43, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.45),
+      0 0 34px rgba(229, 53, 43, 0.34);
+  }
+}
+.wake-hint {
+  animation: wake-hint-breathe 2.8s ease-in-out infinite;
+}
+/* Copy stays legible at the trough (0.82, not 0.45) — this is a nudge in
+   brightness, not a fade-out. */
+@keyframes wake-hint-copy {
+  0%,
+  100% {
+    opacity: 0.82;
+    text-shadow: 0 0 8px rgba(229, 53, 43, 0.16);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 14px rgba(229, 53, 43, 0.45);
+  }
+}
+.wake-hint-copy {
+  animation: wake-hint-copy 2.8s ease-in-out infinite;
+}
+/* Scan beam. Slightly slower than the glow and with a long tail at the end
+   of the cycle, so the sweeps arrive in bursts instead of strobing. */
+@keyframes wake-hint-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  55%,
+  100% {
+    transform: translateX(200%);
+  }
+}
+.wake-hint-scan {
+  animation: wake-hint-scan 3.8s ease-in-out infinite;
+}
+
 /* Global motion damping.
    `data-reduce-motion` is set on <html> from the user's "Reduce animations"
    setting; the media query covers the OS-level preference. Decorative,
@@ -622,6 +676,9 @@
 :root[data-reduce-motion='true'] .scanline::before,
 :root[data-reduce-motion='true'] .marquee-track,
 :root[data-reduce-motion='true'] .caret-blink,
+:root[data-reduce-motion='true'] .wake-hint,
+:root[data-reduce-motion='true'] .wake-hint-copy,
+:root[data-reduce-motion='true'] .wake-hint-scan,
 :root[data-reduce-motion='true'] .urgency-pulse {
   animation: none !important;
 }
@@ -640,6 +697,9 @@
   .scanline::before,
   .marquee-track,
   .caret-blink,
+  .wake-hint,
+  .wake-hint-copy,
+  .wake-hint-scan,
   .urgency-pulse {
     animation: none !important;
   }
