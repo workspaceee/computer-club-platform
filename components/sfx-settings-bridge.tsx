@@ -79,7 +79,7 @@ export function SfxSettingsBridge() {
       // autoplay policy (F8.5). `notify` is the neutral cue of the set — a
       // preview must not sound like an error or a reward.
       void sfx.arm().then((allowed) => {
-        if (allowed) console.log('[v0] preview outcome:', sfx.play('notify'))
+        if (allowed) sfx.play('notify')
       })
     }, PREVIEW_SETTLE_MS)
 

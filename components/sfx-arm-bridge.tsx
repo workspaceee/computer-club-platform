@@ -85,9 +85,7 @@ export function SfxArmBridge() {
       // snapshot, and a failed attempt costs nothing because the listeners are
       // still up. `arm()` dedupes concurrent calls, so a drag that emits many
       // pointer events asks the browser once.
-      void sfx.arm().then((allowed) =>
-        console.log('[v0] arm from', event.type, '→ allowed:', allowed, sfx.getSnapshot().armed),
-      )
+      void sfx.arm()
     }
 
     for (const type of GESTURES) {
