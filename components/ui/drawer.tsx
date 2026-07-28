@@ -67,7 +67,9 @@ export function Drawer({
           <div
             aria-hidden
             onClick={dismissable ? onClose : undefined}
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            // Same `scrim` depth as a dialog: to the eye a drawer and a modal
+            // are the same event (§3.3).
+            className="scrim absolute inset-0 backdrop-blur-sm"
           />
 
           <motion.div

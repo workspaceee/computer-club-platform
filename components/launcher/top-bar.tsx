@@ -167,7 +167,9 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
         <motion.div
           animate={critical ? { scale: [1, 1.04, 1] } : { scale: 1 }}
           transition={{ duration: 1, repeat: critical ? Infinity : 0 }}
-          className="flex items-center gap-2.5 rounded-md border bg-black/30 px-3 py-1.5"
+          // A plate riding on the bar's own glass, so `pill` (§3.3) — the same
+          // depth as the firmware strip on the login card, which is the point.
+          className="pill flex items-center gap-2.5 rounded-md border px-3 py-1.5"
           style={{ borderColor: low ? timerColor : 'var(--border)' }}
         >
           <icons.timer size={14} style={{ color: timerColor }} />
