@@ -123,6 +123,40 @@
   --veil-ink-deep: 3 4 8;
   --veil-floor: 0.18;
   --veil-floor-deep: 0.35;
+
+  /* ---- Depth scale (F9.3, see DESIGN.md §3.3) ----
+     Black inside the interface — as opposed to black over media, which is §3's
+     veils — used to be spelled out as `bg-black/NN` at the point of use: 18
+     calls in nine densities (`/20 /25 /30 /35 /40 /55 /60 /70 /85`) doing three
+     unrelated jobs. Nobody chose nine; the ninth simply belonged to whoever
+     wrote the newest screen. Depth is now a decision with three roles:
+
+       --well  a surface recessed INTO a panel — an input frame, a segmented
+               track, a grouped row. It reads as a hole, so it is darker than
+               the panel it sits in and never carries a shadow.
+       --scrim darkening BETWEEN a raised layer and everything under it —
+               modal and drawer backdrops, the blocking session sheet, the
+               band a ticker rides on. Its job is to erase, not to tint.
+       --pill  a plate riding ON TOP of chrome or media — a telemetry chip, a
+               card footer, a close button over cover art. Its job is to buy
+               its own copy a contrast floor without hiding the frame.
+
+     Alphas, not colours: interface depth is neutral black on purpose (the two
+     coloured inks are §3's, and they exist because they sit over graded
+     photography). Bare numbers make the rungs composable — the step below and
+     above `--well` are `calc()`, not two more literals, so a row and a focused
+     field cannot drift apart the way `/20` and `/25` did.
+
+     `--pill-deep` is the one rung off the 0.2 ladder, and deliberately so: it
+     is the idle screen's wake pill, whose media is video or a slideshow nobody
+     previewed — the same argument that gives §3 two inks. F9 forbids moving a
+     pixel on the two reference screens, so this value is carried over verbatim
+     rather than rounded to the ladder. */
+  --depth-step: 0.2;
+  --well: 0.4;
+  --scrim: 0.7;
+  --pill: 0.3;
+  --pill-deep: 0.55;
 }
 
 @layer base {
@@ -289,6 +323,51 @@
   opacity: 0.06;
   mix-blend-mode: overlay;
   pointer-events: none;
+}
+
+/* ---------- Depth scale (§3.3) ---------- */
+/* Six rungs, three roles, one ladder. The two derived rungs are `calc()` off
+   `--well` so the recessed family stays a scale: change `--well` and the row
+   and the focused field follow it, which is exactly what nine hand-written
+   `bg-black/NN` calls could not do.
+
+   Backgrounds only — never a border, never a shadow. Depth here is a fill; the
+   edge of a well is `--border`, and a scrim has no edge at all. */
+
+/* A row grouped inside an already dark panel: recessed, but not a control. */
+@utility well-shallow {
+  background-color: rgb(0 0 0 / calc(var(--well) - var(--depth-step)));
+}
+
+/* The standard recess: input frames, segmented tracks, tab strips. */
+@utility well {
+  background-color: rgb(0 0 0 / var(--well));
+}
+
+/* The same recess while focus is inside it. Applied by the caller as
+   `focus-within:well-deep` rather than baked into `.well`, because a segmented
+   track and a tab strip are wells too and must NOT darken when a child button
+   takes focus — the sliding pill and the ring already say where focus is. */
+@utility well-deep {
+  background-color: rgb(0 0 0 / calc(var(--well) + var(--depth-step)));
+}
+
+/* Darkening under a raised layer. One depth for every backdrop in the product:
+   a dialog, a drawer and the blocking session sheet are the same event as far
+   as the eye is concerned, and they all pair this with `backdrop-blur-*`. */
+@utility scrim {
+  background-color: rgb(0 0 0 / var(--scrim));
+}
+
+/* A plate on chrome or on a still frame. */
+@utility pill {
+  background-color: rgb(0 0 0 / var(--pill));
+}
+
+/* A plate on moving or unvetted media (video, slideshow), and the hover of a
+   plate that sits directly on artwork. */
+@utility pill-deep {
+  background-color: rgb(0 0 0 / var(--pill-deep));
 }
 
 /* Matte tactical panel with hairline border + top highlight */

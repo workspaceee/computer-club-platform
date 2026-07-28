@@ -352,7 +352,9 @@ function PrizeLadder() {
                   key={prize.coins}
                   className={cn(
                     'flex items-center gap-3 rounded-md border px-4 py-3 transition-colors',
-                    reached ? 'border-primary/40 bg-primary/10' : 'border-border bg-black/20',
+                    // Unreached rows are recessed into the panel — the shallow
+                    // rung of the well family (§3.3).
+                    reached ? 'border-primary/40 bg-primary/10' : 'border-border well-shallow',
                   )}
                 >
                   <IconTile icon={Icon} size="md" variant={reached ? 'primary' : 'muted'} />

@@ -400,7 +400,9 @@ export function LockScreen() {
             </AnimatePresence>
 
             {/* ------- mode switch : segmented tabs ------- */}
-            <div className="mt-6 grid grid-cols-2 rounded-lg border border-border bg-black/40 p-1">
+            {/* A track is a `well` (§3.3) — the pill slides inside a recess. No
+                focus rung: the ring and the pill already say where focus is. */}
+            <div className="well mt-6 grid grid-cols-2 rounded-lg border border-border p-1">
               {(['login', 'register'] as Mode[]).map((m) => (
                 <button
                   key={m}
@@ -580,7 +582,8 @@ export function LockScreen() {
           </div>
 
           {/* ------- card footer strip ------- */}
-          <div className="relative z-[2] flex items-center justify-end border-t border-border bg-black/30 px-7 py-3">
+          {/* Firmware strip — a plate on the card, so `pill` (§3.3). */}
+          <div className="pill relative z-[2] flex items-center justify-end border-t border-border px-7 py-3">
             <span className="label-mono text-[9px] text-text-low">
               {t('common.shell')} v2.4
             </span>
@@ -729,7 +732,7 @@ function Field({
     <div className="flex flex-col gap-1.5">
       <label className="label-mono text-[10px] text-text-low">{label}</label>
       <div
-        className="flex items-center gap-2.5 rounded-lg border bg-black/40 px-3.5 transition-all focus-within:border-primary focus-within:bg-black/60 focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
+        className="well flex items-center gap-2.5 rounded-lg border px-3.5 transition-all focus-within:border-primary focus-within:well-deep focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]"
         style={{ borderColor: error ? 'var(--danger)' : 'var(--border)' }}
       >
         {icon && <span className="shrink-0 text-text-low">{icon}</span>}
