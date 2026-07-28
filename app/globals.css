@@ -124,6 +124,15 @@
   --veil-floor: 0.18;
   --veil-floor-deep: 0.35;
 
+  /* The opaque floor UNDER the media (F9.7b). The translucent floors above sit
+     on top of a loaded frame; this one is what the eye sees while the frame is
+     still decoding, letterboxed, or missing — so it is a full-screen fill, not
+     a veil. It used to be spelled `bg-black` in three files, which is the same
+     hole as `bg-black/NN`: a black chosen in JSX. Pure black is kept verbatim
+     (F9 forbids moving a pixel on the two reference screens) and, like the
+     floors, it must stay colour-neutral. */
+  --veil-base: 0 0 0;
+
   /* ---- Depth scale (F9.3, see DESIGN.md §3.3) ----
      Black inside the interface — as opposed to black over media, which is §3's
      veils — used to be spelled out as `bg-black/NN` at the point of use: 18
@@ -253,6 +262,12 @@
    element — that keeps each layer independently tunable from the admin panel
    later. */
 
+/* The opaque floor under the whole media layer (F9.7b): what shows while the
+   frame decodes or if it never arrives. Not a dimmer — nothing is behind it. */
+@utility veil-base {
+  background-color: rgb(var(--veil-base));
+}
+
 /* Insurance floor, not a dimmer (§3.1). Pure black, colour-neutral. */
 @utility veil-login-floor {
   background-color: rgb(0 0 0 / var(--veil-floor));
@@ -305,6 +320,53 @@
     transparent 26%,
     transparent 58%,
     rgb(var(--veil-ink-deep) / 0.92) 100%
+  );
+}
+
+/* ---------- Card and banner veils (F9.7b) ---------- */
+/* The three veils that were still spelled out at the point of use — two as
+   Tailwind `from-black/NN via-black/NN`, one as an arbitrary
+   `bg-[linear-gradient(...)]` — now named after their consumer like the rest of
+   §3. They carry `--veil-ink` rather than the `#000` / `rgba(10,10,12,·)` they
+   were written with: cover art and campaign banners are graded media, so the
+   argument of §3 applies to them too, and a third ink would only be the start
+   of a fourth. The shift is ~2 levels at the densest stop, and these are not
+   the two pixel-frozen reference screens.
+
+   The cover caption and the hero are deliberately NOT one utility: the caption
+   veil is 12–16 rem tall and has to clear a 16 px title inside its own padding,
+   the hero veil covers a 70 vw frame and must leave the middle of the artwork
+   readable. Same job, different scale — collapsing them would darken the hero
+   or wash out the tile. */
+
+/* Under the title of a cover tile (`GameCover`), bottom-heavy. */
+@utility veil-cover-title {
+  background-image: linear-gradient(
+    to top,
+    rgb(var(--veil-ink) / 0.85) 0%,
+    rgb(var(--veil-ink) / 0.45) 50%,
+    transparent 100%
+  );
+}
+
+/* Under the hero cover on Home: denser at the very bottom, clearing sooner. */
+@utility veil-hero-v {
+  background-image: linear-gradient(
+    to top,
+    rgb(var(--veil-ink) / 0.9) 0%,
+    rgb(var(--veil-ink) / 0.25) 50%,
+    transparent 100%
+  );
+}
+
+/* Horizontal veil of the promo strip: copy lives on the left, so the ink is
+   almost solid there and lets the banner art through on the right. */
+@utility veil-promo-h {
+  background-image: linear-gradient(
+    100deg,
+    rgb(var(--veil-ink) / 0.96) 18%,
+    rgb(var(--veil-ink) / 0.7) 52%,
+    rgb(var(--veil-ink) / 0.15)
   );
 }
 

@@ -235,7 +235,9 @@ export function LockScreen() {
   const dateStr = now ? formatFullDate(now) : ''
 
   return (
-    <div className="relative flex h-full min-h-dvh w-full overflow-hidden bg-black">
+    // `veil-base` (§3), not `bg-black`: the opaque floor under the backdrop is
+    // the same hole as `bg-black/NN` — a black chosen in JSX (F9.7b).
+    <div className="veil-base relative flex h-full min-h-dvh w-full overflow-hidden">
       {/* ------- cinematic backdrop ------- */}
       <div className="absolute inset-0">
         <AssetImage

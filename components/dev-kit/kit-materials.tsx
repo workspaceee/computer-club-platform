@@ -31,7 +31,10 @@ function Frame({
   return (
     <div
       className={cn(
-        'relative isolate overflow-hidden rounded-lg border border-border bg-black',
+        // Same floor role as the two reference screens, so the same token
+        // (`veil-base`, §3) — the showcase is exempt from R1/R3, not licensed
+        // to invent a black the product no longer has.
+        'veil-base relative isolate overflow-hidden rounded-lg border border-border',
         className,
       )}
     >

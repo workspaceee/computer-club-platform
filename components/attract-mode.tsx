@@ -143,7 +143,9 @@ export function AttractMode() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { duration: 1.2, ease: 'easeOut' } }}
       exit={{ opacity: 0, filter: 'blur(12px)', transition: { duration: 0.5, ease: 'easeIn' } }}
-      className="absolute inset-0 z-40 overflow-hidden bg-black"
+      // `veil-base` (§3), not `bg-black`: the opaque floor under the media is
+      // still a black picked for a screen, so it comes from a token (F9.7b).
+      className="veil-base absolute inset-0 z-40 overflow-hidden"
       aria-label="Idle screen. Move the mouse or press any key to unlock."
     >
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
