@@ -54,6 +54,11 @@ export function Segmented<T extends string>({
   const pad = size === 'sm' ? 'p-0.5' : 'p-1'
   const seg =
     size === 'sm' ? 'px-3 py-1 text-[11px]' : 'px-3.5 py-2 text-xs'
+  // The radius follows the size, one rung apart, so the pill stays concentric
+  // inside its track: `md` is a form-level control and matches `Field`'s 10 px
+  // frame (§3.3 wells share an edge language), `sm` is compact chrome.
+  const trackRadius = round ? 'rounded-full' : size === 'sm' ? 'rounded-md' : 'rounded-lg'
+  const segRadius = round ? 'rounded-full' : size === 'sm' ? 'rounded-sm' : 'rounded-md'
 
   return (
     <div
