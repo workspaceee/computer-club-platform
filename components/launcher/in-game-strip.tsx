@@ -94,10 +94,7 @@ export function InGameStrip() {
             // the state ended by hearing it end.
             toast('info', t('games.backToLauncher'))
           }}
-          // `pill` (§3.3): a plate on the warning-tinted strip. It reads as the
-          // same object as the timer chip in the bar above it, which the old
-          // one-off 25 % black did not.
-          className="pill ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border-strong bg-black/25 px-3 py-1.5 text-xs font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         >
           <icons.close size={13} aria-hidden />
           {t('games.backToLauncher')}

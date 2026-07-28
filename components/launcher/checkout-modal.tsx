@@ -125,8 +125,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
               </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-4">
-                {/* Grouped total — recessed into the dialog (`well-shallow`, §3.3). */}
-                <div className="well-shallow flex items-center justify-between rounded-lg px-4 py-3">
+                <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
                   <span className="text-sm text-text-medium">{t('shop.total')}</span>
                   <span className="font-display text-xl font-black text-text-high">
                     {formatEur(totalCents)}
@@ -227,9 +226,7 @@ function CardField({ label, children }: { label: string; children: React.ReactNo
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</span>
-      {/* An input frame is a `well` (§3.3) — the same recess `Field` uses, so a
-          card number does not read as a shallower hole than an email. */}
-      <div className="well rounded-lg border border-border px-3 py-2.5 focus-within:border-primary focus-within:well-deep">
+      <div className="rounded-lg border border-border bg-black/20 px-3 py-2.5 focus-within:border-primary">
         {children}
       </div>
     </label>
