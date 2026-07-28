@@ -20,6 +20,48 @@
       a.pause()
     } catch {}
   })
+  /* Stop the JS-driven clocks, then pin the idle screen's Ken Burns layer.
+   *
+   * The zoom is a Framer Motion `scale` (1 -> 1.12 over 11s) applied as an
+   * INLINE transform driven by rAF, so neither `animation: none` nor
+   * `getAnimations()` above can reach it: CSS never owned the property. The
+   * idle capture lands ~4s into that ramp, so a few ms of jitter between two
+   * runs rescales the full-bleed wallpaper and repaints ~38% of the frame —
+   * enough noise to bury the block entirely.
+   *
+   * Assigning `style.transform = 'none'` on its own is NOT enough: Framer
+   * rewrites the property on its next frame, so the pin is gone before the
+   * screenshot (measured: still `scale(1.05475)` at capture, pair still
+   * differing 23%). Replacing the layer with a detached clone does hold, but
+   * React later tries to unmount the node it no longer owns and the run dies
+   * on `removeChild ... is not a child of this node` in AnimatePresence.
+   *
+   * So the driver is stopped instead of the DOM being rewritten: rAF becomes a
+   * no-op (Framer's loop cannot schedule another frame) and the pending timers
+   * are cleared (the 9s slide rotation, the clock tick, the 2.2s ping re-roll),
+   * which leaves React's tree intact and owned by React. After that the inline
+   * transform can be set once and it stays set. */
+  window.requestAnimationFrame = () => 0
+  window.cancelAnimationFrame = () => {}
+  // No registry of live timer ids exists, so sweep the plausible range.
+  for (let id = 1; id < 10000; id++) {
+    clearInterval(id)
+    clearTimeout(id)
+  }
+  window.setInterval = () => 0
+  window.setTimeout = () => 0
+
+  /* Scoped to the media layer so a transform regression anywhere else in the
+   * tree still shows up as a diff. Forcing opacity also collapses a crossfade
+   * (two stacked slides) down to the incoming frame. */
+  const media = [...document.querySelectorAll('div.absolute.inset-0')].filter((el) =>
+    /scale|matrix|translate/.test(el.style.transform || ''),
+  )
+  media.forEach((el, i) => {
+    el.style.transform = 'none'
+    el.style.opacity = i === media.length - 1 ? '1' : '0'
+  })
+
   /* Freeze the live readouts. Two of them, both real diff generators:
    *   • wall-clock digits — the minute rolling over between the two captures
    *     reads as a diff in the largest type on either screen;
@@ -48,5 +90,5 @@
       c++
     }
   }
-  return 'frozen, normalized ' + c
+  return 'frozen, normalized ' + c + ' readout(s), pinned ' + media.length + ' media layer(s)'
 })()
