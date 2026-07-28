@@ -63,7 +63,7 @@ interface PasswordRecoveryProps {
   /** Prefilled from the sign-in field when the player typed an address there. */
   initialEmail?: string
   step: RecoveryStep
-  onStepChange: (step: RecoveryStep) => void
+  onStateChange: (state: RecoveryState) => void
   /** Back out to the sign-in form. */
   onCancel: () => void
   /** The flow ends signed in — see `completePasswordReset`. */

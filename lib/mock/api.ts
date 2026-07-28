@@ -7,7 +7,7 @@
 //
 // Domains:
 //   client    transport, `ApiError`, fault injection (`mockFaults`)
-//   auth      sign-in, register, guest, QR handshake
+//   auth      sign-in, register, password recovery, guest, QR handshake
 //   profile   profile, wallet, preferences, privacy
 //   session   the live session: heartbeat, pause, extend, end
 //   catalog   games, club, zones, seats, occupancy
