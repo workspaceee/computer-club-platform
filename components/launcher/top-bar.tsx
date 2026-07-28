@@ -7,7 +7,6 @@ import { ImbaLogo } from '@/components/imba-logo'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
-import { sfx as sfxProbe } from '@/lib/sfx'
 import { formatCoins, formatEur, sumCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
 import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
@@ -164,16 +163,6 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => {
-            console.log('[v0] baseline notify ->', sfxProbe.play('notify'))
-            console.log('[v0] baseline time-warning ->', sfxProbe.play('time-warning'))
-            console.log('[v0] baseline gameRunning ->', sfxProbe.getSnapshot().gameRunning)
-          }}
-          className="rounded-md border border-border px-2 py-1 text-[10px] text-text-low"
-        >
-          probe
-        </button>
         {/* Session timer */}
         <motion.div
           animate={critical ? { scale: [1, 1.04, 1] } : { scale: 1 }}

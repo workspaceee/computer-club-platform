@@ -47,6 +47,23 @@ export function SfxEngineConsole() {
     play('time-warning')
   }, [play])
 
+  /**
+   * F8.4 in one press: a decorative cue and a critical one, fired back to back
+   * under whatever the in-game toggle currently says.
+   *
+   * This pair is the only honest way to read the rule, because the two halves
+   * fail in opposite directions and each looks fine alone. A launcher that has
+   * simply gone deaf also silences `notify` — so `notify → in-game` proves
+   * nothing by itself. And `time-warning → played` proves nothing either, since
+   * a launcher ignoring the rule entirely plays it too. Only the two outcomes
+   * *side by side in the same state* separate "stayed out of the way" from
+   * "broken" and from "ignored the rule".
+   */
+  const inGamePair = useCallback(() => {
+    play('notify')
+    play('time-warning')
+  }, [play])
+
   return (
     <div className="flex flex-col gap-6">
       <Panel variant="strong" radius="lg" className="flex flex-col gap-5">
@@ -68,6 +85,12 @@ export function SfxEngineConsole() {
           )}
           <Badge tone={state.voices > 0 ? 'info' : 'neutral'} variant="soft" size="sm">
             {`${state.voices}/${MAX_VOICES} voices`}
+          </Badge>
+          {/* F8.4. Shown as a first-class engine state next to `armed` and
+              `muted`, because it changes the outcome of every call the same way
+              they do — a bench that hides it makes `in-game` look like a bug. */}
+          <Badge tone={state.gameRunning ? 'warning' : 'neutral'} variant="soft" size="sm">
+            {state.gameRunning ? 'in game' : 'launcher in front'}
           </Badge>
           {state.blocked && (
             <Badge tone="warning" variant="solid" size="sm">
@@ -98,6 +121,17 @@ export function SfxEngineConsole() {
             onChange={setMuted}
             className="min-w-72 flex-1"
           />
+          {/* Drives the engine directly rather than the store, like `arm()` and
+              `clearSuppression()` above: in the product this flag is owned by
+              `SfxGameBridge`, and that bridge is not mounted on a dev page. What
+              is under test here is the engine's rule, not the wiring. */}
+          <Toggle
+            label="A game holds the machine (F8.4)"
+            description="Only critical cues may sound. Entering also cuts decorative voices already ringing."
+            checked={state.gameRunning}
+            onChange={sfx.setGameRunning}
+            className="min-w-72 flex-1"
+          />
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -118,6 +152,9 @@ export function SfxEngineConsole() {
           <Button variant="secondary" size="sm" onClick={critical}>
             critical vs full bus
           </Button>
+          <Button variant="secondary" size="sm" onClick={inGamePair}>
+            notify + time-warning
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => sfx.clearSuppression()}>
             clear windows
           </Button>
@@ -129,6 +166,11 @@ export function SfxEngineConsole() {
 
         <p className="text-xs leading-relaxed text-text-low">
           {`A cue holds the floor for its own length plus ${RETRIGGER_GAP_MS} ms, so "notify ×5" must read played + four suppressed. Press it twice in a row slowly and the second press plays again — suppression is a window, not a rate limit.`}
+        </p>
+        <p className="text-xs leading-relaxed text-text-low">
+          {
+            'With a game holding the machine, "notify + time-warning" must read in-game then played — one refused, one through. Mute on top and both read muted instead: an explicit choice by the player outranks the launcher\u2019s own courtesy, so silence never has two competing reasons.'
+          }
         </p>
       </Panel>
 

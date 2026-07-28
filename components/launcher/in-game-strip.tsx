@@ -44,7 +44,6 @@ import { icons } from '@/lib/icons'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import { fetchGame } from '@/lib/mock/api'
-import { sfx } from '@/lib/sfx'
 import { useStore } from '@/lib/store'
 
 export function InGameStrip() {
@@ -87,16 +86,6 @@ export function InGameStrip() {
         <p className="hidden min-w-0 flex-1 text-xs leading-relaxed text-text-medium sm:block">
           {t('games.inGameQuiet')}
         </p>
-        <button
-          onClick={() => {
-            console.log('[v0] probe notify (decorative) ->', sfx.play('notify'))
-            console.log('[v0] probe time-warning (critical) ->', sfx.play('time-warning'))
-            console.log('[v0] probe snapshot gameRunning ->', sfx.getSnapshot().gameRunning)
-          }}
-          className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] text-text-low"
-        >
-          probe
-        </button>
         <button
           onClick={() => {
             setRunningGame(null)

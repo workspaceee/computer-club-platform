@@ -222,7 +222,7 @@ export const ru: Dictionary = {
     achievements: 'Достижения',
     noAchievements: 'Достижений пока нет',
     noAchievementsBody: 'Проведите сессию — первые награды начнут открываться.',
-    activity: '��оследняя активность',
+    activity: 'Последняя активность',
     noActivity: 'Активности пока нет',
     noActivityBody: 'Сессии, покупки и открытия появятся здесь.',
     prizeLadder: 'Лестница призов',
@@ -338,7 +338,7 @@ export const ru: Dictionary = {
 
   agent: {
     title: 'Этот ПК',
-    subtitle: 'Панели Windows и драйвера для этой станции.',
+    subtitle: 'Панел�� Windows и драйвера для этой станции.',
     statusChecking: 'Ищем агента станции…',
     statusConnected: 'Агент станции подключён',
     statusUnavailable: 'Агента станции нет',
