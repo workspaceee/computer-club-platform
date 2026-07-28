@@ -35,6 +35,7 @@ import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { SessionManager } from '@/components/session-manager'
+import { SfxGameBridge } from '@/components/sfx-game-bridge'
 import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
 import { useSfxPreload } from '@/hooks/use-sfx'
@@ -109,6 +110,11 @@ export function AppShell({
  * `SfxSettingsBridge` (F8.3) is mounted here rather than inside the settings
  * modal for the same reason: the modal is unmounted most of the time, and a mute
  * switch that only applies while its own panel is open is not a setting.
+ *
+ * `SfxGameBridge` (F8.4) likewise: the in-game silence has to hold on every
+ * surface and across every section change, and the launch dialog — the thing
+ * that starts a game — closes the instant the game comes up, so a wire living
+ * inside it would be unmounted for the entire span it is meant to cover.
  */
 export function GlobalOverlays() {
   useSfxPreload()
@@ -116,6 +122,7 @@ export function GlobalOverlays() {
   return (
     <>
       <SfxSettingsBridge />
+      <SfxGameBridge />
       <GameLaunchModal />
       <CartDrawer />
       <SettingsModal />

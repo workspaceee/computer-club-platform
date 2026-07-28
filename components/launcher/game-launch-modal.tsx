@@ -22,6 +22,7 @@ export function GameLaunchModal() {
   const { t } = useT()
   const launchGameId = useStore((s) => s.launchGameId)
   const setLaunchGame = useStore((s) => s.setLaunchGame)
+  const setRunningGame = useStore((s) => s.setRunningGame)
   const toast = useStore((s) => s.toast)
 
   // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
@@ -91,9 +92,17 @@ export function GameLaunchModal() {
         launchGame(game.id),
         new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
       ])
+      // The confirmation belongs to the *launcher's* action and is raised while
+      // the launcher is still what the player is looking at, so it goes out
+      // before the machine is handed over.
       toast('success', `${game.name} launched! Minimizing...`)
       setLaunching(false)
       setLaunchGame(null)
+      // From here the title holds the machine, and the shell goes quiet except
+      // for the session clock and an administrator (F8.4). This is the only
+      // place that enters that state, because it is the only place that knows a
+      // start actually succeeded — the dialog closing is not the same event.
+      setRunningGame(game.id)
     } catch (err) {
       setLaunching(false)
       // The API answers with a code; the wording stays in the UI (F2.2).
