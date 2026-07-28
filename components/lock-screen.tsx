@@ -10,6 +10,11 @@ import {
   RECOVERY_COPY,
   type RecoveryState,
 } from '@/components/auth/password-recovery'
+import {
+  Registration,
+  SIGNUP_COPY,
+  type SignupState,
+} from '@/components/auth/registration'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
@@ -28,7 +33,6 @@ import {
   continueAsGuest,
   login,
   loginAsDemo,
-  register,
   requestQrChallenge,
 } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
@@ -79,6 +83,14 @@ export function LockScreen() {
    * switcher hides, so the screen still offers exactly one committing action.
    */
   const [recovery, setRecovery] = useState<RecoveryState | null>(null)
+  /**
+   * Signup (C1.4) *is* a segment, so unlike recovery it does not need a null to
+   * mean "not here" — but it still needs a step, because the second one (the
+   * emailed code) rewords the header and takes the switcher away. `null`
+   * outside the register tab keeps the two facts in one place: whether the flow
+   * is live, and where it is.
+   */
+  const [signup, setSignup] = useState<SignupState | null>(null)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -87,12 +99,6 @@ export function LockScreen() {
   // login fields
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
-
-  // register fields
-  const [rUser, setRUser] = useState('')
-  const [rEmail, setREmail] = useState('')
-  const [rPass, setRPass] = useState('')
-  const [rConfirm, setRConfirm] = useState('')
 
   const [touched, setTouched] = useState(false)
 
@@ -103,23 +109,6 @@ export function LockScreen() {
     if (password && password.length < 6) e.password = t('errors.tooShort', { min: 6 })
     return e
   }, [identifier, password, t])
-
-  const registerErrors = useMemo(() => {
-    const e: Record<string, string> = {}
-    if (rEmail && !emailOk(rEmail)) e.email = t('errors.invalidEmail')
-    if (rPass && rPass.length < 6) e.password = t('errors.tooShort', { min: 6 })
-    if (rConfirm && rConfirm !== rPass) e.confirm = t('errors.passwordsMismatch')
-    return e
-  }, [rEmail, rPass, rConfirm, t])
-
-  const passStrength = useMemo(() => {
-    let s = 0
-    if (rPass.length >= 6) s++
-    if (/[A-Z]/.test(rPass)) s++
-    if (/[0-9]/.test(rPass)) s++
-    if (/[^A-Za-z0-9]/.test(rPass)) s++
-    return s
-  }, [rPass])
 
   const triggerShake = () => {
     setShake(true)
@@ -153,29 +142,19 @@ export function LockScreen() {
     toast('error', t(`errors.${code}` as TKey))
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setTouched(true)
-    if (!rUser || !rEmail || !rPass || Object.keys(registerErrors).length > 0) {
-      triggerShake()
-      return
-    }
-    setLoading(true)
-    try {
-      const { profile } = await register({
-        nickname: rUser,
-        email: rEmail,
-        password: rPass,
-        confirmPassword: rConfirm,
-      })
-      toast('success', t('auth.accountCreated'))
-      // A brand-new profile keeps the language picked on this station.
-      loginSuccess({ ...profile, lang })
-    } catch (err) {
-      setLoading(false)
-      triggerShake()
-      reportError(err)
-    }
+  /**
+   * Signup ends *signed in* (C1.4), the same way recovery does:
+   * `completeRegistration` returns a session, and telling somebody who is
+   * standing at the station "account created, now log in" would be theatre.
+   *
+   * `signup` is cleared before the shell swaps the screen, so the card cannot
+   * paint a code-step header over a login form for one frame.
+   */
+  const finishSignup = (profile: UserProfile) => {
+    setSignup(null)
+    toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
+    // A brand-new profile keeps the language picked on this station.
+    loginSuccess({ ...profile, lang })
   }
 
   const demoLogin = async () => {
@@ -243,6 +222,11 @@ export function LockScreen() {
   const switchMode = (m: Mode) => {
     setMode(m)
     setTouched(false)
+    // Leaving the register tab drops the pending signup on purpose: the account
+    // does not exist until the code is confirmed, so nothing is lost and the
+    // nickname that was about to be claimed stays free. Coming back opens a
+    // fresh form rather than a stale challenge whose code has since expired.
+    setSignup(m === 'register' ? { step: 'details' } : null)
   }
 
   /**
@@ -279,9 +263,15 @@ export function LockScreen() {
       return { lead: t(copy.lead), accent: t(copy.accent) }
     }
     if (mode === 'login') return { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
+    // Signup's second step borrows the recovery headline — "check your email" is
+    // the same instruction — so the header follows the *step*, not the tab.
+    if (mode === 'register' && signup) {
+      const copy = SIGNUP_COPY[signup.step]
+      return { lead: t(copy.lead), accent: t(copy.accent) }
+    }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [mode, recovery, t])
+  }, [mode, recovery, signup, t])
 
   const subline = recovery
     ? // Only the code step reads these, and it is the step that has them: the
@@ -294,7 +284,10 @@ export function LockScreen() {
     : mode === 'login'
       ? t('auth.loginSub')
       : mode === 'register'
-        ? t('auth.registerSub')
+        ? t(SIGNUP_COPY[signup?.step ?? 'details'].sub, {
+            email: signup?.maskedEmail ?? '',
+            n: signup?.codeLength ?? 6,
+          })
         : t('guest.lockSub')
 
   // Clock and date follow the active language's locale (F2.4).
@@ -454,7 +447,13 @@ export function LockScreen() {
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={recovery ? `recovery-${recovery.step}` : mode}
+                key={
+                  recovery
+                    ? `recovery-${recovery.step}`
+                    : mode === 'register' && signup
+                      ? `register-${signup.step}`
+                      : mode
+                }
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -494,7 +493,11 @@ export function LockScreen() {
                 "Register" mid-code would drop a challenge the player is halfway
                 through without ever saying so. The way back is the flow's own
                 "Back to sign in". */}
-            {!recovery && (
+            {/* Same reasoning for the signup code step (C1.4): a live challenge
+                is halfway through, and tapping "Sign in" mid-code would throw it
+                away silently. The way back is the flow's own "Change details" /
+                "Back to sign in". */}
+            {!recovery && signup?.step !== 'code' && (
               <Segmented<Mode>
                 className="mt-6"
                 size="sm"
@@ -628,82 +631,20 @@ export function LockScreen() {
                     {t('guest.continueAsGuest')}
                   </Button>
                 </motion.form>
-              ) : mode === 'register' ? (
-                <motion.form
+              ) : mode === 'register' && signup ? (
+                /* The whole signup, including the emailed code step, lives in
+                   `Registration` (C1.4): the card keeps the header and the
+                   shake, the flow keeps the fields, the challenge and the two
+                   deadlines. */
+                <Registration
                   key="register"
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  transition={{ duration: 0.25 }}
-                  onSubmit={handleRegister}
-                  className="flex flex-col gap-4"
-                >
-                  <Field
-                    label={t('auth.username')}
-                    icon={<icons.player size={15} />}
-                    value={rUser}
-                    onValueChange={setRUser}
-                    placeholder={t('auth.usernamePlaceholder')}
-                    autoComplete="username"
-                    autoFocus
-                  />
-                  <Field
-                    label={t('auth.email')}
-                    icon={<icons.email size={15} />}
-                    type="email"
-                    value={rEmail}
-                    onValueChange={setREmail}
-                    placeholder={t('auth.emailPlaceholder')}
-                    error={touched ? registerErrors.email : undefined}
-                    autoComplete="email"
-                  />
-                  <div>
-                    <Field
-                      label={t('auth.password')}
-                      icon={<icons.lock size={15} />}
-                      type="password"
-                      value={rPass}
-                      onValueChange={setRPass}
-                      placeholder={t('auth.minChars')}
-                      error={touched ? registerErrors.password : undefined}
-                      autoComplete="new-password"
-                    />
-                    {rPass && (
-                      <div className="mt-2 flex gap-1">
-                        {[0, 1, 2, 3].map((i) => (
-                          <span
-                            key={i}
-                            className="h-1 flex-1 rounded-full transition-colors"
-                            style={{
-                              background:
-                                i < passStrength
-                                  ? passStrength <= 1
-                                    ? 'var(--danger)'
-                                    : passStrength === 2
-                                      ? 'var(--warning)'
-                                      : 'var(--success)'
-                                  : 'rgba(255,255,255,0.1)',
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Field
-                    label={t('auth.confirmPassword')}
-                    icon={<icons.biometry size={15} />}
-                    type="password"
-                    value={rConfirm}
-                    onValueChange={setRConfirm}
-                    placeholder={t('auth.repeat')}
-                    error={touched ? registerErrors.confirm : undefined}
-                    autoComplete="new-password"
-                  />
-
-                  <Button type="submit" size="lg" block cut loading={loading}>
-                    {t('auth.createAccount')}
-                  </Button>
-                </motion.form>
+                  step={signup.step}
+                  onStateChange={setSignup}
+                  onCancel={() => switchMode('login')}
+                  onSuccess={finishSignup}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
               ) : (
                 <GuestPanel key="guest" />
               )}
