@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
-import { CodeInput } from '@/components/ui/code-input'
+import { CodeInput, type CodeInputHandle } from '@/components/ui/code-input'
 import { Field } from '@/components/ui/field'
 import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
@@ -97,7 +97,7 @@ interface PasswordRecoveryProps {
 export function PasswordRecovery({
   initialEmail = '',
   step,
-  onStepChange,
+  onStateChange,
   onCancel,
   onSuccess,
   onToast,
@@ -132,6 +132,22 @@ export function PasswordRecovery({
     return () => clearInterval(id)
   }, [step])
 
+  /**
+   * Caret repair after a rejected or resent code.
+   *
+   * The cells are `disabled` while the request is in flight, which blurs the
+   * row, and the parent clears the value — so the player is left with six empty
+   * boxes and no caret. Bumping this counter *in the same commit* that releases
+   * `loading` means the effect runs against enabled inputs; calling `.focus()`
+   * straight from the catch block would aim at a still-disabled cell.
+   */
+  const codeRef = useRef<CodeInputHandle>(null)
+  const [refocus, setRefocus] = useState(0)
+
+  useEffect(() => {
+    if (refocus > 0) codeRef.current?.focus(0)
+  }, [refocus])
+
   const now = Date.now()
   const resendIn = resendAt ? Math.max(0, Math.ceil((resendAt - now) / 1000)) : 0
   const expiresIn = expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : 0
@@ -145,6 +161,27 @@ export function PasswordRecovery({
       return code
     },
     [onToast, t],
+  )
+
+  /**
+   * Moves to a step *and* hands the header the facts it needs to word it.
+   *
+   * The challenge is passed explicitly on the hop that creates it: `setChallenge`
+   * has not committed yet when `sendCode` advances, so reading state here would
+   * announce the code step with no address in it — "Enter the 6-digit code sent
+   * to " is worse than no header at all. `null` clears the facts on the way back
+   * to the address step.
+   */
+  const go = useCallback(
+    (next: RecoveryStep, from?: PasswordResetChallenge | null) => {
+      const src = from === undefined ? challenge : from
+      onStateChange({
+        step: next,
+        maskedEmail: src?.maskedEmail,
+        codeLength: src?.codeLength,
+      })
+    },
+    [challenge, onStateChange],
   )
 
   /** Applies a fresh challenge: masked address, code TTL, resend cooldown. */
@@ -169,7 +206,7 @@ export function PasswordRecovery({
       accept(next)
       setCode('')
       onToast('info', t('auth.codeSentToast', { email: next.maskedEmail }))
-      onStepChange('code')
+      go('code', next)
     } catch (err) {
       report(err)
       onReject()
@@ -186,6 +223,7 @@ export function PasswordRecovery({
       const next = await resendPasswordResetCode(challenge.challengeId)
       accept(next)
       setCode('')
+      setRefocus((n) => n + 1)
       onToast('info', t('auth.codeResentToast'))
     } catch (err) {
       const code = report(err)
@@ -222,21 +260,24 @@ export function PasswordRecovery({
         )
         setResetToken(token)
         setExpiresAt(Date.now() + expiresInSec * 1000)
-        onStepChange('password')
+        go('password')
       } catch (err) {
         const failed = report(err)
         setFieldError(t(`errors.${failed}` as TKey))
         // Wrong digits are cleared, because the next thing the player does is
         // read the mail again and type six new ones. An expired code is *not*
         // cleared: the fix is the resend button, not retyping.
-        if (failed === 'invalidCode') setCode('')
+        if (failed === 'invalidCode') {
+          setCode('')
+          setRefocus((n) => n + 1)
+        }
         onReject()
       } finally {
         verifying.current = false
         setLoading(false)
       }
     },
-    [challenge, onReject, onStepChange, report, t],
+    [challenge, go, onReject, report, t],
   )
 
   const passwordErrors = useMemo(() => {
@@ -320,6 +361,7 @@ export function PasswordRecovery({
           className="flex flex-col gap-4"
         >
           <CodeInput
+            ref={codeRef}
             label={t('auth.code')}
             length={challenge.codeLength}
             value={code}
@@ -383,7 +425,10 @@ export function PasswordRecovery({
               onClick={() => {
                 setCode('')
                 setFieldError(null)
-                onStepChange('email')
+                setChallenge(null)
+                setResendAt(null)
+                setExpiresAt(null)
+                go('email', null)
               }}
               disabled={loading}
               className="text-text-low hover:bg-transparent hover:text-text-high"

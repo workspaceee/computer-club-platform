@@ -8,7 +8,7 @@ import { AttractMode } from '@/components/attract-mode'
 import {
   PasswordRecovery,
   RECOVERY_COPY,
-  type RecoveryStep,
+  type RecoveryState,
 } from '@/components/auth/password-recovery'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
@@ -32,6 +32,7 @@ import {
   requestQrChallenge,
 } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
+import type { UserProfile } from '@/lib/types/user'
 
 /**
  * The three doors of the terminal (C1.2).
@@ -77,7 +78,7 @@ export function LockScreen() {
    * `null` means the normal form; anything else takes the card body over and the
    * switcher hides, so the screen still offers exactly one committing action.
    */
-  const [recovery, setRecovery] = useState<RecoveryStep | null>(null)
+  const [recovery, setRecovery] = useState<RecoveryState | null>(null)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -244,16 +245,53 @@ export function LockScreen() {
     setTouched(false)
   }
 
+  /**
+   * Enter the repair path (C1.3).
+   *
+   * The typed identifier is carried over only when it is an address — half of
+   * the players sign in with a nickname, and prefilling `dan_v` into a field
+   * labelled "Account email" would look like the club already knows it is wrong.
+   */
+  const startRecovery = () => {
+    setRecovery({ step: 'email' })
+    setTouched(false)
+  }
+
+  /**
+   * The flow ends *signed in*, not back at the form: `completePasswordReset`
+   * returns a session, so the same welcome toast and `loginSuccess` as a normal
+   * unlock run here. Clearing `recovery` first keeps the card from painting a
+   * recovery header for the frame before the shell swaps the screen out.
+   */
+  const finishRecovery = (profile: UserProfile, name: string) => {
+    setRecovery(null)
+    toast('success', t('auth.welcomeBackToast', { name }))
+    loginSuccess(profile)
+  }
+
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
+  // A live recovery outranks the mode: the card body belongs to the flow, so the
+  // one headline over it has to name the *step*, not the door it came from.
   const headline = useMemo(() => {
+    if (recovery) {
+      const copy = RECOVERY_COPY[recovery.step]
+      return { lead: t(copy.lead), accent: t(copy.accent) }
+    }
     if (mode === 'login') return { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [mode, t])
+  }, [mode, recovery, t])
 
-  const subline =
-    mode === 'login'
+  const subline = recovery
+    ? // Only the code step reads these, and it is the step that has them: the
+      // masked address and the code length travel up from the endpoint's answer
+      // rather than being guessed here.
+      t(RECOVERY_COPY[recovery.step].sub, {
+        email: recovery.maskedEmail ?? '',
+        n: recovery.codeLength ?? 6,
+      })
+    : mode === 'login'
       ? t('auth.loginSub')
       : mode === 'register'
         ? t('auth.registerSub')
@@ -416,7 +454,7 @@ export function LockScreen() {
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={mode}
+                key={recovery ? `recovery-${recovery.step}` : mode}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -451,24 +489,42 @@ export function LockScreen() {
                 the pair as "Prisijungti / Registracija", and at 12 px with
                 0.14em tracking three uppercase segments wrapped inside a
                 448 px card (F2.6 again). */}
-            <Segmented<Mode>
-              className="mt-6"
-              size="sm"
-              label={t('auth.accessTerminal')}
-              options={[
-                { value: 'login', label: t('auth.signIn') },
-                { value: 'register', label: t('auth.register') },
-                { value: 'guest', label: t('guest.badge') },
-              ]}
-              value={mode}
-              onChange={switchMode}
-            />
+            {/* Hidden while recovering (C1.3): the flow owns the card, and a live
+                switcher would offer two committing paths at once — tapping
+                "Register" mid-code would drop a challenge the player is halfway
+                through without ever saying so. The way back is the flow's own
+                "Back to sign in". */}
+            {!recovery && (
+              <Segmented<Mode>
+                className="mt-6"
+                size="sm"
+                label={t('auth.accessTerminal')}
+                options={[
+                  { value: 'login', label: t('auth.signIn') },
+                  { value: 'register', label: t('auth.register') },
+                  { value: 'guest', label: t('guest.badge') },
+                ]}
+                value={mode}
+                onChange={switchMode}
+              />
+            )}
           </div>
 
           {/* ------- form body ------- */}
           <div className="relative z-[2] p-7 pt-5">
             <AnimatePresence mode="wait">
-              {mode === 'login' ? (
+              {recovery ? (
+                <PasswordRecovery
+                  key="recovery"
+                  initialEmail={identifier.includes('@') ? identifier : ''}
+                  step={recovery.step}
+                  onStateChange={setRecovery}
+                  onCancel={() => setRecovery(null)}
+                  onSuccess={finishRecovery}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : mode === 'login' ? (
                 <motion.form
                   key="login"
                   initial={{ opacity: 0, x: -24 }}
@@ -509,6 +565,21 @@ export function LockScreen() {
                       </IconButton>
                     }
                   />
+
+                  {/* Sits under the field it repairs and is right-aligned, so it
+                      reads as a footnote to the password rather than a second
+                      way in. Ghost/plain, `-mt-1`: the row it opens is a repair,
+                      and only the bevelled CTA below commits (§4). */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    voice="plain"
+                    onClick={startRecovery}
+                    disabled={loading}
+                    className="-mt-1 self-end px-0 text-text-low hover:bg-transparent hover:text-text-high"
+                  >
+                    {t('auth.forgotPassword')}
+                  </Button>
 
                   {/* The one bevelled CTA of the screen (§4) — `cut` is reserved
                       for the single action that commits. */}
