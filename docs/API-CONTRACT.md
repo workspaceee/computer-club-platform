@@ -84,7 +84,14 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | Метод | Путь | Запрос | Ответ | Ошибки |
 | --- | --- | --- | --- | --- |
 | POST | `/api/auth/login` | `LoginPayload` | `AuthResult` | `invalidCredentials`, `validation`, `forbidden` (аккаунт заблокирован) |
-| POST | `/api/auth/register` | `RegisterPayload` | `AuthResult` | `validation`, `conflict` (e-mail/ник занят) |
+| GET | `/api/auth/nickname` | `?value=` | `NicknameCheck` | — |
+| POST | `/api/auth/register/start` | `StartRegistrationPayload` | `RegistrationChallenge` | `validation` (`nickname`, `email`, `password`, `confirmPassword`, `acceptedRules`) |
+| POST | `/api/auth/register/resend` | `{ challengeId }` | `RegistrationChallenge` | `notFound`, `rateLimited` |
+| POST | `/api/auth/register/confirm` | `{ challengeId, code }` | `AuthResult` | `notFound`, `timeout` (код истёк), `invalidCode`, `rateLimited` (попытки сожжены), `validation` (ник/e-mail заняли за это время) |
+| POST | `/api/auth/password/reset` | `{ email }` | `PasswordResetChallenge` | `validation`, `rateLimited` |
+| POST | `/api/auth/password/reset/resend` | `{ challengeId }` | `PasswordResetChallenge` | `notFound`, `rateLimited` |
+| POST | `/api/auth/password/reset/verify` | `{ challengeId, code }` | `PasswordResetVerification` | `notFound`, `timeout`, `invalidCode`, `rateLimited` |
+| POST | `/api/auth/password/reset/complete` | `CompletePasswordResetPayload` | `AuthResult` | `notFound`, `unauthorized`, `validation` |
 | POST | `/api/auth/demo` | — | `AuthResult` | — |
 | POST | `/api/auth/guest` | — | `GuestSessionResult` | `conflict` (нет свободных мест) |
 | POST | `/api/auth/qr` | — | `QrChallenge` | — |
@@ -94,6 +101,27 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 `AuthResult` несёт профиль, снапшот сессии и язык интерфейса игрока — вход одним
 запросом, чтобы лаунчер не собирал первый экран из четырёх вызовов.
 `QrChallenge.expiresAt` — 120 секунд.
+
+**Оба одноразовых кода (регистрация C1.4 и восстановление C1.3) живут по одним
+правилам:** 6 цифр, TTL 600 с, кулдаун ресенда 60 с, 5 попыток до сжигания
+челленджа. Челленджи отдают клиенту **длительности** (`expiresInSec`,
+`resendAfterSec`), а не таймстемпы: у ПК в клубе могут быть неверные системные
+часы, и UI обязан считать дедлайн от момента получения ответа. Ни код, ни
+счётчик попыток, ни пароль в ответе не появляются — в моке они лежат в серверной
+`Map`, а поле `devCode` существует **только** потому, что прототип не отправляет
+писем, и реальный API его не возвращает.
+
+**Регистрация — двухфазная, и аккаунт создаёт ровно один вызов.**
+`register/start` открывает челлендж и ничего не пишет; участник появляется
+только в `register/confirm`. Поэтому ушедший со шага кода игрок не оставляет ни
+половинчатой записи, ни занятого ника. `acceptedRules` проверяется **на сервере**:
+галочка правил — запись согласия, и выключенная кнопка на клиенте её не
+доказывает. `GET /api/auth/nickname` — чтение, а не резервация: два игрока,
+набирающие одно имя, оба услышат «свободно», и проигравший узнаёт об этом на
+`register/confirm`, который судит имя заново и возвращает `validation` с полем
+`nickname`, а не общий отказ. Конфликт e-mail, в отличие от восстановления,
+сообщается прямо: форма, принявшая занятый адрес, создала бы аккаунт, которым
+нельзя пользоваться.
 
 ---
 

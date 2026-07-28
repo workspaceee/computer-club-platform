@@ -312,7 +312,7 @@ export function Registration({
       // Field-level answers are painted on the fields — a toast saying "check
       // the highlighted fields" with nothing highlighted is a dead end.
       if (err instanceof ApiError && err.code === 'validation' && err.fields) {
-        setServerErrors(mapFieldErrors(err.fields, t))
+        setServerErrors(mapFieldErrors(err.fields, t, nickname.trim()))
         onToast('error', t('errors.validation'))
       } else {
         report(err)
@@ -353,7 +353,7 @@ export function Registration({
         // *details* problem, so the flow walks back to the field that owns it
         // with everything else still typed in.
         if (err instanceof ApiError && err.code === 'validation' && err.fields) {
-          setServerErrors(mapFieldErrors(err.fields, t))
+          setServerErrors(mapFieldErrors(err.fields, t, nickname.trim()))
           onToast('error', t('errors.validation'))
           setChallenge(null)
           setCode('')
@@ -377,7 +377,7 @@ export function Registration({
         setLoading(false)
       }
     },
-    [challenge, onReject, onStateChange, onSuccess, onToast, report, t],
+    [challenge, nickname, onReject, onStateChange, onSuccess, onToast, report, t],
   )
 
   const resend = async () => {
