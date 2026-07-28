@@ -72,7 +72,15 @@ const buttonVariants = cva(
        * Signature bevelled corner + sheen. Reserved for the ONE primary action
        * on a screen — docs/DESIGN.md §4 forbids this shape anywhere else.
        */
-      cut: { true: 'cut-corner overflow-hidden', false: '' },
+      /**
+       * `rounded-none` is part of the shape, not a caller's override: the
+       * bevel is a 12 px straight cut, and a 6–10 px radius on the other
+       * three corners plus a *rounded* clip on the fourth reads as a
+       * rendering accident rather than a machined edge (C1.1 caught this on
+       * the sign-in CTA, whose F9 reference is square). `cut` is declared
+       * after `size` so the radius reset wins the merge.
+       */
+      cut: { true: 'cut-corner overflow-hidden rounded-none', false: '' },
     },
     defaultVariants: {
       variant: 'primary',

@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/button'
 import { Overlay } from '@/components/ui/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useT } from '@/lib/i18n/provider'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
@@ -57,6 +58,7 @@ export function Modal({
   children,
 }: ModalProps) {
   const titleId = useId()
+  const { t } = useT()
   const reduced = useReducedMotion()
   const panelRef = useDismissableLayer({
     open,
@@ -115,7 +117,10 @@ export function Modal({
               )}
             </div>
             {!hideClose && (
-              <IconButton label="Close dialog" size="sm" onClick={onClose} className="relative">
+              // The only string the primitive owns, so it comes from the
+              // dictionary like every other word on screen (F2.2) — a
+              // screen-reader-only name is still copy.
+              <IconButton label={t('common.close')} size="sm" onClick={onClose} className="relative">
                 <icons.close />
               </IconButton>
             )}
