@@ -349,6 +349,15 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
+          // T1 (§4.2) — this screen's one traveling ring. Everything else here
+          // (station badge, five telemetry chips) is T2 static, so the moving
+          // light points at the only thing you can act on: the way in.
+          // Kept on idle even though the attract overlay spends its own T1 on
+          // the wake hint: the budget is one per *visible* screen, and for the
+          // 1.2s cross-fade both are in the tree on purpose. Dropping the class
+          // when `idle` flips would pop the card's brightest feature off while
+          // the card itself is still half-opaque — a rule tidier than the
+          // screen, which F9 forbids.
           className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/40 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* subtle top accent line */}
@@ -677,7 +686,9 @@ function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
 function StationBadge() {
   const { t } = useT()
   return (
-    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3.5 py-1.5">
+    // T2 (§4.2): a status plate, so the tube is lit but frozen. The one
+    // traveling ring on this screen belongs to the access card.
+    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3.5 py-1.5">
       <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
       <span className="font-display text-sm font-bold tracking-wide text-text-high">PC #17</span>
       <span className="text-[10px] font-semibold uppercase tracking-widest text-success">
@@ -699,7 +710,9 @@ function Telemetry({
   accent?: boolean
 }) {
   return (
-    <span className="glass neon-ring flex items-center gap-2 rounded-full px-3 py-1.5">
+    // T2 (§4.2): five of these sit in a row — five traveling rings would each
+    // be asking to be looked at, and none would win.
+    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3 py-1.5">
       <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>
       <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
       <span className="text-xs font-semibold tabular-nums text-text-high">{value}</span>

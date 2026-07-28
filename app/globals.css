@@ -434,24 +434,41 @@
   }
 }
 
-/* Thin animated border: red and white light traveling around the edge.
-   Two entry points, one identical paint:
+/* Thin neon border: red and white light on the edge of a panel.
+   Two orthogonal choices, spelled into the class name.
 
-     .neon-ring — for elements in normal flow; it positions itself.
-     .neon-edge — for elements the caller has ALREADY positioned
-       (`absolute inset-0` overlays such as the segmented control's sliding
-       pill). `.neon-ring` would force `position: relative` onto them and
-       collapse the overlay, so the edge is offered without that one rule.
+   WHO POSITIONS THE ELEMENT (mechanical):
+     …-ring  — element is in normal flow; the utility positions it.
+     …-edge  — element the caller has ALREADY positioned (`absolute inset-0`
+       overlays such as the segmented control's sliding pill). `position:
+       relative` would collapse those, so the edge is offered without it.
 
-   Keeping both on the same declaration block means the neon look has a
-   single source of truth — edit the gradient once, both follow. */
-.neon-ring {
+   HOW LOUD IT IS — the tier (§4.4, F9.4):
+     T1  .neon-ring / .neon-edge                — light TRAVELS. One element
+         per screen: the thing the visitor is meant to act on.
+     T2  .neon-ring-static / .neon-edge-static  — same tube, frozen. Status
+         plates: they must read as lit, not as the destination.
+     T3  no class at all. Everything else earns attention with border, glass
+         and type.
+
+   Why the tier lives in CSS and not in each screen's head: with T1 handed
+   out per element, the idle screen ended up wearing seven traveling rings at
+   once, and an accent that is everywhere is not an accent. The animation is
+   the scarce resource here, so it is what the tier switches — the gradient,
+   mask, glow and geometry stay one block, and editing the tube edits all
+   four entry points. */
+.neon-ring,
+.neon-ring-static {
   position: relative;
 }
 .neon-ring::before,
 .neon-ring::after,
 .neon-edge::before,
-.neon-edge::after {
+.neon-edge::after,
+.neon-ring-static::before,
+.neon-ring-static::after,
+.neon-edge-static::before,
+.neon-edge-static::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -476,19 +493,44 @@
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  animation: neon-spin 7s linear infinite;
   pointer-events: none;
+}
+/* T1 only: the light travels. This one declaration is the whole difference
+   between the tiers — which is the point of F9.4. */
+.neon-ring::before,
+.neon-ring::after,
+.neon-edge::before,
+.neon-edge::after {
+  animation: neon-spin 7s linear infinite;
+}
+/* T2: the tube is frozen mid-sweep. 135deg puts the white segment on the
+   top-left corner, so a row of status plates catches light from one
+   consistent direction instead of each freezing wherever it happened to be. */
+.neon-ring-static::before,
+.neon-ring-static::after,
+.neon-edge-static::before,
+.neon-edge-static::after {
+  --neon-angle: 135deg;
 }
 /* Above the panel's own inner content (backgrounds, media, highlights). */
 .neon-ring::before,
-.neon-ring::after {
+.neon-ring::after,
+.neon-ring-static::before,
+.neon-ring-static::after {
   z-index: 3;
 }
-/* Soft glow copy of the ring */
+/* Soft glow copy of the ring. T2 halves it: a frozen glow reads as a smudge
+   at full strength, and a status plate is small enough that the bloom would
+   swallow its own label. */
 .neon-ring::after,
 .neon-edge::after {
   filter: blur(6px);
   opacity: 0.55;
+}
+.neon-ring-static::after,
+.neon-edge-static::after {
+  filter: blur(5px);
+  opacity: 0.28;
 }
 
 /* Breathing red/white neon for display text (clocks).
@@ -860,6 +902,8 @@
    infinite animations stop — functional transitions stay. */
 :root[data-reduce-motion='true'] .neon-ring::before,
 :root[data-reduce-motion='true'] .neon-ring::after,
+:root[data-reduce-motion='true'] .neon-edge::before,
+:root[data-reduce-motion='true'] .neon-edge::after,
 :root[data-reduce-motion='true'] .neon-text,
 :root[data-reduce-motion='true'] .neon-digits,
 :root[data-reduce-motion='true'] .neon-logo,
@@ -874,6 +918,25 @@
 :root[data-reduce-motion='true'] .wake-hint-scan,
 :root[data-reduce-motion='true'] .urgency-pulse {
   animation: none !important;
+}
+
+/* When motion is damped, T1 becomes T2 rather than "T1 stopped at 0deg":
+   without this the ring freezes wherever the angle happened to be, which is
+   the one look the tier ladder exists to prevent. Duplicated per selector
+   list because the media query cannot see the data attribute. */
+:root[data-reduce-motion='true'] .neon-ring::before,
+:root[data-reduce-motion='true'] .neon-ring::after,
+:root[data-reduce-motion='true'] .neon-edge::before,
+:root[data-reduce-motion='true'] .neon-edge::after {
+  --neon-angle: 135deg;
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-ring::before,
+  .neon-ring::after,
+  .neon-edge::before,
+  .neon-edge::after {
+    --neon-angle: 135deg;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
