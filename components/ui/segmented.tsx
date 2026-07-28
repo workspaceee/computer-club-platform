@@ -60,7 +60,9 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       className={cn(
-        'relative flex border border-border bg-black/40',
+        // A track is a well (§3.3): the pill slides inside a recess, not on top
+        // of the panel. No `focus-within` rung here — see `.well-deep`.
+        'well relative flex border border-border',
         round ? 'rounded-full' : 'rounded-md',
         pad,
         className,

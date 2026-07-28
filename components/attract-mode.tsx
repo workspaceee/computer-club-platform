@@ -239,7 +239,9 @@ export function AttractMode() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.9, ease: 'easeOut' }}
-            className="neon-ring wake-hint relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 bg-black/55 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
+            // `pill-deep` (§3.3): a plate on media nobody previewed — the video
+            // or the slideshow — which is why this rung exists at all.
+            className="neon-ring wake-hint pill-deep relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
           >
             <span
               aria-hidden
@@ -296,7 +298,9 @@ export function AttractMode() {
       />
 
       {/* ---------- promo ticker ---------- */}
-      <div className="absolute inset-x-0 bottom-0 z-20 bg-black/70 backdrop-blur-md">
+      {/* `scrim` (§3.3): the band's job is to erase the frame under a moving
+          marquee, which is the same job a modal backdrop does — same depth. */}
+      <div className="scrim absolute inset-x-0 bottom-0 z-20 backdrop-blur-md">
         {/* thin accent rule above the ticker */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
         <PromoTicker items={tickerItems} />
