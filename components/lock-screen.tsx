@@ -6,6 +6,7 @@ import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
 import { BrandLabel } from '@/components/brand-label'
+import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
 import { MockQr } from '@/components/mock-qr'
 import { Overlay } from '@/components/ui/overlay'
@@ -318,15 +319,15 @@ export function LockScreen() {
           transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
           className="flex flex-wrap items-center gap-3"
         >
-          <StationBadge />
-          <Telemetry icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
-          <Telemetry icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
-          <Telemetry icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
-          <Telemetry
+          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
+          <HudChip icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
+          <HudChip icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
+          <HudChip icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
+          <HudChip
             icon={<icons.status size={13} />}
             label={t('auth.status')}
             value={t('auth.optimal')}
-            accent
+            tone="accent"
           />
         </motion.div>
       </div>
@@ -602,7 +603,7 @@ export function LockScreen() {
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
           <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
-          <StationBadge />
+          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
         </div>
       </div>
 
@@ -680,43 +681,6 @@ function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
         </div>
       </motion.div>
     </Overlay>
-  )
-}
-
-function StationBadge() {
-  const { t } = useT()
-  return (
-    // T2 (§4.2): a status plate, so the tube is lit but frozen. The one
-    // traveling ring on this screen belongs to the access card.
-    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3.5 py-1.5">
-      <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
-      <span className="font-display text-sm font-bold tracking-wide text-text-high">PC #17</span>
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-success">
-        {t('auth.stationReady')}
-      </span>
-    </span>
-  )
-}
-
-function Telemetry({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    // T2 (§4.2): five of these sit in a row — five traveling rings would each
-    // be asking to be looked at, and none would win.
-    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3 py-1.5">
-      <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>
-      <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
-      <span className="text-xs font-semibold tabular-nums text-text-high">{value}</span>
-    </span>
   )
 }
 

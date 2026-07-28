@@ -81,7 +81,7 @@ export default function DevKitPage() {
         <KitCrash />
 
         <footer className="border-t border-border pt-6 text-xs text-text-low">
-          F1.1 – F1.22 · F6.5 · docs/DESIGN.md is the written counterpart to this page.
+          F1.1 – F1.23 · F6.5 · docs/DESIGN.md is the written counterpart to this page.
         </footer>
       </main>
 
