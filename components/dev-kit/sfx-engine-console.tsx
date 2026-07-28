@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { icons } from '@/lib/icons'
 import { SFX, SFX_IDS, type SfxId } from '@/lib/assets/sfx'
 import { sfx, MAX_VOICES, RETRIGGER_GAP_MS, type SfxOutcome } from '@/lib/sfx'
@@ -30,6 +30,27 @@ export function SfxEngineConsole() {
   const { play, stopAll } = useSfx()
   const state = useSfxState()
   const { volume, muted, setVolume, setMuted } = useSfxVolume()
+
+  /**
+   * F8.5, and it has to be automatic to be worth anything.
+   *
+   * One cue is requested on mount, with nothing pressed — the station's boot
+   * condition exactly. On a freshly loaded page the first entry in the log must
+   * therefore read `blocked`: the browser has not been given a gesture, and the
+   * engine refuses rather than queueing, because a queued cue would sound at
+   * whatever the next person happened to click.
+   *
+   * A button could not prove this. Pressing a button *is* the gesture, so every
+   * manual attempt below arms sound on the way in and reads `deferred` → `played`
+   * — which is the other half of the rule (the first click of a station still
+   * gets its sound) and the reason the two halves need different triggers.
+   */
+  const probed = useRef(false)
+  useEffect(() => {
+    if (probed.current) return
+    probed.current = true
+    play('notify')
+  }, [play])
 
   /** Five identical cues in one tick — the realtime burst F8.2 exists for. */
   const burst = useCallback(() => {
@@ -166,6 +187,11 @@ export function SfxEngineConsole() {
 
         <p className="text-xs leading-relaxed text-text-low">
           {`A cue holds the floor for its own length plus ${RETRIGGER_GAP_MS} ms, so "notify ×5" must read played + four suppressed. Press it twice in a row slowly and the second press plays again — suppression is a window, not a rate limit.`}
+        </p>
+        <p className="text-xs leading-relaxed text-text-low">
+          {
+            'F8.5: one cue is fired automatically on load, with nothing pressed — on a fresh reload the oldest entry in the log must read blocked, and no sound may be heard. Every button here is a gesture, so the next attempt arms sound on its way in and reads deferred, then played. In the product that first gesture is caught anywhere on the page by SfxArmBridge; this bench mounts no bridges on purpose.'
+          }
         </p>
         <p className="text-xs leading-relaxed text-text-low">
           {

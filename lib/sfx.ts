@@ -29,6 +29,14 @@
  *   reads that, and so do F8.3/F8.4 — "no sound" must be debuggable without a
  *   spectrum analyser, and audio must never be able to break a screen.
  *
+ *   **Nothing is ever heard before the player acts.** Browsers refuse audio
+ *   until a gesture, so the engine boots `suspended` and a cue raised before any
+ *   interaction returns `'blocked'` — never queued, because a queued cue would
+ *   sound at whatever the *next* person happened to click. A cue raised *inside*
+ *   a gesture is a different thing entirely: it waits for that gesture's arming
+ *   (`ARM_GRACE_MS`) instead of being refused, so the first click of a station
+ *   still gets its sound (F8.5).
+ *
  * Two gates decide whether a cue is heard at all, and their order is the policy:
  * `muted` is checked first and applies to **everything**, `in-game` second and
  * spares the `critical` pair. The player switching sound off outranks our idea of
@@ -74,6 +82,29 @@ export const RETRIGGER_GAP_MS = 90
  * is worse than a missing one.
  */
 export const LATE_PLAY_MS = 600
+
+/**
+ * How long a gesture keeps the right to be *heard* (F8.5).
+ *
+ * Arming is asynchronous — `AudioContext.resume()` resolves a task or two after
+ * the gesture — while the cue caused by that same gesture is requested
+ * synchronously inside the handler. Without a window, the very first cue of a
+ * station is always the one lost: the click arms sound, the click's own `success`
+ * reads a still-suspended context and returns `'blocked'`, and the player learns
+ * the launcher is silent from the one action they were most likely to repeat.
+ *
+ * So a cue fired *while a gesture is in effect* waits for the resume instead of
+ * being refused. A cue fired with **no** gesture behind it is still refused
+ * outright and never queued — that is the entire point of F8.5, and the reason
+ * this is a window and not "retry until it works": a queued cue would sound at
+ * whatever the next person happened to click.
+ *
+ * Shorter than `LATE_PLAY_MS` on purpose. That one bounds "the file was not
+ * decoded yet", this one bounds "the browser had not said yes yet"; a resume
+ * that takes longer than a third of a second means the gesture was refused, not
+ * slow, and the honest answer there is silence.
+ */
+export const ARM_GRACE_MS = 350
 
 /**
  * Default level: **on, at a middle level** (F8.3).
@@ -198,6 +229,17 @@ const loads = new Map<SfxId, Promise<AudioBuffer | null>>()
 
 /** `performance.now()` before which a cue may not sound again. */
 const quietUntil = new Map<SfxId, number>()
+/**
+ * Cues that were accepted but have not started yet — waiting for a decode
+ * (`LATE_PLAY_MS`) or for the browser to grant playback (`ARM_GRACE_MS`).
+ *
+ * They hold the floor exactly like a ringing voice does. `quietUntil` cannot do
+ * it: that window is stamped when a cue *starts*, so without this set the burst
+ * F8.2 collapses into one cue would sail through untouched whenever it is the
+ * burst that also arms the sound — five `notify`s in one click, all deferred,
+ * all started together a task later.
+ */
+const pending = new Set<SfxId>()
 let voices: Voice[] = []
 
 let volume = DEFAULT_SFX_VOLUME
@@ -209,6 +251,36 @@ let muted = false
  */
 let gameRunning = false
 let seq = 0
+
+/**
+ * F8.5 — `performance.now()` of the last gesture the engine was told about, and
+ * the resume it started.
+ *
+ * `arm()` is only ever called from a real interaction, so the stamp *is* the
+ * record of user activation, and `arming` lets every cue raised by one gesture
+ * ride a single `resume()` instead of asking the browser N times for the same
+ * permission.
+ */
+let gestureAt: number | null = null
+let arming: Promise<boolean> | null = null
+
+/**
+ * Is a gesture in effect right now — may a cue wait for the arming to land?
+ *
+ * Two sources, and the second is not redundant: `gestureAt` covers what the app
+ * told us (the arm bridge, the settings preview), `navigator.userActivation`
+ * covers a click the engine was never told about — a button on the dev bench,
+ * anything mounted without the bridge. Both mean the same thing, *the player is
+ * touching the machine right now*, and neither is true on a station nobody has
+ * sat down at, which is the only case F8.5 has to refuse.
+ */
+function withinGesture(now: number): boolean {
+  if (gestureAt !== null && now - gestureAt <= ARM_GRACE_MS) return true
+  if (typeof navigator === 'undefined') return false
+  const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } })
+    .userActivation
+  return activation?.isActive === true
+}
 
 const listeners = new Set<() => void>()
 
@@ -424,6 +496,49 @@ function start(id: SfxId, buffer: AudioBuffer, options: SfxPlayOptions): SfxOutc
 }
 
 /**
+ * Re-reads every gate that could have changed while a cue was waiting — for a
+ * decode (`LATE_PLAY_MS`) or for the browser to grant playback (`ARM_GRACE_MS`).
+ *
+ * Never trust the checks from before the wait: both waits span real time in
+ * which a game can take the machine, the player can mute us, or the gesture can
+ * be refused. Returns the reason to stay silent, or `null` to go ahead.
+ */
+function refuse(id: SfxId, requestedAt: number): SfxOutcome | null {
+  if (muted || volume <= 0) return 'muted'
+  if (gameRunning && !isCriticalSfx(id)) return 'in-game'
+  if (ctx?.state !== 'running') return 'blocked'
+  // A cue that arrives detached from what caused it is worse than a missing one.
+  if (performance.now() - requestedAt > LATE_PLAY_MS) return 'unavailable'
+  return null
+}
+
+/**
+ * Everything after "the browser will let us make a sound": the buffer, or the
+ * wait for it.
+ *
+ * Split out of `play()` because the arming path (F8.5) has to run exactly this
+ * tail once the context is running, and a second copy of it is a second place
+ * for the mute check to be forgotten.
+ */
+function deliver(id: SfxId, options: SfxPlayOptions, requestedAt: number): SfxOutcome {
+  const buffer = buffers.get(id)
+  if (buffer) return start(id, buffer, options)
+  if (failures.has(id)) return record(id, 'unavailable')
+
+  // Requested before the decode landed. Hold the cue for `LATE_PLAY_MS`, then
+  // give up rather than play it out of context.
+  pending.add(id)
+  void load(id).then((late) => {
+    pending.delete(id)
+    if (!late) return void record(id, 'unavailable')
+    const reason = refuse(id, requestedAt)
+    if (reason) return void record(id, reason)
+    start(id, late, options)
+  })
+  return record(id, 'deferred')
+}
+
+/**
  * Play a cue. Safe to call from anywhere, including during render-adjacent
  * effects and from event handlers that may fire twice — that is what the
  * suppression window is for.
@@ -440,7 +555,7 @@ function play(id: SfxId, options: SfxPlayOptions = {}): SfxOutcome {
   if (gameRunning && !isCriticalSfx(id)) return record(id, 'in-game')
 
   const now = typeof performance === 'undefined' ? 0 : performance.now()
-  if (!options.allowOverlap && now < (quietUntil.get(id) ?? 0)) {
+  if (!options.allowOverlap && (pending.has(id) || now < (quietUntil.get(id) ?? 0))) {
     return record(id, 'suppressed')
   }
 
@@ -448,31 +563,32 @@ function play(id: SfxId, options: SfxPlayOptions = {}): SfxOutcome {
   if (!context) return record(id, 'unsupported')
 
   if (context.state !== 'running') {
-    // Not armed yet: ask, but do not queue. A cue started against a suspended
-    // context would sound the moment the player finally clicks something — a
-    // stranger's notification, arriving with someone else's click (F8.5).
-    void context.resume().then(() => sync()).catch(() => sync())
-    return record(id, 'blocked')
+    // F8.5, and the whole rule is in the next two branches.
+    //
+    // No gesture behind this cue: refuse it, and **do not queue it**. A cue
+    // started against a suspended context would sound the moment the player
+    // finally clicks something — a stranger's notification arriving with
+    // someone else's click. Nothing is resumed here either; asking a browser
+    // that has not seen an interaction cannot succeed, and the one place that
+    // gets to ask is the gesture itself (`components/sfx-arm-bridge.tsx`).
+    if (!withinGesture(now)) return record(id, 'blocked')
+
+    // A gesture *is* in effect, so this cue belongs to it — the click that armed
+    // sound is the click that asked for the sound. Wait for the resume rather
+    // than refuse, or the first cue of every station is lost to the arming it
+    // triggered itself. `arm()` dedupes, so a burst rides one `resume()`.
+    pending.add(id)
+    void arm().then((allowed) => {
+      pending.delete(id)
+      if (!allowed) return void record(id, 'blocked')
+      const reason = refuse(id, now)
+      if (reason) return void record(id, reason)
+      deliver(id, options, now)
+    })
+    return record(id, 'deferred')
   }
 
-  const buffer = buffers.get(id)
-  if (buffer) return start(id, buffer, options)
-  if (failures.has(id)) return record(id, 'unavailable')
-
-  // Requested before the decode landed. Hold the cue for `LATE_PLAY_MS`, then
-  // give up rather than play it out of context.
-  const requestedAt = now
-  void load(id).then((late) => {
-    if (!late) return void record(id, 'unavailable')
-    if (performance.now() - requestedAt > LATE_PLAY_MS) return void record(id, 'unavailable')
-    if (muted || volume <= 0) return void record(id, 'muted')
-    // Re-read, never trust the check from before the decode: a launch takes
-    // seconds and this branch is what a cue fired *during* one goes through.
-    if (gameRunning && !isCriticalSfx(id)) return void record(id, 'in-game')
-    if (ctx?.state !== 'running') return void record(id, 'blocked')
-    start(id, late, options)
-  })
-  return record(id, 'deferred')
+  return deliver(id, options, now)
 }
 
 /** Cut everything now. For locking the station and for ending a visit. */
@@ -486,6 +602,9 @@ function stopAll(): void {
   }
   voices = []
   quietUntil.clear()
+  // The floor is released together with the voices: a cue still waiting for a
+  // decode or for the arming is no longer holding anything back.
+  pending.clear()
   sync()
 }
 
@@ -561,28 +680,53 @@ function setGameRunning(next: boolean): void {
 }
 
 /**
- * Tell the browser we have a gesture (F8.5 calls this from the first real
- * interaction). Resolves to whether sound is now allowed.
+ * F8.5 — tell the engine the player just did something, and use it.
+ *
+ * Called from `components/sfx-arm-bridge.tsx` on the first real interaction, and
+ * from the two places that already hold a gesture in their hands (the settings
+ * preview, the dev bench button). Resolves to whether sound is now allowed.
+ *
+ * Concurrent calls share one `resume()`: a click can raise several cues, and
+ * asking the browser once per cue would be N pending permissions for one
+ * decision. The gesture stamp is taken *before* the await, because it must
+ * describe when the player acted, not when the browser got round to answering —
+ * that difference is exactly the window `ARM_GRACE_MS` measures.
  */
-async function arm(): Promise<boolean> {
+function arm(): Promise<boolean> {
   const context = ensureContext()
-  if (!context) return false
+  if (!context) return Promise.resolve(false)
+
+  gestureAt = typeof performance === 'undefined' ? 0 : performance.now()
+
   if (context.state === 'running') {
     sync({ blocked: false })
-    return true
+    return Promise.resolve(true)
   }
-  try {
-    await context.resume()
-    // Re-read rather than trusting the resolve: a rejected gesture can resolve
-    // with the context still suspended, and "running" is the only thing that
-    // means sound will be heard.
-    const running = (context.state as AudioContextState) === 'running'
-    sync({ blocked: !running })
-    return running
-  } catch {
-    sync({ blocked: true })
-    return false
-  }
+  if (arming) return arming
+
+  arming = context
+    .resume()
+    .then(() => {
+      // Re-read rather than trusting the resolve: a rejected gesture can resolve
+      // with the context still suspended, and "running" is the only thing that
+      // means sound will be heard.
+      const running = (context.state as AudioContextState) === 'running'
+      sync({ blocked: !running })
+      return running
+    })
+    .catch(() => {
+      sync({ blocked: true })
+      return false
+    })
+    .finally(() => {
+      // Dropped once settled, never cached: a refused gesture must not make the
+      // next one reuse its answer, and a context suspended again later (an iOS
+      // interruption, a browser reclaiming audio) has to be resumable by the
+      // next interaction.
+      arming = null
+    })
+
+  return arming
 }
 
 /* ------------------------------------------------------------------ *
@@ -624,7 +768,10 @@ export const sfx = {
   subscribe,
   getSnapshot,
   /** Test/dev hook: forget the suppression windows without cutting voices. */
-  clearSuppression: () => quietUntil.clear(),
+  clearSuppression: () => {
+    quietUntil.clear()
+    pending.clear()
+  },
 }
 
 export type SfxEngine = typeof sfx
