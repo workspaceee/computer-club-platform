@@ -73,63 +73,139 @@ export function login(payload: LoginPayload): Promise<AuthResult> {
   })
 }
 
-export interface RegisterPayload {
+/* ------------------------------------------------------------------ *
+ * Nicknames — the live availability check (C1.4)
+ * ------------------------------------------------------------------ */
+
+/** Shortest nickname the club accepts. The UI reads this off the module. */
+export const NICKNAME_MIN = 3
+/** Longest — a scoreboard, a party list and a HUD chip all have to hold it. */
+export const NICKNAME_MAX = 16
+/** Latin letters, digits, underscore. No spaces: the name is also a login. */
+const NICKNAME_ALLOWED = /^[A-Za-z0-9_]+$/
+
+/**
+ * Names the club keeps for itself. Not a moderation list — it exists so nobody
+ * can sign in as something an admin would trust on a leaderboard or in a chat.
+ */
+const RESERVED_NICKNAMES = new Set([
+  'admin',
+  'administrator',
+  'moderator',
+  'imba',
+  'imbaclub',
+  'staff',
+  'support',
+  'owner',
+  'root',
+  'system',
+  'guest',
+])
+
+/**
+ * Why a nickname cannot be used — or `free`.
+ *
+ * One verdict instead of a bare boolean, because the four refusals have four
+ * different repairs: shorten it, lengthen it, drop the punctuation, or pick
+ * another name entirely. A `false` would make the field say "unavailable" to
+ * someone whose only problem is a dot.
+ */
+export type NicknameVerdict = 'free' | 'taken' | 'reserved' | 'tooShort' | 'tooLong' | 'badChars'
+
+export interface NicknameCheck {
+  /** Echoed back, so a late answer to an old keystroke can be discarded. */
   nickname: string
-  email: string
-  password: string
-  confirmPassword: string
+  verdict: NicknameVerdict
+  available: boolean
+  /**
+   * Free names close to the one asked for — only for `taken` / `reserved`,
+   * where the player has to change the *name* and not fix its shape.
+   */
+  suggestions: string[]
 }
 
-/** `POST /api/auth/register`. Validates like the server will, then signs in. */
-export function register(payload: RegisterPayload): Promise<AuthResult> {
-  return mutate('auth.register', () => {
-    const fields: Record<string, string> = {}
-    if (!payload.nickname.trim()) fields.nickname = 'required'
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(payload.email)) fields.email = 'invalidEmail'
-    if (payload.password.length < MIN_PASSWORD) fields.password = 'tooShort'
-    if (payload.password !== payload.confirmPassword) {
-      fields.confirmPassword = 'passwordsMismatch'
+function nicknameExists(nickname: string): boolean {
+  const wanted = nickname.toLowerCase()
+  return [...db.players.values()].some((p) => p.user.nickname.toLowerCase() === wanted)
+}
+
+function emailExists(email: string): boolean {
+  const wanted = email.toLowerCase()
+  return [...db.players.values()].some((p) => p.user.email.toLowerCase() === wanted)
+}
+
+/** The whole rule set in one place — the live check and signup share it. */
+function judgeNickname(raw: string): NicknameVerdict {
+  const nickname = raw.trim()
+  if (nickname.length < NICKNAME_MIN) return 'tooShort'
+  if (nickname.length > NICKNAME_MAX) return 'tooLong'
+  if (!NICKNAME_ALLOWED.test(nickname)) return 'badChars'
+  if (RESERVED_NICKNAMES.has(nickname.toLowerCase())) return 'reserved'
+  if (nicknameExists(nickname)) return 'taken'
+  return 'free'
+}
+
+/** Three names that are actually free, derived from what was typed. */
+function suggestNicknames(raw: string): string[] {
+  const base = raw.trim().replace(/[^A-Za-z0-9_]/g, '').slice(0, NICKNAME_MAX - 3) || 'player'
+  const candidates = [`${base}_imba`, `${base}${new Date().getFullYear() % 100}`, `${base}_01`, `x${base}`]
+  return candidates
+    .filter((c) => c.length <= NICKNAME_MAX && judgeNickname(c) === 'free')
+    .slice(0, 3)
+}
+
+/**
+ * `GET /api/auth/nickname?value=…` — the as-you-type check (C1.4).
+ *
+ * A read, not a reservation: nothing is held, so two players typing the same
+ * name both hear "free" and the loser finds out at `completeRegistration`,
+ * which is the only place that can actually claim it. That is the honest shape
+ * of this endpoint, and it is why the signup path re-judges the name instead of
+ * trusting the green tick the form is showing.
+ */
+export function checkNickname(nickname: string): Promise<NicknameCheck> {
+  return query('auth.checkNickname', () => {
+    const verdict = judgeNickname(nickname)
+    return {
+      nickname: nickname.trim(),
+      verdict,
+      available: verdict === 'free',
+      suggestions: verdict === 'taken' || verdict === 'reserved' ? suggestNicknames(nickname) : [],
     }
-    if (Object.keys(fields).length > 0) {
-      throw new ApiError('validation', fields as never)
-    }
-
-    const taken = [...db.players.values()].some(
-      (p) =>
-        p.user.nickname.toLowerCase() === payload.nickname.trim().toLowerCase() ||
-        p.user.email.toLowerCase() === payload.email.toLowerCase(),
-    )
-    if (taken) throw new ApiError('conflict')
-
-    const id: ID = newId('u')
-    db.players.set(id, {
-      user: {
-        id,
-        clubId: CLUB_ID,
-        nickname: payload.nickname.trim(),
-        email: payload.email.toLowerCase(),
-        role: 'member',
-        level: 1,
-        xp: 0,
-        createdAt: db.now,
-      },
-      wallet: { userId: id, moneyCents: 0, coins: 0 },
-      stats: {
-        totalHours: 0,
-        gamesPlayed: 0,
-        sessions: 0,
-        seasonHours: 0,
-        seasonCoins: 0,
-        achievementsUnlocked: 0,
-      },
-      online: false,
-      machineId: null,
-      playingGameId: null,
-    })
-    db.currentUserId = id
-
-    return { profile: buildProfile(id), token: newId('tok'), role: 'member' as UserRole }
   })
+}
+
+/**
+ * Writes the member row. The only account writer in the mock, so a player
+ * created by the signup flow is indistinguishable from a seeded one.
+ */
+function createMember(nickname: string, email: string): ID {
+  const id: ID = newId('u')
+  db.players.set(id, {
+    user: {
+      id,
+      clubId: CLUB_ID,
+      nickname: nickname.trim(),
+      email: email.toLowerCase(),
+      role: 'member',
+      level: 1,
+      xp: 0,
+      createdAt: db.now,
+    },
+    wallet: { userId: id, moneyCents: 0, coins: 0 },
+    stats: {
+      totalHours: 0,
+      gamesPlayed: 0,
+      sessions: 0,
+      seasonHours: 0,
+      seasonCoins: 0,
+      achievementsUnlocked: 0,
+    },
+    online: false,
+    machineId: null,
+    playingGameId: null,
+  })
+  return id
 }
 
 /** `POST /api/auth/demo` — the one-click demo entry on the lock screen. */
@@ -158,7 +234,7 @@ interface ResetChallenge {
   userId: ID | null
   email: string
   code: string
-  /** Epoch ms. Real clock on purpose — see `resetClock()`. */
+  /** Epoch ms. Real clock on purpose — see `otpClock()`. */
   expiresAt: number
   lastSentAt: number
   attemptsLeft: number
@@ -179,6 +255,7 @@ const RESET_MAX_ATTEMPTS = 5
 
 /**
  * The one place in the mock that reads the wall clock instead of `db.now`.
+ * Shared by both one-time-code flows — recovery (C1.3) and signup (C1.4).
  *
  * `db.now` is a *frozen* Sunday evening (see `lib/mock/db.ts`), which is
  * exactly right for seeded data and exactly wrong for a cooldown: every resend
@@ -187,7 +264,7 @@ const RESET_MAX_ATTEMPTS = 5
  * responses hand the UI *durations* (`resendAfterSec`, `expiresInSec`) rather
  * than timestamps, so no screen has to guess which clock a stamp came from.
  */
-function resetClock(): number {
+function otpClock(): number {
   return Date.now()
 }
 
@@ -198,7 +275,7 @@ function maskEmail(email: string): string {
   return `${head}${'•'.repeat(Math.max(2, Math.min(6, name.length - 1)))}@${domain}`
 }
 
-function generateResetCode(): string {
+function generateOtpCode(): string {
   let code = ''
   for (let i = 0; i < RESET_CODE_LENGTH; i += 1) {
     code += Math.floor(Math.random() * 10).toString()
@@ -212,7 +289,7 @@ export interface PasswordResetChallenge {
   maskedEmail: string
   /** Digits expected — so the code input is not a hard-coded 6 in the UI. */
   codeLength: number
-  /** Seconds until the code dies. A duration, not a stamp (see `resetClock`). */
+  /** Seconds until the code dies. A duration, not a stamp (see `otpClock`). */
   expiresInSec: number
   /** Seconds until `resendPasswordResetCode` stops answering `rateLimited`. */
   resendAfterSec: number
@@ -229,7 +306,7 @@ function issued(challengeId: ID, challenge: ResetChallenge): PasswordResetChalle
     challengeId,
     maskedEmail: maskEmail(challenge.email),
     codeLength: RESET_CODE_LENGTH,
-    expiresInSec: Math.max(0, Math.round((challenge.expiresAt - resetClock()) / 1000)),
+    expiresInSec: Math.max(0, Math.round((challenge.expiresAt - otpClock()) / 1000)),
     resendAfterSec: RESET_RESEND_COOLDOWN_SEC,
     devCode: challenge.code,
   }
@@ -253,11 +330,11 @@ export function requestPasswordReset(email: string): Promise<PasswordResetChalle
     const match = [...db.players.values()].find((p) => p.user.email.toLowerCase() === address)
 
     const challengeId = newId('pwd')
-    const now = resetClock()
+    const now = otpClock()
     const challenge: ResetChallenge = {
       userId: match?.user.id ?? null,
       email: address,
-      code: generateResetCode(),
+      code: generateOtpCode(),
       expiresAt: now + RESET_CODE_TTL_SEC * 1000,
       lastSentAt: now,
       attemptsLeft: RESET_MAX_ATTEMPTS,
@@ -281,11 +358,11 @@ export function resendPasswordResetCode(challengeId: ID): Promise<PasswordResetC
     const challenge = resetChallenges.get(challengeId)
     if (!challenge) throw new ApiError('notFound')
 
-    const now = resetClock()
+    const now = otpClock()
     const waited = (now - challenge.lastSentAt) / 1000
     if (waited < RESET_RESEND_COOLDOWN_SEC) throw new ApiError('rateLimited')
 
-    challenge.code = generateResetCode()
+    challenge.code = generateOtpCode()
     challenge.expiresAt = now + RESET_CODE_TTL_SEC * 1000
     challenge.lastSentAt = now
     challenge.attemptsLeft = RESET_MAX_ATTEMPTS
@@ -315,7 +392,7 @@ export function verifyPasswordResetCode(
   return mutate('auth.verifyPasswordResetCode', () => {
     const challenge = resetChallenges.get(challengeId)
     if (!challenge) throw new ApiError('notFound')
-    if (resetClock() > challenge.expiresAt) {
+    if (otpClock() > challenge.expiresAt) {
       // Expired ≠ wrong: `timeout` tells the UI to offer a resend, the way the
       // QR handshake does, instead of accusing the player of a typo.
       throw new ApiError('timeout')
@@ -341,7 +418,7 @@ export function verifyPasswordResetCode(
     challenge.resetToken = newId('rst')
     return {
       resetToken: challenge.resetToken,
-      expiresInSec: Math.max(0, Math.round((challenge.expiresAt - resetClock()) / 1000)),
+      expiresInSec: Math.max(0, Math.round((challenge.expiresAt - otpClock()) / 1000)),
     }
   })
 }
@@ -370,7 +447,7 @@ export function completePasswordReset(
     const challenge = resetChallenges.get(payload.challengeId)
     if (!challenge || !challenge.resetToken) throw new ApiError('notFound')
     if (challenge.resetToken !== payload.resetToken) throw new ApiError('unauthorized')
-    if (resetClock() > challenge.expiresAt) throw new ApiError('timeout')
+    if (otpClock() > challenge.expiresAt) throw new ApiError('timeout')
 
     const fields: Record<string, string> = {}
     if (payload.password.length < MIN_PASSWORD) fields.password = 'tooShort'
@@ -396,6 +473,199 @@ export function completePasswordReset(
       token: newId('tok'),
       role: (player?.user.role ?? 'member') as UserRole,
     }
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * Registration — email confirmed by code (C1.4)
+ * ------------------------------------------------------------------ */
+
+/**
+ * A signup waiting for its code.
+ *
+ * The typed name, address and password live *here* and not in `db.players`,
+ * because an account whose email was never confirmed is not a member: it is a
+ * pending intent. Nothing is written until `completeRegistration`, so a player
+ * who walks away at the code step leaves no half-account behind, and the
+ * nickname they were about to take stays free for the next person.
+ */
+interface SignupChallenge {
+  nickname: string
+  email: string
+  password: string
+  code: string
+  /** Epoch ms — the same wall clock as recovery (see `otpClock()`). */
+  expiresAt: number
+  lastSentAt: number
+  attemptsLeft: number
+}
+
+const signupChallenges = new Map<ID, SignupChallenge>()
+
+/** Same shape of code as recovery: one OTP language across the product. */
+const SIGNUP_CODE_LENGTH = RESET_CODE_LENGTH
+const SIGNUP_CODE_TTL_SEC = RESET_CODE_TTL_SEC
+const SIGNUP_RESEND_COOLDOWN_SEC = RESET_RESEND_COOLDOWN_SEC
+const SIGNUP_MAX_ATTEMPTS = RESET_MAX_ATTEMPTS
+
+export interface RegistrationChallenge {
+  challengeId: ID
+  /** Masked destination for the "we sent it to …" line. Never the full address. */
+  maskedEmail: string
+  codeLength: number
+  /** Seconds until the code dies. A duration, not a stamp (see `otpClock`). */
+  expiresInSec: number
+  /** Seconds until `resendRegistrationCode` stops answering `rateLimited`. */
+  resendAfterSec: number
+  /** MOCK ONLY — nothing here sends mail, so the code is printed (dev plate). */
+  devCode?: string
+}
+
+function issuedSignup(challengeId: ID, challenge: SignupChallenge): RegistrationChallenge {
+  return {
+    challengeId,
+    maskedEmail: maskEmail(challenge.email),
+    codeLength: SIGNUP_CODE_LENGTH,
+    expiresInSec: Math.max(0, Math.round((challenge.expiresAt - otpClock()) / 1000)),
+    resendAfterSec: SIGNUP_RESEND_COOLDOWN_SEC,
+    devCode: challenge.code,
+  }
+}
+
+export interface StartRegistrationPayload {
+  nickname: string
+  email: string
+  password: string
+  confirmPassword: string
+  /** The club-rules checkbox. Server-checked, not just a disabled button. */
+  acceptedRules: boolean
+}
+
+/**
+ * `POST /api/auth/register/start` (C1.4).
+ *
+ * Validates everything the form validates — including the rules checkbox, which
+ * is a *consent record* and therefore cannot be enforced only by a disabled CTA:
+ * the club has to be able to say the box was ticked, and a client-side guard
+ * proves nothing. Nickname and email conflicts are answered here rather than
+ * after the code, so nobody reads their inbox to be told the name was taken.
+ *
+ * Unlike `requestPasswordReset`, a conflicting email *is* reported: this
+ * endpoint cannot be an enumeration oracle it is not already — a sign-up form
+ * that accepted a duplicate address would create an account nobody can use.
+ */
+export function startRegistration(
+  payload: StartRegistrationPayload,
+): Promise<RegistrationChallenge> {
+  return mutate('auth.startRegistration', () => {
+    const nickname = payload.nickname.trim()
+    const email = payload.email.trim().toLowerCase()
+
+    const fields: Record<string, string> = {}
+    const verdict = judgeNickname(nickname)
+    if (verdict !== 'free') fields.nickname = verdict
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fields.email = 'invalidEmail'
+    else if (emailExists(email)) fields.email = 'conflict'
+    if (payload.password.length < MIN_PASSWORD) fields.password = 'tooShort'
+    if (payload.password !== payload.confirmPassword) {
+      fields.confirmPassword = 'passwordsMismatch'
+    }
+    if (!payload.acceptedRules) fields.acceptedRules = 'required'
+    if (Object.keys(fields).length > 0) {
+      throw new ApiError('validation', fields as never)
+    }
+
+    // One live signup per address: a second attempt replaces the first, so a
+    // player who mistyped the name and started over does not end up with two
+    // valid codes in one inbox.
+    for (const [id, existing] of signupChallenges) {
+      if (existing.email === email) signupChallenges.delete(id)
+    }
+
+    const challengeId = newId('sgn')
+    const now = otpClock()
+    const challenge: SignupChallenge = {
+      nickname,
+      email,
+      password: payload.password,
+      code: generateOtpCode(),
+      expiresAt: now + SIGNUP_CODE_TTL_SEC * 1000,
+      lastSentAt: now,
+      attemptsLeft: SIGNUP_MAX_ATTEMPTS,
+    }
+    signupChallenges.set(challengeId, challenge)
+    return issuedSignup(challengeId, challenge)
+  })
+}
+
+/**
+ * `POST /api/auth/register/resend`. Same 60 s guard as recovery, enforced on the
+ * server: a kiosk keyboard can hold Enter and a UI timer is a courtesy.
+ */
+export function resendRegistrationCode(challengeId: ID): Promise<RegistrationChallenge> {
+  return mutate('auth.resendRegistrationCode', () => {
+    const challenge = signupChallenges.get(challengeId)
+    if (!challenge) throw new ApiError('notFound')
+
+    const now = otpClock()
+    if ((now - challenge.lastSentAt) / 1000 < SIGNUP_RESEND_COOLDOWN_SEC) {
+      throw new ApiError('rateLimited')
+    }
+
+    challenge.code = generateOtpCode()
+    challenge.expiresAt = now + SIGNUP_CODE_TTL_SEC * 1000
+    challenge.lastSentAt = now
+    challenge.attemptsLeft = SIGNUP_MAX_ATTEMPTS
+    return issuedSignup(challengeId, challenge)
+  })
+}
+
+/**
+ * `POST /api/auth/register/confirm` — the one call that creates the account.
+ *
+ * The nickname and the address are judged **again** here, because the live check
+ * reserves nothing (see `checkNickname`) and minutes may have passed while the
+ * player looked for the mail. Losing that race is a `conflict` on the field, not
+ * a generic failure, so the UI can send them back to the name and keep the rest
+ * of what they typed.
+ *
+ * Success signs the player in: they are standing at the station, and a form that
+ * says "account created, now log in" would be theatre.
+ */
+export function completeRegistration(challengeId: ID, code: string): Promise<AuthResult> {
+  return mutate('auth.completeRegistration', () => {
+    const challenge = signupChallenges.get(challengeId)
+    if (!challenge) throw new ApiError('notFound')
+    // Expired ≠ wrong: `timeout` tells the UI to offer a resend instead of
+    // accusing the player of a typo.
+    if (otpClock() > challenge.expiresAt) throw new ApiError('timeout')
+
+    const entered = code.replace(/\D/g, '')
+    if (entered.length !== SIGNUP_CODE_LENGTH) {
+      throw new ApiError('validation', { code: 'required' } as never)
+    }
+    if (entered !== challenge.code) {
+      challenge.attemptsLeft -= 1
+      if (challenge.attemptsLeft <= 0) {
+        // Burned: the pending signup is gone, so a brute-force run has to go
+        // back through the form and its cooldown.
+        signupChallenges.delete(challengeId)
+        throw new ApiError('rateLimited')
+      }
+      throw new ApiError('invalidCode')
+    }
+
+    if (judgeNickname(challenge.nickname) !== 'free') {
+      throw new ApiError('validation', { nickname: 'taken' } as never)
+    }
+    if (emailExists(challenge.email)) {
+      throw new ApiError('validation', { email: 'conflict' } as never)
+    }
+
+    signupChallenges.delete(challengeId)
+    const id = createMember(challenge.nickname, challenge.email)
+    db.currentUserId = id
+    return { profile: buildProfile(id), token: newId('tok'), role: 'member' as UserRole }
   })
 }
 
