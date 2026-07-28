@@ -20,7 +20,13 @@
       a.pause()
     } catch {}
   })
-  // Freeze wall-clock readouts so the minute rolling over is not read as a diff.
+  /* Freeze the live readouts. Two of them, both real diff generators:
+   *   • wall-clock digits — the minute rolling over between the two captures
+   *     reads as a diff in the largest type on either screen;
+   *   • the idle screen's ping chip, which is `3 + random(4)` re-rolled every
+   *     2.2s (`useLivePing`). Left alone it makes the chip row differ from
+   *     itself, which is exactly the row F9.4 rewrote — the one place where a
+   *     noise pixel would be mistaken for evidence. */
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   let n
   let big = 0
@@ -34,6 +40,11 @@
     } else if (/^\s*\d{1,2}\s*$/.test(t) && /text-\[4\.5rem\]/.test(cl)) {
       big++
       n.nodeValue = big % 2 ? '15' : '40'
+      c++
+    } else if (/^\s*\d{1,3}\s*ms\s*$/.test(t)) {
+      // The login screen's twin is the literal "4 ms", so this normalizes the
+      // idle screen onto the value the other screen already shows.
+      n.nodeValue = '4 ms'
       c++
     }
   }
