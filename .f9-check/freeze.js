@@ -32,12 +32,53 @@
    * (9 s) — so a capture no longer depends on how fast the screenshot follows
    * the freeze. Ids are shared between intervals and timeouts, so the sweep
    * covers both. */
-  const top = setInterval(() => {}, 1e6)
-  for (let i = 1; i <= Number(top); i++) {
+  const topI = setInterval(() => {}, 1e6)
+  for (let i = 1; i <= Number(topI); i++) {
     try {
       clearInterval(i)
     } catch {}
   }
+  /* Same sweep for the requestAnimationFrame loop, and stub the function so
+   * nothing re-queues itself afterwards. `animation: none` only governs CSS
+   * keyframes; the attract screen's Ken Burns zoom is a framer-motion spring
+   * driven from rAF, so it kept running through the CSS freeze and two
+   * captures of the SAME build differed on ~40% of their pixels — the whole
+   * backdrop, shifted by a few px of scale. */
+  const topF = requestAnimationFrame(() => {})
+  for (let i = 1; i <= Number(topF); i++) {
+    try {
+      cancelAnimationFrame(i)
+    } catch {}
+  }
+  window.requestAnimationFrame = () => 0
+  /* Whatever the motion library had already committed stays in the inline
+   * style attribute after its loop dies, at whichever value it reached, so the
+   * animated properties have to be normalised too. */
+  let m = 0
+  document.querySelectorAll('*').forEach((el) => {
+    const st = el.style
+    if (!st) return
+    if (st.transform && st.transform !== 'none') {
+      st.transform = 'none'
+      m++
+    }
+    if (st.opacity && st.opacity !== '1') {
+      st.opacity = '1'
+      m++
+    }
+    if (st.filter && st.filter !== 'none') {
+      st.filter = 'none'
+      m++
+    }
+  })
+  /* Hide the Next.js dev overlay. It is not part of either tree, it appears
+   * only sometimes, and it parks a red "1 Issue" badge over the bottom-left
+   * corner — which is where the promo ticker runs. In the noise pair it was
+   * the single largest band (7910 px) and it would have been read as the
+   * ticker having moved; the ticker underneath is pixel-identical. */
+  document.querySelectorAll('nextjs-portal').forEach((el) => {
+    el.style.display = 'none'
+  })
   /* Freeze the live readouts. Two of them, both real diff generators:
    *   • wall-clock digits — the minute rolling over between the two captures
    *     reads as a diff in the largest type on either screen;
@@ -66,5 +107,5 @@
       c++
     }
   }
-  return 'frozen, normalized ' + c
+  return 'frozen: ' + c + ' texts, ' + m + ' inline styles, intervals to ' + topI + ', frames to ' + topF
 })()
