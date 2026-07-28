@@ -36,6 +36,7 @@ import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { SessionManager } from '@/components/session-manager'
+import { SfxArmBridge } from '@/components/sfx-arm-bridge'
 import { SfxGameBridge } from '@/components/sfx-game-bridge'
 import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
@@ -115,6 +116,12 @@ export function AppShell({
  * once per station, during idle time, so the first cue is instant instead of
  * arriving after its own fetch. It renders nothing and never blocks boot.
  *
+ * `SfxArmBridge` (F8.5) is here because the gesture that grants a browser's
+ * permission to make a sound can be *any* first touch of the station — a key on
+ * the lock screen, a click on a cover — and a listener living on one screen would
+ * miss the ones that happen on the others. It is mounted above both screens for
+ * the same reason the toast host is.
+ *
  * `SfxSettingsBridge` (F8.3) is mounted here rather than inside the settings
  * modal for the same reason: the modal is unmounted most of the time, and a mute
  * switch that only applies while its own panel is open is not a setting.
@@ -129,6 +136,7 @@ export function GlobalOverlays() {
 
   return (
     <>
+      <SfxArmBridge />
       <SfxSettingsBridge />
       <SfxGameBridge />
       <GameLaunchModal />
