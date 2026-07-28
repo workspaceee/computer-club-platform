@@ -588,11 +588,7 @@ export function LockScreen() {
           </div>
 
           {/* ------- card footer strip ------- */}
-          <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
-            <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
-              <icons.lock size={10} className="text-success" />
-              {t('auth.encrypted')}
-            </span>
+          <div className="relative z-[2] flex items-center justify-end border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono text-[9px] text-text-low">
               {t('common.shell')} v2.4
             </span>
