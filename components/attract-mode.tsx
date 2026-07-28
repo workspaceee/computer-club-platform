@@ -133,8 +133,6 @@ export function AttractMode() {
 
   const hh = now ? String(now.getHours()).padStart(2, '0') : '--'
   const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--'
-  const ss = now ? String(now.getSeconds()).padStart(2, '0') : '--'
-  const colonOn = now ? now.getSeconds() % 2 === 0 : true
   const dateStr = now
     ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
@@ -222,23 +220,17 @@ export function AttractMode() {
             <span className="text-[4.5rem] md:text-[6.4rem] xl:text-[7.6rem]">{mm}</span>
           </div>
 
-          {/* seconds as a thin progress line filling over the minute */}
-          <div className="mt-6 flex w-56 items-center gap-3 md:mt-8 md:w-80">
-            <div className="relative h-px flex-1 overflow-hidden bg-white/12">
-              <div
-                className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-1000 ease-linear"
-                style={{ width: now ? `${(now.getSeconds() / 59) * 100}%` : '0%' }}
-              />
-            </div>
-            <span className="label-mono w-6 text-right text-[11px] tabular-nums tracking-widest text-primary">
-              {ss}
+          {/* Date, sitting on a hairline rule that replaces the old seconds
+              progress bar + numeric readout: no seconds anywhere in the
+              product now, and the rule keeps the composition's horizontal
+              anchor under the digits. */}
+          <div className="mt-6 flex w-[20rem] items-center gap-4 md:mt-8 md:w-[30rem]">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-primary/45" />
+            <span className="label-mono whitespace-nowrap text-xs tracking-[0.32em] text-text-medium md:text-sm">
+              {dateStr}
             </span>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-primary/45" />
           </div>
-
-          {/* date */}
-          <span className="label-mono mt-5 text-xs tracking-[0.32em] text-text-medium md:mt-6 md:text-sm">
-            {dateStr}
-          </span>
 
           {/* slideshow progress */}
           {!useVideo && (

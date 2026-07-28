@@ -330,18 +330,16 @@
 @keyframes neon-digits-breathe {
   0%,
   100% {
-    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
-      drop-shadow(0 0 4px rgba(255, 255, 255, 0.4))
-      drop-shadow(0 0 10px rgba(229, 53, 43, 0.9))
-      drop-shadow(0 0 26px rgba(229, 53, 43, 0.55))
-      drop-shadow(0 0 54px rgba(229, 53, 43, 0.3));
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.28))
+      drop-shadow(0 0 7px rgba(229, 53, 43, 0.42))
+      drop-shadow(0 0 18px rgba(229, 53, 43, 0.18));
   }
   50% {
-    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-      drop-shadow(0 0 5px rgba(255, 255, 255, 0.7))
-      drop-shadow(0 0 12px rgba(255, 96, 84, 0.95))
-      drop-shadow(0 0 30px rgba(229, 53, 43, 0.7))
-      drop-shadow(0 0 64px rgba(229, 53, 43, 0.42));
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
+      drop-shadow(0 0 4px rgba(255, 255, 255, 0.4))
+      drop-shadow(0 0 8px rgba(229, 53, 43, 0.55))
+      drop-shadow(0 0 22px rgba(229, 53, 43, 0.26));
   }
 }
 .neon-digits {
@@ -353,17 +351,20 @@
   /* Stroke width is in `em`, not `px`: a fixed rim tuned for 9rem digits
      turns the smaller breakpoints into a fat slab. Tying it to the font
      size keeps the tube equally crisp everywhere. */
-  -webkit-text-stroke: 0.019em rgba(255, 255, 255, 0.95);
+  /* Slightly heavier than the first pass: with no fill, the stroke is the
+     only thing carrying the shape, so it has to hold up on its own now that
+     the red bloom no longer does the work of making the digits visible. */
+  -webkit-text-stroke: 0.022em rgba(255, 255, 255, 0.96);
   paint-order: stroke fill;
   /* Any inherited text-shadow (e.g. from .neon-text) would fill the hollow
      centres — the halo is drop-shadow's job here. */
   text-shadow: none;
   /* Static fallback so the digits still glow when motion is damped and the
      keyframes above are switched off. */
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
-    drop-shadow(0 0 4px rgba(255, 255, 255, 0.4))
-    drop-shadow(0 0 10px rgba(229, 53, 43, 0.9))
-    drop-shadow(0 0 26px rgba(229, 53, 43, 0.55));
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.28))
+    drop-shadow(0 0 7px rgba(229, 53, 43, 0.42))
+    drop-shadow(0 0 18px rgba(229, 53, 43, 0.18));
   animation: neon-digits-breathe 3.2s ease-in-out infinite;
   /* Chakra Petch is already narrow; the extra negative tracking pulls the
      glyphs into one compact block instead of a wide marquee. */
