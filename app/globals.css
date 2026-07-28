@@ -101,6 +101,28 @@
   --zone-vip: #f5c542;
   --zone-standard: #868d95;
   --zone-ps5: #6bb1e4;
+
+  /* ---- Veil ink and floors (F9.2, see DESIGN.md §3) ----
+     The only blacks allowed on top of photography or video. Stored as bare
+     channel triples, not as `#rrggbb` or `rgba()`, because every veil needs the
+     *same* ink at a dozen different alphas — `rgb(var(--veil-ink) / 0.55)` is
+     the one form that lets a single token carry all of them.
+
+     Two inks, deliberately, and neither is `#000`: pure black over a graded
+     frame kills the little colour left in the shadows. `--veil-ink` is the
+     near-neutral one used over the still login backdrop; `--veil-ink-deep` sits
+     two units lower per channel and belongs to the idle screen, where the media
+     is video or a moving slideshow and the scrim has to hold the clock against
+     frames nobody previewed. Their difference is small and intentional — do not
+     collapse them, and do not add a third without a reason written down here.
+
+     The floors are pure black on purpose: they are insurance against a bright
+     upload from the admin panel, not a means of darkening (§3.1), so they must
+     stay colour-neutral. Shaping is the gradients' job. */
+  --veil-ink: 5 6 10;
+  --veil-ink-deep: 3 4 8;
+  --veil-floor: 0.18;
+  --veil-floor-deep: 0.35;
 }
 
 @layer base {
@@ -175,6 +197,98 @@
     linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+/* ---------- Media veils (§3) ---------- */
+/* The layered pie that turns a photograph or a clip into a background: floor,
+   shaping gradients, texture. It lives here and not inside two components
+   because §3 requires *every* new medium — including the video the admin panel
+   will let staff upload (A11) — to pass through the same stack. Five inline
+   `style={{ background: 'linear-gradient(...)' }}` strings in JSX cannot be
+   reused by a third screen; they can only be re-eyeballed, and the third set of
+   densities is how a design system stops being one.
+
+   Densities here are a verbatim move from `lock-screen.tsx` / `attract-mode.tsx`
+   — F9.2 is a transfer, not a redesign. `transparent` mid-stops are kept as
+   written rather than "corrected" to a zero-alpha ink: the browser interpolates
+   the two differently, and matching the old pixels outranks tidiness.
+
+   Layer order matters and is the caller's: floor → shaping → texture. Stacked
+   `absolute inset-0` siblings composite in DOM order, so the utilities are
+   applied to separate divs instead of being merged into one multi-background
+   element — that keeps each layer independently tunable from the admin panel
+   later. */
+
+/* Insurance floor, not a dimmer (§3.1). Pure black, colour-neutral. */
+@utility veil-login-floor {
+  background-color: rgb(0 0 0 / var(--veil-floor));
+}
+
+@utility veil-attract-floor {
+  background-color: rgb(0 0 0 / var(--veil-floor-deep));
+}
+
+/* Horizontal veil, login. Directional by design: nearly clear at 42 % where the
+   subject of the photograph sits, dense on the right under the access card and
+   at the left edge under the clock. */
+@utility veil-login-h {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--veil-ink) / 0.55) 0%,
+    rgb(var(--veil-ink) / 0.05) 42%,
+    rgb(var(--veil-ink) / 0.5) 72%,
+    rgb(var(--veil-ink) / 0.82) 100%
+  );
+}
+
+/* Vertical veil, login: presses the top and bottom edges of the frame. */
+@utility veil-login-v {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--veil-ink) / 0.5) 0%,
+    transparent 22%,
+    transparent 68%,
+    rgb(var(--veil-ink) / 0.72) 100%
+  );
+}
+
+/* Radial scrim, idle screen: a dark egg directly under the centred clock. */
+@utility veil-attract-scrim {
+  background-image: radial-gradient(
+    ellipse 62% 44% at 50% 47%,
+    rgb(var(--veil-ink-deep) / 0.72) 0%,
+    rgb(var(--veil-ink-deep) / 0.35) 55%,
+    transparent 100%
+  );
+}
+
+/* Vertical veil, idle screen. Bottom is heavier than the login's — the ticker
+   rides on it and its copy has to clear a moving frame. */
+@utility veil-attract-v {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--veil-ink-deep) / 0.8) 0%,
+    transparent 26%,
+    transparent 58%,
+    rgb(var(--veil-ink-deep) / 0.92) 100%
+  );
+}
+
+/* CRT / broadcast texture: 1 px line every 3 px. Opacity and blend mode are
+   baked in rather than left to the caller — they *are* the effect, and the two
+   times this shipped as loose utility classes in JSX is exactly how a texture
+   ends up at a different strength on the third screen. */
+@utility scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.8) 0px,
+    rgba(255, 255, 255, 0.8) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  pointer-events: none;
 }
 
 /* Matte tactical panel with hairline border + top highlight */
