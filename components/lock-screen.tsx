@@ -357,7 +357,7 @@ export function LockScreen() {
                 ? { duration: 0.6, ease: 'easeIn' }
                 : { duration: 0.7, delay: 0.1, ease: 'easeOut' }
           }
-          className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/80 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
+          className={`neon-ring relative w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#0a0b10]/40 shadow-[0_32px_90px_rgba(0,0,0,0.7)] backdrop-blur-2xl ${idle ? 'pointer-events-none' : ''}`}
         >
           {/* subtle top accent line */}
           <div
@@ -588,11 +588,7 @@ export function LockScreen() {
           </div>
 
           {/* ------- card footer strip ------- */}
-          <div className="relative z-[2] flex items-center justify-between border-t border-border bg-black/30 px-7 py-3">
-            <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
-              <icons.lock size={10} className="text-success" />
-              {t('auth.encrypted')}
-            </span>
+          <div className="relative z-[2] flex items-center justify-end border-t border-border bg-black/30 px-7 py-3">
             <span className="label-mono text-[9px] text-text-low">
               {t('common.shell')} v2.4
             </span>
