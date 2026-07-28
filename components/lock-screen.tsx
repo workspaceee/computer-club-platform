@@ -28,7 +28,17 @@ import {
 } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 
-type Mode = 'login' | 'register'
+/**
+ * The three doors of the terminal (C1.2).
+ *
+ * `guest` is the walk-in door — the entry into the stage-2 PostPaid flow, where
+ * an admin opens the visit, the clock runs *up* and the money lands on an open
+ * tab settled at the counter. Stage 2 owns the machinery, so the tab ships as an
+ * explained stub: it teaches the model and names its state ("soon") instead of
+ * pretending to check anyone in. `C1.9` swaps the disabled CTA for the real
+ * call, when the option row below the sign-in form is reworked.
+ */
+type Mode = 'login' | 'register' | 'guest'
 
 /** Idle time before the attract mode kicks in (ms). */
 const IDLE_TIMEOUT_MS = 30_000
@@ -223,13 +233,18 @@ export function LockScreen() {
 
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
-  const headline = useMemo(
-    () =>
-      mode === 'login'
-        ? { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
-        : { lead: t('auth.join'), accent: t('auth.joinHi') },
-    [mode, t],
-  )
+  const headline = useMemo(() => {
+    if (mode === 'login') return { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
+    if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
+    return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
+  }, [mode, t])
+
+  const subline =
+    mode === 'login'
+      ? t('auth.loginSub')
+      : mode === 'register'
+        ? t('auth.registerSub')
+        : t('guest.lockSub')
 
   // Clock and date follow the active language's locale (F2.4).
   const timeStr = now ? formatTime(now) : '--:--'
@@ -407,7 +422,7 @@ export function LockScreen() {
                   <span className="caret-blink ml-1 font-normal text-primary">_</span>
                 </h1>
                 <p className="mt-2.5 text-sm leading-relaxed text-text-medium">
-                  {mode === 'login' ? t('auth.loginSub') : t('auth.registerSub')}
+                  {subline}
                 </p>
               </motion.div>
             </AnimatePresence>
@@ -417,12 +432,20 @@ export function LockScreen() {
                 (F1.6) owns that geometry now, including the reduced-motion
                 escape the local copy never had, and it renders a real
                 `radiogroup` instead of two `aria-pressed` buttons. */}
+            {/* Three segments, not two: the walk-in door is a peer of the two
+                member doors, not a footnote under the form (C1.2). `size="sm"`
+                because the third label is what broke the `md` track — LT renders
+                the pair as "Prisijungti / Registracija", and at 12 px with
+                0.14em tracking three uppercase segments wrapped inside a
+                448 px card (F2.6 again). */}
             <Segmented<Mode>
               className="mt-6"
+              size="sm"
               label={t('auth.accessTerminal')}
               options={[
                 { value: 'login', label: t('auth.signIn') },
                 { value: 'register', label: t('auth.register') },
+                { value: 'guest', label: t('guest.badge') },
               ]}
               value={mode}
               onChange={switchMode}
@@ -521,7 +544,7 @@ export function LockScreen() {
                     {t('guest.continueAsGuest')}
                   </Button>
                 </motion.form>
-              ) : (
+              ) : mode === 'register' ? (
                 <motion.form
                   key="register"
                   initial={{ opacity: 0, x: 24 }}
@@ -597,6 +620,8 @@ export function LockScreen() {
                     {t('auth.createAccount')}
                   </Button>
                 </motion.form>
+              ) : (
+                <GuestPanel key="guest" />
               )}
             </AnimatePresence>
           </div>
@@ -622,6 +647,83 @@ export function LockScreen() {
 
       <QrDialog open={qrOpen} onCancel={cancelQr} />
     </div>
+  )
+}
+
+/**
+ * "Guest" tab of the access terminal (C1.2).
+ *
+ * The walk-in has nothing to type, so this panel is not a form: it is the one
+ * place in the client that explains the PostPaid model before anybody owes
+ * money — admin opens the visit, minutes and orders pile onto one tab, the tab
+ * is settled at the counter. Stage 2 builds the machinery, so the CTA is
+ * deliberately dead and *says* it is ("soon") rather than throwing `forbidden`
+ * at a guest who tapped it: an error toast would blame the guest for a feature
+ * that does not exist yet.
+ *
+ * The live walk-in check-in still hangs under the sign-in form as a quiet ghost
+ * button until `C1.9` reworks that row and moves the real call up here.
+ */
+function GuestPanel() {
+  const { t } = useT()
+
+  const steps = [
+    { icon: icons.staff, text: t('guest.flowStep1') },
+    { icon: icons.bill, text: t('guest.flowStep2') },
+    { icon: icons.payment, text: t('guest.flowStep3') },
+  ]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 24 }}
+      transition={{ duration: 0.25 }}
+      className="flex flex-col gap-4"
+    >
+      {/* A well (§3.3): explanatory copy sits *in* the card, not on another
+          panel floating above it. */}
+      <div className="well flex flex-col gap-4 rounded-lg border border-border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="label-mono flex items-center gap-2 text-[10px] text-text-medium">
+            <icons.timer size={12} className="text-primary" />
+            {t('guest.flowTitle')}
+          </span>
+          {/* Status plate, so `pill` + a warning tone: the feature is announced,
+              not broken (§3.3). */}
+          <span className="label-mono rounded-sm border border-warning/30 bg-warning/12 px-2 py-0.5 text-[9px] text-warning">
+            {t('guest.soon')}
+          </span>
+        </div>
+
+        <ol className="flex flex-col gap-3">
+          {steps.map((s, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <IconTile icon={s.icon} variant="muted" size="sm" />
+              <span className="flex-1 pt-1 text-pretty text-xs leading-relaxed text-text-medium">
+                {s.text}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <p className="text-pretty text-xs leading-relaxed text-text-low">{t('guest.soonNote')}</p>
+
+      {/* Same slot and height as the two forms' CTA, but *not* `cut` and not
+          primary: the bevel is the screen's one committing action (§4), and a
+          45 %-opacity red slab still reads as pressable. A dead control should
+          look dead. `C1.9` promotes this to `primary cut` with the real call. */}
+      <Button
+        size="lg"
+        variant="secondary"
+        block
+        disabled
+        iconLeft={<icons.guest size={18} />}
+      >
+        {t('guest.startVisit')}
+      </Button>
+    </motion.div>
   )
 }
 

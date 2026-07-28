@@ -342,6 +342,17 @@ export const en = {
     endSession: 'End guest session',
     endConfirmTitle: 'End the guest session?',
     endConfirmBody: 'Settle the open tab at the bar. Nothing from this session is saved.',
+    // Lock-screen "Guest" tab — the door into the stage-2 post-paid flow (C1.2).
+    lockTitle: 'Guest',
+    lockTitleHi: 'check-in',
+    lockSub: 'Walk in, play now, settle the tab at the counter afterwards.',
+    flowTitle: 'How the open tab works',
+    flowStep1: 'An admin unlocks this station and starts your visit.',
+    flowStep2: 'Playtime and anything you order go onto one open tab.',
+    flowStep3: 'You pay the whole tab at the counter when you leave.',
+    startVisit: 'Start a guest visit',
+    soon: 'Soon',
+    soonNote: 'Self check-in is not live on this station yet. Ask the admin on shift to start a guest visit for you.',
   },
 
   // PC-side surfaces served by the station agent (F5.4). Every string here
