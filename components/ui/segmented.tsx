@@ -98,7 +98,13 @@ export function Segmented<T extends string>({
                   'absolute inset-0',
                   round ? 'rounded-full' : 'rounded-sm',
                   variant === 'pill'
-                    ? 'bg-primary shadow-[0_0_18px_rgba(229,53,43,0.5)]'
+                    ? // Translucent instead of a solid red fill, so the pill
+                      // reads as lit glass over the track: the shell's shared
+                      // neon (`.neon-edge` — same paint as `.neon-ring`, minus
+                      // the `position: relative` that would collapse this
+                      // `absolute inset-0` overlay) is what marks the active
+                      // segment now, not a block of colour.
+                      'neon-edge bg-primary/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_20px_rgba(229,53,43,0.32)] backdrop-blur-sm'
                     : 'border border-primary/40 bg-primary/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_18px_rgba(229,53,43,0.18)]',
                 )}
                 transition={

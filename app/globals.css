@@ -241,12 +241,24 @@
   }
 }
 
-/* Thin animated border: red and white light traveling around the edge */
+/* Thin animated border: red and white light traveling around the edge.
+   Two entry points, one identical paint:
+
+     .neon-ring — for elements in normal flow; it positions itself.
+     .neon-edge — for elements the caller has ALREADY positioned
+       (`absolute inset-0` overlays such as the segmented control's sliding
+       pill). `.neon-ring` would force `position: relative` onto them and
+       collapse the overlay, so the edge is offered without that one rule.
+
+   Keeping both on the same declaration block means the neon look has a
+   single source of truth — edit the gradient once, both follow. */
 .neon-ring {
   position: relative;
 }
 .neon-ring::before,
-.neon-ring::after {
+.neon-ring::after,
+.neon-edge::before,
+.neon-edge::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -273,10 +285,15 @@
   mask-composite: exclude;
   animation: neon-spin 7s linear infinite;
   pointer-events: none;
+}
+/* Above the panel's own inner content (backgrounds, media, highlights). */
+.neon-ring::before,
+.neon-ring::after {
   z-index: 3;
 }
 /* Soft glow copy of the ring */
-.neon-ring::after {
+.neon-ring::after,
+.neon-edge::after {
   filter: blur(6px);
   opacity: 0.55;
 }
@@ -597,6 +614,8 @@
 @media (prefers-reduced-motion: reduce) {
   .neon-ring::before,
   .neon-ring::after,
+  .neon-edge::before,
+  .neon-edge::after,
   .neon-text,
   .neon-logo,
   .imba-grid,
