@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { BrandLabel } from '@/components/brand-label'
+import { HudChip } from '@/components/ui/hud-chip'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
@@ -266,11 +267,11 @@ export function AttractMode() {
 
         {/* bottom HUD: live station telemetry */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
-          <HudChip dot label="PC #17" value="READY" accent />
+          <HudChip dot variant="station" label="PC #17" value="READY" />
           <HudChip icon={<icons.network size={13} />} label="Ping" value={`${ping} ms`} />
           <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
           <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" accent />
+          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
         </div>
       </div>
 
@@ -497,39 +498,6 @@ function PromoCaption({ promo }: { promo: Promo }) {
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-text-medium text-pretty">{promo.subtitle}</p>
     </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/*  HUD bits                                                           */
-/* ------------------------------------------------------------------ */
-
-function HudChip({
-  icon,
-  dot,
-  label,
-  value,
-  accent,
-}: {
-  icon?: React.ReactNode
-  dot?: boolean
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    // T2 (§4.2): status plate, frozen tube. The idle screen's single T1 is the
-    // wake hint — the only thing here anyone is meant to act on.
-    <span className="glass neon-ring-static flex items-center gap-2 rounded-full px-3.5 py-1.5">
-      {dot && <span className="h-2 w-2 animate-pulse rounded-full bg-success" />}
-      {icon && <span className={accent ? 'text-success' : 'text-primary'}>{icon}</span>}
-      <span className="text-[10px] uppercase tracking-widest text-text-low">{label}</span>
-      <span
-        className={`text-xs font-semibold tabular-nums ${accent ? 'text-success' : 'text-text-high'}`}
-      >
-        {value}
-      </span>
-    </span>
   )
 }
 
