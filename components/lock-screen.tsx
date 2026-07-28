@@ -231,7 +231,6 @@ export function LockScreen() {
 
   // Clock and date follow the active language's locale (F2.4).
   const timeStr = now ? formatTime(now) : '--:--'
-  const secStr = now ? String(now.getSeconds()).padStart(2, '0') : '--'
   const dateStr = now ? formatFullDate(now) : ''
 
   return (
@@ -301,22 +300,28 @@ export function LockScreen() {
           transition={{ duration: 0.8, delay: 0.15, ease: 'easeOut' }}
           className="my-auto flex flex-col gap-3"
         >
-          <span className="label-mono flex items-center gap-2 text-[11px] text-primary">
-            <span className="h-px w-8 bg-primary/60" />
+          {/* Eyebrow: the rule now fades out of the primary instead of being a
+              flat 60 % bar, which matches the hairline treatment on the card. */}
+          <span className="label-mono flex items-center gap-2.5 text-[11px] text-primary/90">
+            <span className="h-px w-8 bg-gradient-to-r from-primary/15 to-primary" />
             {t('auth.localTime')}
           </span>
           {/* Sized between the original 7/9rem slab (too wide — it ran into the
               card column) and the 4.75/6rem correction (too timid to lead the
-              screen). */}
-          <div className="flex items-end gap-3">
-            <span className="neon-text neon-digits font-clock text-[5.75rem] font-semibold leading-[0.85] tabular-nums text-text-high xl:text-[7.5rem]">
-              {timeStr}
-            </span>
-            <span className="mb-2 font-clock text-2xl font-medium tabular-nums text-primary xl:mb-2.5 xl:text-[1.75rem]">
-              :{secStr}
-            </span>
-          </div>
-          <span className="text-lg text-text-medium">{dateStr}</span>
+              screen). Seconds were dropped: a lock screen is read at a glance,
+              and a live 1 Hz digit next to a breathing tube was two competing
+              rhythms. */}
+          <span className="neon-digits font-clock text-[5.75rem] font-semibold leading-[0.85] tabular-nums text-text-high xl:text-[7.5rem]">
+            {timeStr}
+          </span>
+          {/* The date used to be plain 18px body text, which read as a caption
+              from a different design system sitting under a neon sign. Same
+              mono/uppercase/tracked language as the eyebrow above ties the
+              three lines into one lockup, and a soft dark shadow keeps it
+              legible over the brighter patches of the backdrop. */}
+          <span className="label-mono text-[13px] leading-relaxed text-text-medium [text-shadow:0_1px_10px_rgba(0,0,0,0.75)] xl:text-sm">
+            {dateStr}
+          </span>
         </motion.div>
 
         {/* telemetry strip */}

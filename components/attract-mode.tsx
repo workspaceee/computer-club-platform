@@ -133,8 +133,6 @@ export function AttractMode() {
 
   const hh = now ? String(now.getHours()).padStart(2, '0') : '--'
   const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--'
-  const ss = now ? String(now.getSeconds()).padStart(2, '0') : '--'
-  const colonOn = now ? now.getSeconds() % 2 === 0 : true
   const dateStr = now
     ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : ''
@@ -200,9 +198,9 @@ export function AttractMode() {
           transition={{ duration: 1, delay: 0.4, ease: 'easeOut' }}
           className="flex flex-col items-center"
         >
-          {/* Neon-tube digits: the red stroke traces the glyphs themselves —
+          {/* Neon-tube digits: hollow glyphs, all the light on the contour —
               no framing box, per request. */}
-          <div className="neon-text neon-digits flex items-center justify-center font-clock font-semibold leading-none tabular-nums text-text-high">
+          <div className="neon-digits flex items-center justify-center font-clock font-semibold leading-none tabular-nums text-text-high">
             {/* Halfway between the 5/7.5/9rem original (a marquee that ate the
                 frame) and the 3.75/5.25/6.25rem correction (too small for a
                 clock read from across the room). */}
@@ -211,29 +209,28 @@ export function AttractMode() {
               animate={{ opacity: [1, 0.2, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               className="mx-0.5 -translate-y-[0.06em] text-[3.75rem] font-normal text-primary md:mx-1 md:text-[5.4rem] xl:text-[6.4rem]"
+              // The hollow treatment inherits (`-webkit-text-fill-color` /
+              // `-webkit-text-stroke` both cascade), and an outlined colon at
+              // this size all but disappears — so the separator opts back into
+              // a solid red glyph.
+              style={{ WebkitTextFillColor: 'currentColor', WebkitTextStroke: '0' }}
             >
               :
             </motion.span>
             <span className="text-[4.5rem] md:text-[6.4rem] xl:text-[7.6rem]">{mm}</span>
           </div>
 
-          {/* seconds as a thin progress line filling over the minute */}
-          <div className="mt-6 flex w-56 items-center gap-3 md:mt-8 md:w-80">
-            <div className="relative h-px flex-1 overflow-hidden bg-white/12">
-              <div
-                className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-1000 ease-linear"
-                style={{ width: now ? `${(now.getSeconds() / 59) * 100}%` : '0%' }}
-              />
-            </div>
-            <span className="label-mono w-6 text-right text-[11px] tabular-nums tracking-widest text-primary">
-              {ss}
+          {/* Date, sitting on a hairline rule that replaces the old seconds
+              progress bar + numeric readout: no seconds anywhere in the
+              product now, and the rule keeps the composition's horizontal
+              anchor under the digits. */}
+          <div className="mt-6 flex w-[20rem] items-center gap-4 md:mt-8 md:w-[30rem]">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-primary/45" />
+            <span className="label-mono whitespace-nowrap text-xs tracking-[0.32em] text-text-medium md:text-sm">
+              {dateStr}
             </span>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-primary/45" />
           </div>
-
-          {/* date */}
-          <span className="label-mono mt-5 text-xs tracking-[0.32em] text-text-medium md:mt-6 md:text-sm">
-            {dateStr}
-          </span>
 
           {/* slideshow progress */}
           {!useVideo && (
@@ -249,14 +246,32 @@ export function AttractMode() {
             </div>
           )}
 
-          {/* wake hint */}
+          {/* Wake hint — the only instruction on the idle screen, so it gets a
+              deliberate entrance (fades up once the clock lockup has landed)
+              and then a permanent, legible attention loop: breathing halo,
+              warming copy and a red scan beam. `overflow-hidden` clips the
+              beam to the pill; the neon ring still paints over it because its
+              pseudo-elements sit at z-index 3. */}
           <motion.span
-            animate={{ opacity: [0.45, 1, 0.45] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="neon-ring mt-9 flex items-center gap-2.5 rounded-full border border-white/12 bg-black/45 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-medium shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.9, ease: 'easeOut' }}
+            className="neon-ring wake-hint relative mt-9 flex items-center gap-2.5 overflow-hidden rounded-full border border-primary/25 bg-black/55 px-6 py-3 text-[11px] uppercase tracking-[0.22em] text-text-high backdrop-blur-md"
           >
-            <icons.controls size={13} className="text-primary" />
-            Move mouse to unlock
+            <span
+              aria-hidden
+              className="wake-hint-scan pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+            />
+            {/* The mark mimes the gesture it is asking for — a small horizontal
+                nudge reads as "move", which a static mouse icon does not. */}
+            <motion.span
+              animate={{ x: [0, 5, 0] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              className="relative flex"
+            >
+              <icons.controls size={13} className="text-primary" />
+            </motion.span>
+            <span className="wake-hint-copy relative">Move mouse to unlock</span>
           </motion.span>
         </motion.div>
 
