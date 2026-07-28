@@ -91,10 +91,8 @@ export function GameCover({
         fallback="none"
         className="object-cover"
       />
-      {/* Darkening over media is a §3 veil utility, never a gradient chosen
-          here (F9.7b): `veil-cover-title` is this caption's own rung. */}
       {!hideTitle && (
-        <div className="veil-cover-title relative z-10 w-full p-3 pt-8">
+        <div className="relative z-10 w-full bg-gradient-to-t from-black/85 via-black/45 to-transparent p-3 pt-8">
           <h3
             className={cn(
               'font-display font-extrabold uppercase leading-tight tracking-tight text-white drop-shadow-md',

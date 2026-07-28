@@ -179,9 +179,7 @@ function HeroCarousel() {
               priority
               sizes="(min-width: 1280px) 70vw, 100vw"
             />
-            {/* §3 veil, not a gradient written here (F9.7b): the hero has its
-                own rung because it is 70vw of art, not a 12rem caption. */}
-            <div className="veil-hero-v absolute inset-0" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
               <div className="flex items-center gap-3">
                 <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
@@ -354,9 +352,7 @@ function PrizeLadder() {
                   key={prize.coins}
                   className={cn(
                     'flex items-center gap-3 rounded-md border px-4 py-3 transition-colors',
-                    // Unreached rows are recessed into the panel — the shallow
-                    // rung of the well family (§3.3).
-                    reached ? 'border-primary/40 bg-primary/10' : 'border-border well-shallow',
+                    reached ? 'border-primary/40 bg-primary/10' : 'border-border bg-black/20',
                   )}
                 >
                   <IconTile icon={Icon} size="md" variant={reached ? 'primary' : 'muted'} />
