@@ -335,6 +335,17 @@ export const lt: Dictionary = {
     endSession: 'Baigti svečio seansą',
     endConfirmTitle: 'Baigti svečio seansą?',
     endConfirmBody: 'Atviras sąskaitą apmokėkite bare. Seanso duomenys nesaugomi.',
+    // Užrakto ekrano „Svečias“ skirtukas — įėjimas į 2 etapo PostPaid srautą (C1.2).
+    lockTitle: 'Svečio',
+    lockTitleHi: 'įėjimas',
+    lockSub: 'Užeikite ir žaiskite iškart — sąskaitą apmokėsite kasoje po seanso.',
+    flowTitle: 'Kaip veikia atvira sąskaita',
+    flowStep1: 'Administratorius atrakina stotį ir pradeda jūsų vizitą.',
+    flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskaitą.',
+    flowStep3: 'Visą sąskaitą apmokate kasoje išeidami.',
+    startVisit: 'Pradėti svečio vizitą',
+    soon: 'Greitai',
+    soonNote: 'Savarankiška registracija šioje stotyje dar neveikia. Paprašykite pamainos administratoriaus atidaryti svečio vizitą.',
   },
 
   agent: {
