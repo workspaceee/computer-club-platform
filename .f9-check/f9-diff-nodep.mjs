@@ -193,4 +193,63 @@ if (over) {
     }
   }
   console.log(`  strips (${strips.length}): ${strips.slice(0, 24).join(', ')}`)
+
+  // A map is written whenever anything exceeds the threshold: "12 px differ"
+  // is not evidence, a picture of *which* 12 px is. Changed pixels are drawn
+  // red over a dimmed copy of A so the location stays readable.
+  const map = Buffer.alloc(width * height * 3)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const ia = (y * width + x) * A.bpp
+      const im = (y * width + x) * 3
+      const d = Math.max(
+        Math.abs(A.data[ia] - B.data[(y * width + x) * B.bpp]),
+        Math.abs(A.data[ia + 1] - B.data[(y * width + x) * B.bpp + 1]),
+        Math.abs(A.data[ia + 2] - B.data[(y * width + x) * B.bpp + 2]),
+      )
+      if (d > threshold) {
+        map[im] = 255
+        map[im + 1] = 0
+        map[im + 2] = 0
+      } else {
+        map[im] = A.data[ia] >> 2
+        map[im + 1] = A.data[ia + 1] >> 2
+        map[im + 2] = A.data[ia + 2] >> 2
+      }
+    }
+  }
+  const mapPath = pb.replace(/\.png$/, '') + '.diffmap.png'
+  encode(mapPath, width, height, map)
+  console.log(`  map: ${mapPath}`)
+
+  /* Chrome's fs is not this sandbox's fs, so the map PNG above cannot be
+   * opened for review here — print the same information as text. Each cell is
+   * one 40x40 block of the frame; the digit is log-scaled hit density, so a
+   * single moved element reads as a shape rather than as a percentage. */
+  const cell = 40
+  const gw = Math.ceil(width / cell)
+  const gh = Math.ceil(height / cell)
+  const grid = new Uint32Array(gw * gh)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const ia = (y * width + x) * A.bpp
+      const ib = (y * width + x) * B.bpp
+      const d = Math.max(
+        Math.abs(A.data[ia] - B.data[ib]),
+        Math.abs(A.data[ia + 1] - B.data[ib + 1]),
+        Math.abs(A.data[ia + 2] - B.data[ib + 2]),
+      )
+      if (d > threshold) grid[Math.floor(y / cell) * gw + Math.floor(x / cell)]++
+    }
+  }
+  const ramp = ' .:-=+*#%@'
+  console.log(`  grid (${cell}px cells, ' '=0 .. '@'=full):`)
+  for (let gy = 0; gy < gh; gy++) {
+    let line = ''
+    for (let gx = 0; gx < gw; gx++) {
+      const v = grid[gy * gw + gx]
+      line += v === 0 ? ' ' : ramp[Math.min(9, 1 + Math.floor(Math.log2(v)))]
+    }
+    console.log(`    ${String(gy * cell).padStart(4)} |${line}|`)
+  }
 }

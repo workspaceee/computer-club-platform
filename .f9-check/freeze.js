@@ -51,8 +51,16 @@
    * transform can be set once and it stays set. */
   window.requestAnimationFrame = () => 0
   window.cancelAnimationFrame = () => {}
-  // No registry of live timer ids exists, so sweep the plausible range.
-  for (let id = 1; id < 10000; id++) {
+  /* No registry of live timer ids exists, so sweep every id up to the highest
+   * one in existence. The ceiling is asked for rather than guessed: ids are
+   * handed out monotonically, so one fresh `setTimeout` is an upper bound on
+   * every live id. The previous fixed `10000` ceiling silently missed the
+   * 9s slide rotation on a page that had been open long enough to burn
+   * through that many ids (the idle screen needs 30s of ids just to appear),
+   * and a surviving rotation swaps the whole wallpaper between two captures —
+   * measured as a 52% frame difference on a pair that should be identical. */
+  const ceiling = Number(setTimeout(() => {}, 0)) || 0
+  for (let id = ceiling; id > 0; id--) {
     clearInterval(id)
     clearTimeout(id)
   }
