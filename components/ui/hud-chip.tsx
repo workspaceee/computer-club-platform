@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
  * is the seam between the login and idle screens and it drifted once already
  * (docs/DESIGN.md §5.3): extending the chip is allowed, re-typing it is not.
  */
-type Tone = 'default' | 'accent' | 'warning' | 'danger' | 'muted'
+export type Tone = 'default' | 'accent' | 'warning' | 'danger' | 'muted'
 
 /** Tone → the colour it paints the icon, the value and the status dot. */
 const TONE_TEXT: Record<Tone, string> = {
@@ -19,7 +19,12 @@ const TONE_TEXT: Record<Tone, string> = {
   muted: 'text-text-low',
 }
 
-const TONE_DOT: Record<Tone, string> = {
+/**
+ * Exported so the seat badge in the lock screen's card header can paint its own
+ * dot the same colour as the strip's: the two state the same seat status a screen
+ * apart, and a green dot over an amber chip is the kind of drift §5.3 is about.
+ */
+export const TONE_DOT: Record<Tone, string> = {
   default: 'bg-success',
   accent: 'bg-success',
   warning: 'bg-warning',

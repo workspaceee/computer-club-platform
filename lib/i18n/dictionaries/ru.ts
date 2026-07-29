@@ -70,7 +70,6 @@ export const ru: Dictionary = {
   auth: {
     localTime: 'Местное время',
     accessTerminal: 'Терминал доступа',
-    stationReady: 'Готов',
     welcome: 'С возвращением',
     welcomeHi: '',
     join: 'Вступай в',
@@ -106,11 +105,29 @@ export const ru: Dictionary = {
     accountCreated: 'Аккаунт создан! Выполняем вход...',
     enteringDemo: 'Входим в демо-режим',
     adminSeparateApp: 'Админ-панель — отдельное приложение (вне рамок прототипа).',
+    // Панель станции (C1.6) — полоса, по которой с другого конца зала видно,
+    // можно ли занять это место.
+    stationPanel: 'Состояние станции',
+    zone: 'Зона',
     ping: 'Пинг',
     display: 'Экран',
     gpu: 'GPU',
     status: 'Статус',
     optimal: 'Норма',
+    stationFree: 'Свободен',
+    // «Свободен» без срока — половина правды: тот, кто садится в 21:40, должен
+    // знать, что в 22:00 место чужое.
+    stationFreeUntil: 'Свободен до {time}',
+    stationOccupied: 'Занят',
+    stationBooked: 'Забронирован',
+    stationBookedFrom: 'Забронирован с {time}',
+    stationMaintenance: 'На обслуживании',
+    stationOffline: 'Нет связи',
+    stationHot: 'Перегрев',
+    // Показаний нет, а не «ноль»: прочерку не поверят, а устаревшим «4 мс» —
+    // поверят (F5.4).
+    telemetryOff: 'Нет данных',
+    agentOffline: 'Агент не отвечает',
     // Восстановление пароля — код на e-mail (C1.3).
     forgotPassword: 'Забыли пароль?',
     recover: 'Восстановление',
@@ -294,11 +311,11 @@ export const ru: Dictionary = {
     prizeLadder: 'Лестница призов',
     noRewards: 'На лестнице нет призов',
     noRewardsBody: 'Клуб готовит новую лестницу призов — заходите позже.',
-    leaderboard: 'Лидерборд',
+    leaderboard: 'Лидерб��рд',
     noLeaderboard: 'Лидерборд пуст',
     noLeaderboardBody: 'Станьте первым, кто наберёт часы на этой неделе.',
     unlocked: 'Открыто',
-    prizesUnlocked: 'Призов открыто',
+    prizesUnlocked: 'Приз��в открыто',
   },
 
   social: {
