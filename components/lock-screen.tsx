@@ -805,7 +805,9 @@ export function LockScreen() {
             {/* Same reasoning for the signup code step (C1.4): a live challenge
                 is halfway through, and tapping "Sign in" mid-code would throw it
                 away silently. The way back is the flow's own "Change details" /
-                "Back to sign in". */}
+                "Back to sign in". The PIN step (C1.11) is the same challenge one
+                screen further in — the inbox is already proven and the ticket
+                dies with the tab, so it hides the switcher too. */}
             {/* And gone entirely while the seat is held (C1.7): the three doors
                 all lead to the same chair, so offering them would invite the
                 player to try the other two against the same hold. */}
@@ -814,7 +816,11 @@ export function LockScreen() {
                 next to it would invite somebody to open a second visit on top of
                 paid time that is still running out. The way past it is the PIN,
                 or the panel's own "Use password instead". */}
-            {!blocked && !pinCard && !recovery && signup?.step !== 'code' && (
+            {!blocked &&
+              !pinCard &&
+              !recovery &&
+              signup?.step !== 'code' &&
+              signup?.step !== 'pin' && (
               <Segmented<Mode>
                 className="mt-6"
                 size="sm"
