@@ -9,7 +9,7 @@ import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { formatCoins, formatEur, sumCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
+import { cartTotalCents, SESSION_LENGTH, timeChargeCents, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { holdSeat, releaseSeat } from '@/lib/seat'
@@ -29,6 +29,10 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
   const view = useStore((s) => s.view)
   const setView = useStore((s) => s.setView)
   const seconds = useStore((s) => s.sessionSeconds)
+  // Which direction `seconds` runs: down on a prepaid member seat, up on a
+  // postpaid walk-in (F6.3). Read from the visit rather than from the surface,
+  // because what the club is owed follows the billing model and not the skin.
+  const billingMode = useStore((s) => s.billingMode)
   const coins = useStore((s) => s.coins)
   const user = useStore((s) => s.user)
   const guest = useStore((s) => s.guest)
@@ -325,7 +329,15 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           // stops a second session being opened on top of this one (C1.7). Not
           // awaited — locking the station is instant by promise, and the store
           // transition below is what the player is waiting to see.
-          void holdSeat()
+          //
+          // The spent time goes with it, because the paused screen states the
+          // remainder as the club's number (C1.10): `seconds` is time *left* on a
+          // prepaid seat and time *used* on a postpaid one (F6.3), so what the
+          // server is owed is the difference in the first case and the value
+          // itself in the second.
+          void holdSeat(
+            billingMode === 'postpaid' ? seconds : Math.max(0, SESSION_LENGTH - seconds),
+          )
           lockPc()
         }}
         onCancel={() => setConfirm(null)}

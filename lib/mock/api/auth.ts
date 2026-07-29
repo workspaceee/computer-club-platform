@@ -2,10 +2,12 @@
 //
 // `POST /api/auth/*`. Sign-in, registration, password recovery (email OTP),
 // guest check-in and the QR handshake.
-import { ApiError, mutate, newId, query } from '@/lib/mock/api/client'
+import { ApiError, mutate, newId, query, required } from '@/lib/mock/api/client'
 import { buildProfile } from '@/lib/mock/api/profile'
-import { CLUB_ID, db, getCurrentPlayer } from '@/lib/mock/db'
-import type { ID } from '@/lib/types/common'
+import { resumeSessionRow, secondsLeft } from '@/lib/mock/api/session'
+import { CLUB_ID, db, getCurrentPlayer, getLiveSession, getSession } from '@/lib/mock/db'
+import type { ID, ISODateTime, Seconds } from '@/lib/types/common'
+import type { SessionSnapshot } from '@/lib/types/session'
 import type { UserProfile, UserRole } from '@/lib/types/user'
 
 export interface LoginPayload {
@@ -905,6 +907,235 @@ export function confirmQrChallenge(challengeId: ID, grantToken: string): Promise
       userId,
       token: newId('tok'),
       role: player.user.role,
+    }
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * PIN — the fast way back into a paused visit (C1.10)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Digits in a member PIN. Four, and the UI reads it off the response rather than
+ * hardcoding it, exactly like the six of the OTP flows.
+ */
+export const PIN_LENGTH = 4
+
+/**
+ * Wrong tries before the PIN door closes and the player has to use their
+ * password.
+ *
+ * The same budget the OTP flows spend, and for the same reason: four digits on a
+ * screen that names the account is guessable in ten thousand tries, so the
+ * counter — not the keypad — is what makes it a credential. Falling back to the
+ * *password* rather than locking the account is the point: the person who left
+ * this visit has another way to prove who they are, and an account frozen
+ * because a stranger poked at a kiosk would punish the victim.
+ */
+export const PIN_MAX_ATTEMPTS = 5
+
+/**
+ * MOCK ONLY — PINs on file, keyed by account.
+ *
+ * Seeded from the demo accounts and **not persisted** (`lib/mock/persist.ts`
+ * stores the dataset, not credentials): the seed is re-derived from code on every
+ * load, so a reload cannot leave a station with a PIN nobody knows. `C1.11` adds
+ * the real thing — a PIN the player chooses after confirming their email — and
+ * this map becomes the store it writes into. Nothing in the client may depend on
+ * the seeded value, which is why the only place it is ever printed is the dev
+ * plate behind `DEV_SHORTCUTS`.
+ */
+const memberPins = new Map<ID, string>()
+
+/**
+ * The seeded PIN. One value for every seeded member on purpose: a per-account
+ * PIN nobody can look up would make the paused screen undemonstrable, and a
+ * *derived* one would invite the client to derive it too.
+ */
+const SEEDED_PIN = '4242'
+
+/**
+ * The accounts that came with the dataset, captured while it is still pristine.
+ *
+ * Read at module load and never again, which is what keeps "seeded" meaning
+ * seeded: `restoreDb()` runs later (from an effect, F3.5) and can put a member
+ * created by a previous demo run back into `db.players`, and handing that account
+ * a PIN it never chose would be the mock inventing a credential.
+ */
+const SEEDED_USER_IDS = new Set(db.players.keys())
+
+function pinOf(userId: ID): string | null {
+  const existing = memberPins.get(userId)
+  if (existing) return existing
+  // Seeded members get theirs lazily, on the first read; an account created by
+  // the signup flow of C1.4 is not in the seed and therefore has none, which is
+  // the honest state until C1.11 asks the player for one.
+  if (!SEEDED_USER_IDS.has(userId)) return null
+  memberPins.set(userId, SEEDED_PIN)
+  return SEEDED_PIN
+}
+
+/**
+ * Wrong-PIN budget per paused visit. Server-side, like the OTP counters: a
+ * client-side count is a suggestion, and the whole value of five attempts is
+ * that the *club* is keeping score.
+ */
+const pinAttempts = new Map<ID, number>()
+
+function attemptsFor(sessionId: ID): number {
+  return pinAttempts.get(sessionId) ?? PIN_MAX_ATTEMPTS
+}
+
+/**
+ * A visit that is holding this seat with its clock stopped, waiting for its own
+ * player to come back (C1.10).
+ *
+ * Everything here is either the seat's or the visit's — never the account's: no
+ * email, no balance, no level. The lock screen is a public surface, and the one
+ * thing it has to say is "somebody's paid time is still on this machine".
+ */
+export interface PausedVisit {
+  sessionId: ID
+  machineId: ID
+  /** Nickname to greet. Display data, never translated (F2.2). */
+  holder: string
+  userId: ID
+  /** Prepaid seconds still on the stopped clock — the "HH:MM left" of the spec. */
+  secondsLeft: Seconds
+  startedAt: ISODateTime
+  /** Cells to draw. Server-driven, so the row is not a hardcoded 4 in the UI. */
+  pinLength: number
+  /** What is left of the budget, so the screen can count down out loud. */
+  attemptsLeft: number
+  /** MOCK ONLY — nothing here has a phone or a memory, so the dev plate prints it. */
+  devPin?: string
+}
+
+/**
+ * `GET /api/club/station/paused` — the paused visit on this seat, or `null`.
+ *
+ * Why this is not another field on `fetchStationHolder`: the holder read answers
+ * "may this arrival sit down", and its answer is deliberately blunt — a name and
+ * a state, for a card that refuses people. This one answers "is there a visit
+ * here that its owner can pick up", which is a *door*, and a door needs the
+ * clock, the PIN shape and the attempt budget.
+ *
+ * `null` for the two holds nobody can unlock here, and both are `null` rather
+ * than a visit with a flag, because a screen that receives a visit will offer a
+ * keypad for it:
+ *  - **A walk-in.** A guest has no account and no PIN (MVP §8.2); a paused guest
+ *    visit stays the seat-taken case of C1.7, which sends the next person to the
+ *    counter — the admin is the one who opens and closes walk-in time.
+ *  - **A member without a PIN on file.** Until `C1.11` makes the PIN part of
+ *    signup, an account created in this prototype has none, and the way back in
+ *    is the password form that is already on the screen.
+ */
+export function fetchPausedVisit(
+  machineId: ID = db.currentMachineId,
+): Promise<PausedVisit | null> {
+  return query('auth.fetchPausedVisit', () => {
+    const live = getLiveSession(machineId)
+    if (!live || live.state !== 'paused') return null
+    if (!live.userId) return null
+
+    const player = db.players.get(live.userId)
+    const pin = pinOf(live.userId)
+    if (!player || !pin) return null
+
+    return {
+      sessionId: live.id,
+      machineId,
+      holder: player.user.nickname,
+      userId: live.userId,
+      secondsLeft: secondsLeft(live),
+      startedAt: live.startedAt,
+      pinLength: PIN_LENGTH,
+      attemptsLeft: attemptsFor(live.id),
+      devPin: pin,
+    }
+  })
+}
+
+/**
+ * What a PIN attempt can end as.
+ *
+ * A wrong PIN comes back as a **verdict, not an error**, the way `checkNickname`
+ * returns one instead of throwing: how many tries are left is the single most
+ * important thing to print on that screen, and an `ApiError` carries a code, not
+ * a number. Structural failures (the visit ended, the seat was taken over) stay
+ * exceptions, because they end the flow instead of continuing it.
+ */
+export type PinUnlockResult =
+  | { ok: true; session: AuthResult; snapshot: SessionSnapshot }
+  | { ok: false; reason: 'wrong'; attemptsLeft: number }
+  /** Budget spent: this door is closed for this visit, the password one is not. */
+  | { ok: false; reason: 'locked' }
+
+export interface PinUnlockPayload {
+  sessionId: ID
+  pin: string
+}
+
+/**
+ * `POST /api/auth/pin` — prove you are the player whose visit is paused here, and
+ * pick it up.
+ *
+ * One round trip does both, and it has to: the alternative is a client that
+ * authenticates, then resumes, and can therefore leave a seat authenticated but
+ * still paused if the second call drops. `resumeSessionRow` is the same rule
+ * `POST /api/session/resume` runs, so a PIN cannot restart a visit that a
+ * plain resume would refuse — a dead row stays dead and a spent prepaid clock
+ * stays spent.
+ *
+ * The PIN is checked against the account **the paused visit belongs to**, never
+ * against the whole club: a PIN is not an identifier, and searching for the
+ * member whose four digits match would let anybody walk into whichever account
+ * happened to share them.
+ */
+export function unlockWithPin(payload: PinUnlockPayload): Promise<PinUnlockResult> {
+  return mutate('auth.unlockWithPin', () => {
+    const session = required(getSession(payload.sessionId), 'sessionExpired')
+    if (session.state === 'ended') throw new ApiError('sessionExpired')
+    // Somebody resumed it in the meantime — an admin's key, or the owner on a
+    // second client. Not a refusal of the PIN, so not a spent attempt.
+    if (session.state !== 'paused') throw new ApiError('conflict')
+
+    const userId = required(session.userId, 'forbidden')
+    const expected = required(pinOf(userId), 'notFound')
+
+    const attemptsLeft = attemptsFor(session.id)
+    if (attemptsLeft <= 0) return { ok: false, reason: 'locked' }
+
+    const entered = payload.pin.replace(/\D/g, '')
+    if (entered.length !== PIN_LENGTH) {
+      // Not a guess: an incomplete PIN is a form problem, and spending an attempt
+      // on it would let a stray keystroke burn the budget.
+      throw new ApiError('validation', { pin: 'required' } as never)
+    }
+
+    if (entered !== expected) {
+      const left = attemptsLeft - 1
+      pinAttempts.set(session.id, left)
+      return left <= 0
+        ? { ok: false, reason: 'locked' }
+        : { ok: false, reason: 'wrong', attemptsLeft: left }
+    }
+
+    // Right: the budget is restored for the next pause, and the visit starts
+    // running again inside the same call.
+    pinAttempts.delete(session.id)
+    db.currentUserId = userId
+    const player = db.players.get(userId)
+    const snapshot = resumeSessionRow(session.id)
+    return {
+      ok: true,
+      session: {
+        profile: buildProfile(userId),
+        userId,
+        token: newId('tok'),
+        role: (player?.user.role ?? 'member') as UserRole,
+      },
+      snapshot,
     }
   })
 }

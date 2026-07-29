@@ -6,6 +6,7 @@
 import { ApiError, mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
 import {
   db,
+  getLiveSession,
   getMachine,
   getOpenTab,
   getSession,
@@ -21,8 +22,15 @@ import type {
 } from '@/lib/types/session'
 import type { Tab } from '@/lib/types/tab'
 
-/** Seconds still available on a session, floored at zero. */
-function secondsLeft(session: Session): Seconds {
+/**
+ * Seconds still available on a session, floored at zero.
+ *
+ * Exported because the paused-visit read of C1.10 states this number on the lock
+ * screen ("42:17 left on the clock"), and a screen that computed it from
+ * `secondsGranted - secondsUsed` itself would be a second opinion about the one
+ * quantity the club bills.
+ */
+export function secondsLeft(session: Session): Seconds {
   return Math.max(0, session.secondsGranted - session.secondsUsed)
 }
 
@@ -110,17 +118,30 @@ export function pauseSession(sessionId: ID = db.currentSessionId): Promise<Sessi
   })
 }
 
+/**
+ * Restarting a paused visit, as a **store operation** rather than an endpoint.
+ *
+ * Two endpoints resume a session and they must not disagree about what that
+ * means: `POST /api/session/resume` below, and the PIN unlock of C1.10, which
+ * authenticates *and* resumes in a single round trip — a player who just typed
+ * four digits is waiting for their launcher, not for two requests. So the rule
+ * (a dead visit cannot come back, a spent prepaid clock cannot come back) lives
+ * here and the transport wraps it.
+ */
+export function resumeSessionRow(sessionId: ID): SessionSnapshot {
+  const session = required(getSession(sessionId), 'sessionExpired')
+  if (session.state === 'ended') throw new ApiError('sessionExpired')
+  if (secondsLeft(session) === 0 && session.billingMode === 'prepaid') {
+    throw new ApiError('insufficientFunds')
+  }
+  session.state = 'active'
+  db.currentSessionId = session.id
+  return snapshot(session)
+}
+
 /** `POST /api/session/resume` */
 export function resumeSession(sessionId: ID = db.currentSessionId): Promise<SessionSnapshot> {
-  return mutate('session.resumeSession', () => {
-    const session = required(getSession(sessionId), 'sessionExpired')
-    if (session.state === 'ended') throw new ApiError('sessionExpired')
-    if (secondsLeft(session) === 0 && session.billingMode === 'prepaid') {
-      throw new ApiError('insufficientFunds')
-    }
-    session.state = 'active'
-    return snapshot(session)
-  })
+  return mutate('session.resumeSession', () => resumeSessionRow(sessionId))
 }
 
 /**
@@ -176,9 +197,7 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
     // would be counted twice by every report that groups by one of them.
     if ((userId === null) === (guestId === null)) throw new ApiError('validation')
 
-    const live = db.sessions
-      .filter((s) => s.machineId === machineId && s.state !== 'ended')
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
+    const live = getLiveSession(machineId)
 
     if (live) {
       const mine = userId !== null && live.userId === userId
