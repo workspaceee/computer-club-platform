@@ -138,6 +138,23 @@ export const lt: Dictionary = {
     seatTakenRecheck: 'Tikrinti dar kartą',
     seatTakenStillHeld: 'Stotis vis dar užimta: {name}.',
     seatTakenFreedToast: 'Stotis laisva — prijungiame.',
+    // Pristabdytas vizitas šioje vietoje yra savas (C1.10). Tai ne prisijungimas:
+    // niekas neišsiregistravo, tik sustojo laikrodis, o apmokėtas laikas liko
+    // šioje mašinoje. Antraštė — viena frazė, o paantraštėje likutis kaip klubo
+    // faktas: būtent dėl jo įvedami keturi skaitmenys, o ne slaptažodis.
+    sessionPaused: 'Sesija pristabdyta',
+    sessionPausedHi: '',
+    sessionPausedSub: '{name}, stotyje liko {time}. Įveskite PIN, kad tęstumėte.',
+    pin: 'Žaidėjo PIN',
+    pinUnlock: 'Atrakinti su PIN',
+    // formos: viena | kelios | kita
+    pinAttemptsLeft: 'liko {n} bandymas|liko {n} bandymai|liko {n} bandymų',
+    pinWrong:
+      'Neteisingas PIN — liko {n} bandymas|Neteisingas PIN — liko {n} bandymai|Neteisingas PIN — liko {n} bandymų',
+    pinLocked: 'Per daug neteisingų PIN. Prisijunkite su slaptažodžiu, kad tęstumėte sesiją.',
+    pinIncomplete: 'Įveskite visus {n} skaitmenis',
+    pinUsePassword: 'Prisijungti su slaptažodžiu',
+    pinVisitGone: 'Tos pristabdytos sesijos čia jau nebėra.',
     // Slaptažodžio atkūrimas — kodas el. paštu (C1.3).
     forgotPassword: 'Pamiršote slaptažodį?',
     recover: 'Prieigos atkūrimas',

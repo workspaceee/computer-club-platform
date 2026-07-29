@@ -169,6 +169,31 @@ export const en = {
     seatTakenStillHeld: 'The station is still held by {name}.',
     /** The hold is gone, so the arrival that was held back goes straight in. */
     seatTakenFreedToast: 'The station is free — signing you in.',
+    /**
+     * The paused visit on this seat is *yours* — the fast way back (C1.10).
+     *
+     * Not a login, and it must not read like one: nobody signed out, the clock is
+     * simply stopped and the paid time is still on this machine. So the headline
+     * names the state of the *visit*, and the subline states the remainder as a
+     * fact of the club — that number is the reason to type four digits instead of
+     * an email and a password.
+     */
+    sessionPaused: 'Session on',
+    sessionPausedHi: 'pause',
+    sessionPausedSub: '{name}, {time} left on this station. Enter your PIN to pick it up.',
+    pin: 'Player PIN',
+    pinUnlock: 'Unlock with PIN',
+    /** The budget belongs to the club, so the screen counts it out loud. */
+    // plural: one | other
+    pinAttemptsLeft: '{n} try left|{n} tries left',
+    // plural: one | other
+    pinWrong: 'Wrong PIN — {n} try left|Wrong PIN — {n} tries left',
+    /** This door closed, the account did not: the password one is still open. */
+    pinLocked: 'Too many wrong PINs. Sign in with your password to pick up the session.',
+    pinIncomplete: 'Enter all {n} digits',
+    pinUsePassword: 'Use password instead',
+    /** The visit ended or was picked up elsewhere while this screen was open. */
+    pinVisitGone: 'That paused session is no longer here.',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',

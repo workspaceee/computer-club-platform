@@ -16,6 +16,7 @@ import {
   type SignupState,
 } from '@/components/auth/registration'
 import { SeatTaken, seatTakenBody } from '@/components/auth/seat-taken'
+import { SessionPaused, formatRemainder } from '@/components/auth/session-paused'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
@@ -31,12 +32,15 @@ import type { TKey } from '@/lib/i18n/types'
 import {
   ApiError,
   continueAsGuest,
+  fetchPausedVisit,
   fetchStationHolder,
   login,
   loginAsDemo,
   type AuthResult,
+  type PausedVisit,
   type StationHolder,
 } from '@/lib/mock/api'
+import type { SessionSnapshot } from '@/lib/types/session'
 import { claimSeat, type Arrival } from '@/lib/seat'
 import { useStore } from '@/lib/store'
 import type { ID } from '@/lib/types/common'
@@ -61,6 +65,16 @@ type Mode = 'login' | 'register' | 'guest'
 /** Idle time before the attract mode kicks in (ms). */
 const IDLE_TIMEOUT_MS = 30_000
 
+/**
+ * How long the screen keeps asking whether a paused visit is parked here (C1.10).
+ *
+ * Six tries, ~800 ms apart — about five seconds. Long enough to outlast the pause
+ * write that "Lock PC" fires as this screen mounts (and a slow club link on top of
+ * it), short enough that a genuinely free station is not polled all night.
+ */
+const PAUSED_READ_ATTEMPTS = 6
+const PAUSED_READ_GAP_MS = 800
+
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 function useClock() {
@@ -76,6 +90,10 @@ function useClock() {
 export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
   const guestSuccess = useStore((s) => s.guestSuccess)
+  // The clock adopts server truth after a PIN unlock (C1.10) — the same write
+  // path the heartbeat and `time.added` use, so a resumed visit cannot end up
+  // with a remainder the club does not agree with (F6.3).
+  const applySnapshot = useStore((s) => s.applySnapshot)
   const toast = useStore((s) => s.toast)
   const now = useClock()
   const idle = useIdle(IDLE_TIMEOUT_MS)
@@ -119,6 +137,28 @@ export function LockScreen() {
     arrival: Arrival
     enter: () => void
   } | null>(null)
+  /**
+   * The paused visit this station is holding for its own player (C1.10).
+   *
+   * Read once per lock screen rather than subscribed to: the row is *this*
+   * station's, so the only thing that can change it while the screen is up is an
+   * admin's key or the PIN typed on this keyboard — and both of those come back
+   * as the answer to a request the screen already makes.
+   *
+   * `null` covers every seat this door cannot open: an empty station, a live
+   * (unpaused) session, a walk-in with no account, a member with no PIN on file.
+   * All of them get the ordinary sign-in form, and the seat check of C1.7 still
+   * stands behind it.
+   */
+  const [paused, setPaused] = useState<PausedVisit | null>(null)
+  /**
+   * The player would rather use their password — or the PIN budget is spent.
+   *
+   * A separate flag instead of clearing `paused`, because the visit is still
+   * there: whoever signs in has to be admitted against it (C1.7), and forgetting
+   * it here would let the screen believe the chair is free.
+   */
+  const [pinDismissed, setPinDismissed] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -209,6 +249,69 @@ export function LockScreen() {
     }
 
     enter()
+  }
+
+  /**
+   * Ask the station, once per lock screen, whether it is holding a visit for
+   * somebody who can come back (C1.10).
+   *
+   * Deliberately *not* read from the store. The store still remembers the member
+   * who locked the machine — `lockPc` keeps the visit — and trusting that would
+   * make the PIN door appear on a client that merely has a stale player in
+   * memory, including after a reload that resurrected one from persistence. The
+   * seat's own row is the only thing that can say a paid visit is really parked
+   * here, and it is also the only thing that knows the remainder.
+   *
+   * A failed read is not a paused visit: the form stays, which is the same
+   * fallback the seat check uses when the club cannot be reached.
+   *
+   * Why it asks more than once. "Lock PC" swaps the screen *immediately* and
+   * reports the pause in the background (`holdSeat`, deliberately not awaited —
+   * the player is waiting to see the station lock, not a spinner), so this screen
+   * mounts while the seat is still settling and the very first read can honestly
+   * answer "active". A single attempt would therefore lose the PIN door on the
+   * one path that matters most. The window is short and bounded: it closes as
+   * soon as a visit appears, and a station that is simply free stops asking
+   * instead of polling the club forever.
+   */
+  useEffect(() => {
+    let alive = true
+    let attempts = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const read = async () => {
+      attempts += 1
+      const visit = await fetchPausedVisit().catch(() => null)
+      if (!alive) return
+      if (visit) {
+        setPaused(visit)
+        return
+      }
+      if (attempts < PAUSED_READ_ATTEMPTS) timer = setTimeout(() => void read(), PAUSED_READ_GAP_MS)
+    }
+
+    void read()
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
+
+  /**
+   * The PIN was right: the account and the *restarted* visit arrive together.
+   *
+   * Both writes are needed and in this order. `loginSuccess` is the one door
+   * every arrival goes through — it swaps the screen, restores the wallet and
+   * decides whether this is a returning player — and `applySnapshot` then hands
+   * the clock the server's anchors, so the launcher counts the club's remainder
+   * rather than whatever the store happened to have banked. Without the
+   * snapshot, a station whose store was reset (a reload while paused) would open
+   * the launcher with a fresh two hours nobody paid for.
+   */
+  const finishPin = (session: AuthResult, snapshot: SessionSnapshot) => {
+    setPaused(null)
+    loginSuccess(session.profile)
+    applySnapshot(snapshot)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -365,6 +468,18 @@ export function LockScreen() {
     })
   }
 
+  /**
+   * Is the card the PIN door right now?
+   *
+   * One expression, read by the header, the switcher and the body, because the
+   * three must never disagree: a "Session on pause" headline over a password form
+   * would tell the player the wrong thing about what the keyboard does next.
+   *
+   * A held seat outranks it — `blocked` only happens *after* somebody signed in,
+   * and at that point the card is about the chair.
+   */
+  const pinCard = paused !== null && !pinDismissed && !blocked
+
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
   // A live recovery outranks the mode: the card body belongs to the flow, so the
@@ -373,6 +488,9 @@ export function LockScreen() {
     // A held seat outranks everything, including a live flow: the player is past
     // authentication and the card is now about the *chair*, not the door (C1.7).
     if (blocked) return { lead: t('auth.seatTaken'), accent: t('auth.seatTakenHi') }
+    // The seat is holding *this* player's own paused visit, so the card is not a
+    // login at all: it names the state of the visit and asks for a PIN (C1.10).
+    if (pinCard) return { lead: t('auth.sessionPaused'), accent: t('auth.sessionPausedHi') }
     if (recovery) {
       const copy = RECOVERY_COPY[recovery.step]
       return { lead: t(copy.lead), accent: t(copy.accent) }
@@ -386,13 +504,22 @@ export function LockScreen() {
     }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [blocked, mode, recovery, signup, t])
+  }, [blocked, pinCard, mode, recovery, signup, t])
 
   const subline = blocked
     ? // The whole sentence, holder's name included, lives in the subline: the
       // panel below states *who and since when*, and printing the instruction
       // twice on one card would make the second copy look like a different rule.
       t(seatTakenBody(blocked.holder), { name: blocked.holder.holder })
+    : pinCard && paused
+    ? // The remainder is stated here, in words, and *again* as a clock in the
+      // panel below — the one place in this screen where a fact is printed twice
+      // on purpose: the sentence is what a player reads, the clock is what they
+      // check. Both come from the same server number, so they cannot disagree.
+      t('auth.sessionPausedSub', {
+        name: paused.holder,
+        time: formatRemainder(paused.secondsLeft),
+      })
     : recovery
     ? // Only the code step reads these, and it is the step that has them: the
       // masked address and the code length travel up from the endpoint's answer
@@ -564,6 +691,8 @@ export function LockScreen() {
                 key={
                   blocked
                     ? 'seat-taken'
+                    : pinCard
+                    ? 'session-paused'
                     : recovery
                     ? `recovery-${recovery.step}`
                     : mode === 'register' && signup
@@ -616,7 +745,12 @@ export function LockScreen() {
             {/* And gone entirely while the seat is held (C1.7): the three doors
                 all lead to the same chair, so offering them would invite the
                 player to try the other two against the same hold. */}
-            {!blocked && !recovery && signup?.step !== 'code' && (
+            {/* And gone while the PIN door is up (C1.10): the visit parked on this
+                seat is one player's, so offering "Register" or the walk-in door
+                next to it would invite somebody to open a second visit on top of
+                paid time that is still running out. The way past it is the PIN,
+                or the panel's own "Use password instead". */}
+            {!blocked && !pinCard && !recovery && signup?.step !== 'code' && (
               <Segmented<Mode>
                 className="mt-6"
                 size="sm"
@@ -652,6 +786,28 @@ export function LockScreen() {
                   onFreed={() => void admit(blocked.arrival, blocked.enter)}
                   onStillHeld={(holder) => setBlocked({ ...blocked, holder })}
                   onCancel={() => setBlocked(null)}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : pinCard && paused ? (
+                /* This station is holding its own player's paused visit (C1.10).
+                   Not a login: the card states whose time is parked here and how
+                   much of it is left, and asks for four digits. */
+                <SessionPaused
+                  key="session-paused"
+                  visit={paused}
+                  onSuccess={finishPin}
+                  /* The visit ended or somebody else picked it up while this
+                     screen was open. The PIN has nothing left to unlock, so the
+                     door closes and the screen becomes an ordinary lock screen —
+                     with the toast that says why, because the card the player was
+                     typing into is about to disappear under them. */
+                  onGone={(message) => {
+                    setPaused(null)
+                    setPinDismissed(false)
+                    toast('info', t(message))
+                  }}
+                  onUsePassword={() => setPinDismissed(true)}
                   onToast={toast}
                   onReject={triggerShake}
                 />
