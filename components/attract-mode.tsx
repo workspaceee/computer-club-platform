@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { BrandLabel } from '@/components/brand-label'
-import { HudChip } from '@/components/ui/hud-chip'
+import { StationPanel } from '@/components/station-panel'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
@@ -104,7 +104,6 @@ function buildSlides(promos: Promo[]): AttractSlide[] {
  */
 export function AttractMode() {
   const now = useClock()
-  const ping = useLivePing()
   const [slide, setSlide] = useState(0)
 
   const useVideo = ATTRACT_VIDEOS.length > 0
@@ -267,14 +266,14 @@ export function AttractMode() {
           </motion.span>
         </motion.div>
 
-        {/* bottom HUD: live station telemetry */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
-          <HudChip dot variant="station" label="PC #17" value="READY" />
-          <HudChip icon={<icons.network size={13} />} label="Ping" value={`${ping} ms`} />
-          <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
-        </div>
+        {/* Bottom HUD — the same station strip as the lock screen (C1.6), which
+            is the point: this is the seam that makes the two screens one product
+            (docs/DESIGN.md §5.3), so it is one component and not a twin.
+
+            The ping here used to be `3 + Math.random() * 4` refreshed every
+            2.2 s — a number invented by the screen advertising the club's
+            network. It now comes from the agent or reads as a dash. */}
+        <StationPanel className="justify-center px-4" />
       </div>
 
       {/* ---------- campaign caption for the current banner ---------- */}
@@ -515,16 +514,4 @@ function useClock() {
     return () => clearInterval(t)
   }, [])
   return now
-}
-
-/** Ping that gently drifts between 3–6 ms to feel like live monitoring. */
-function useLivePing() {
-  const [ping, setPing] = useState(4)
-  useEffect(() => {
-    const t = setInterval(() => {
-      setPing(() => 3 + Math.floor(Math.random() * 4))
-    }, 2200)
-    return () => clearInterval(t)
-  }, [])
-  return ping
 }

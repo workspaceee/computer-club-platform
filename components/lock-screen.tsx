@@ -19,8 +19,8 @@ import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
-import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
+import { StationBadge, StationPanel } from '@/components/station-panel'
 import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
 import { useIdle } from '@/hooks/use-idle'
@@ -350,23 +350,16 @@ export function LockScreen() {
           </span>
         </motion.div>
 
-        {/* telemetry strip */}
+        {/* Station strip (C1.6) — the seat's own readout. The five hardcoded
+            chips that used to sit here are now one component reading the club
+            (`GET /api/club/station`) and the station agent, so this screen can
+            no longer claim a seat is free while an admin has it in maintenance. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
-          className="flex flex-wrap items-center gap-3"
         >
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
-          <HudChip icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
-          <HudChip icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
-          <HudChip
-            icon={<icons.status size={13} />}
-            label={t('auth.status')}
-            value={t('auth.optimal')}
-            tone="accent"
-          />
+          <StationPanel />
         </motion.div>
       </div>
 
@@ -415,10 +408,11 @@ export function LockScreen() {
                 <icons.secure size={12} />
                 {t('auth.accessTerminal')}
               </span>
-              <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                PC-17 · {t('common.online')}
-              </span>
+              {/* Was `PC-17 · Online` with a hardcoded green dot — the header
+                  stating a fact the strip below it now reads from the club, and
+                  free to contradict it. `StationBadge` reads the same
+                  `useSeatStatus` the chip does, so the two lines cannot disagree. */}
+              <StationBadge />
             </div>
 
             <AnimatePresence mode="wait">
@@ -639,7 +633,10 @@ export function LockScreen() {
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
           <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
+          {/* `compact`: on a phone the six-chip strip wraps into three lines of
+              noise, and the one fact a player needs there is whether the seat is
+              theirs to take. */}
+          <StationPanel variant="compact" />
         </div>
       </div>
 

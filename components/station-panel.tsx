@@ -125,14 +125,63 @@ export function StationPanel({ variant = 'full', className, ...props }: StationP
             label={t('auth.gpu')}
             value={shortGpu(seat.specs.gpu)}
           />
+          {/* `usable` gates the green: a seat pulled for maintenance read
+              "Optimal" here, because the GPU really was cool — a true reading
+              answering a question nobody asked, three chips away from the red
+              one that mattered. */}
           <HealthChip
             agentStatus={agentStatus}
             live={live}
             gpuTempC={telemetry?.gpuTempC ?? null}
+            usable={seat.status !== 'maintenance' && seat.status !== 'offline'}
           />
         </>
       )}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ *
+ * Header badge
+ * ------------------------------------------------------------------ */
+
+/** Tone → the colour of the badge's status dot. Mirrors `HudChip`'s map. */
+const BADGE_DOT: Record<ChipTone, string> = {
+  default: 'bg-success',
+  accent: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  muted: 'bg-text-low',
+}
+
+/**
+ * The seat, restated in the corner of the sign-in card (C1.6).
+ *
+ * The card header used to read `PC-17 · Online` next to a hardcoded green dot:
+ * a second opinion about the same seat, printed one element above the strip that
+ * now knows better, and free to say "online" over a chip saying "maintenance".
+ * It reads `useSeatStatus`, so the two lines state one decision — and the dot
+ * stops pulsing green on a seat nobody can use.
+ */
+export function StationBadge({ className, ...props }: React.ComponentProps<'span'>) {
+  const { t } = useT()
+  const station = useApi(['catalog', 'station'], () => fetchStation())
+  const seat = station.data
+  const { text, tone } = useSeatStatus(seat)
+
+  // No skeleton here: this is a 10 px caption in a card corner, and a pulsing
+  // grey bar next to the "Access terminal" label would read as a broken row.
+  // The strip below carries the loading state where it is legible.
+  if (!seat) return null
+
+  return (
+    <span
+      className={cn('label-mono flex items-center gap-1.5 text-[10px] text-text-low', className)}
+      {...props}
+    >
+      <span className={cn('h-1.5 w-1.5 animate-pulse rounded-full', BADGE_DOT[tone])} aria-hidden />
+      {seat.label} · {text}
+    </span>
   )
 }
 
@@ -203,10 +252,17 @@ function HealthChip({
   agentStatus,
   live,
   gpuTempC,
+  usable,
 }: {
   agentStatus: 'checking' | 'ready' | 'unavailable'
   live: boolean
   gpuTempC: number | null
+  /**
+   * `false` on a seat the club has taken out of service. The readings may still
+   * be perfect — this chip is read as "can I use this machine", so it must not
+   * answer green while the seat chip says maintenance.
+   */
+  usable: boolean
 }) {
   const { t } = useT()
 

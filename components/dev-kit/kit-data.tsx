@@ -308,16 +308,33 @@ export function KitData() {
         name="HudChip"
         note="telemetry chip — the shared bottom row of the login and idle screens (§5.3)"
       >
-        <Row label="the seam, exactly as both screens render it">
-          <HudChip dot variant="station" label="PC #17" value="READY" />
+        {/* Literal samples on purpose: this is the gallery of the primitive, not
+            a station. The live seat readings belong to `StationPanel` (C1.6) —
+            wiring the kit to the club would make the tone rows below depend on
+            whichever seat this dev build happens to run on. */}
+        <Row label="the seam, exactly as both screens render it (values are live in the app)">
+          <HudChip dot variant="station" label="PC #17" value="Free" />
+          <HudChip label="Zone" value="Main Hall" />
           <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
           <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
           <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
           <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
         </Row>
-        <Row label="tone: default / accent (icon + value, never the surface)">
+        <Row label="tone: default / accent / warning / danger / muted (icon + value, never the surface)">
           <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
           <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" tone="accent" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="180 ms" tone="warning" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="lost" tone="danger" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="—" tone="muted" />
+        </Row>
+        {/* The five seat states C1.6 has to be able to say. `station` reads
+            `default` as success, which is why "free" needs no tone. */}
+        <Row label="seat status, the five readings the station chip must carry">
+          <HudChip dot variant="station" label="PC #17" value="Free" />
+          <HudChip dot variant="station" label="PC #18" value="Free until 22:00" tone="default" />
+          <HudChip dot variant="station" label="PC #19" value="In use" tone="warning" />
+          <HudChip dot variant="station" label="PC #20" value="Booked from 21:30" tone="warning" />
+          <HudChip dot variant="station" label="PC #21" value="Maintenance" tone="danger" />
         </Row>
         <Row label="variants + optional parts (no icon, dot only, icon + dot)">
           <HudChip variant="station" label="PC #17" value="READY" />

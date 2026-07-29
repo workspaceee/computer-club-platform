@@ -112,11 +112,28 @@ export const en = {
     accountCreated: 'Account created! Signing you in...',
     enteringDemo: 'Entering demo mode',
     adminSeparateApp: 'Admin Panel is a separate app (out of scope for this prototype).',
+    // Station panel (C1.6). The seat's own readout: identity and availability
+    // from the club, live readings from the station agent.
+    stationPanel: 'Station status',
+    zone: 'Zone',
     ping: 'Ping',
     display: 'Display',
     gpu: 'GPU',
     status: 'Status',
     optimal: 'Optimal',
+    stationFree: 'Free',
+    /** Free now, but only until the booking on it starts. */
+    stationFreeUntil: 'Free until {time}',
+    stationOccupied: 'In use',
+    stationBooked: 'Reserved',
+    stationBookedFrom: 'Booked from {time}',
+    stationMaintenance: 'Maintenance',
+    stationOffline: 'Offline',
+    /** GPU is running hot — the seat works, it is just not at its best. */
+    stationHot: 'Running hot',
+    /** Agent is reachable but reporting nothing: readings unknown, not bad. */
+    telemetryOff: 'No readings',
+    agentOffline: 'No agent',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',
