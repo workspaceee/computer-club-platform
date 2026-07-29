@@ -10,6 +10,10 @@ import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { ApiError, confirmQrChallenge, requestQrChallenge, type QrChallenge } from '@/lib/mock/api'
+// MOCK ONLY — the companion app the prototype does not have. Goes away with
+// `lib/mock/*` and `lib/realtime/admin-sim` in Stage 4, together with the demo
+// plate at the bottom of this dialog; nothing above it imports this.
+import { confirmQrLogin } from '@/lib/realtime/admin-sim'
 import { formatCountdown } from '@/lib/time'
 import type { UserProfile } from '@/lib/types/user'
 
@@ -263,8 +267,22 @@ export function QrLogin({ open, onCancel, onSuccess, onToast }: QrLoginProps) {
         {/* MOCK ONLY — there is no companion app, so the way to answer the
             handshake is named instead of hidden. Same "announced, not broken"
             plate the emailed codes use (§3.3): unmistakably a prototype
-            affordance, not part of the product. */}
-        <div className="well flex w-full flex-col gap-1.5 rounded-lg border border-warning/30 p-3">
+            affordance, not part of the product.
+
+            The button plays the *phone*, and that is all it plays. It calls the
+            phone's endpoint through `admin-sim` — approve server-side, then
+            publish `login.qr.confirmed` — and then gets out of the way: the
+            frame travels the real bus, this dialog receives it through its
+            normal subscription, matches it against the code on screen and
+            spends the ticket at `confirmQrChallenge`. Every guard stays live, so
+            this is the missing actor rather than a shortcut past the handshake.
+
+            It lives *here* and not on `/dev/bus` because the two have to be on
+            one screen: the bus is in-memory per tab and the console is another
+            route, so navigating there would unmount the dialog and take the live
+            challenge with it. Same reason the OTP flows print their code in the
+            dialog instead of somewhere a player would have to leave for. */}
+        <div className="well flex w-full flex-col gap-2 rounded-lg border border-warning/30 p-3">
           <span className="label-mono flex items-center gap-2 text-[9px] text-warning">
             <icons.info size={11} />
             {t('auth.qrDemoTitle')}
@@ -272,6 +290,24 @@ export function QrLogin({ open, onCancel, onSuccess, onToast }: QrLoginProps) {
           <span className="text-pretty text-[11px] leading-relaxed text-text-low">
             {t('auth.qrDemoNote')}
           </span>
+          {/* Only while a code is actually live: an expired or failed handshake
+              has nothing to approve, and a button that answers a dead code would
+              make the countdown above it a decoration. */}
+          <Button
+            size="sm"
+            variant="secondary"
+            block
+            disabled={phase.kind !== 'live'}
+            onClick={() => {
+              // `null` means the code died between the render and the click.
+              // Say so instead of leaving the player pressing a button that
+              // silently does nothing.
+              if (!confirmQrLogin()) onToast('error', t('auth.qrExpired'))
+            }}
+            iconLeft={<icons.qr size={14} />}
+          >
+            {t('auth.qrDemoConfirm')}
+          </Button>
         </div>
       </div>
     </Modal>

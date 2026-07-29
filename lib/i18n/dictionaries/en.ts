@@ -183,7 +183,8 @@ export const en = {
     qrOffline: 'This station is offline: your phone cannot confirm until the link is back.',
     qrDemoTitle: 'Demo confirmation',
     qrDemoNote:
-      'The prototype has no phone app, so the confirmation comes from /dev/bus → "Confirm QR login".',
+      'The prototype has no phone app, so this button plays the phone: it approves the code and pushes the confirmation onto the bus, which this dialog then handles like any other.',
+    qrDemoConfirm: 'Confirm from the phone',
   },
 
   session: {
