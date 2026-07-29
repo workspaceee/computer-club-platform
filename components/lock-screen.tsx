@@ -36,6 +36,7 @@ import {
   type AuthResult,
   type StationHolder,
 } from '@/lib/mock/api'
+import { claimSeat, type Arrival } from '@/lib/seat'
 import { useStore } from '@/lib/store'
 import type { ID } from '@/lib/types/common'
 
@@ -104,11 +105,12 @@ export function LockScreen() {
   const [blocked, setBlocked] = useState<{
     holder: StationHolder
     /**
-     * The *arrival's* account, not the holder's — `null` for a walk-in. The
-     * re-check has to ask the same question the gate asked, and the answer
-     * depends on who is standing here.
+     * The *arrival*, not the holder — a walk-in carries a `guestId` and no
+     * account. The re-check has to ask the same question the gate asked and then
+     * claim the seat as the same person, and both answers depend on who is
+     * standing here.
      */
-    userId: ID | null
+    arrival: Arrival
     enter: () => void
   } | null>(null)
   const [showPass, setShowPass] = useState(false)
@@ -164,20 +166,43 @@ export function LockScreen() {
   /**
    * The last gate before the launcher: every door runs its arrival through this.
    *
-   * `enter` is only called when the chair is actually free, so the welcome toast
-   * and the screen swap stay together — a player told "Welcome back" and then
-   * shown a "station is in use" panel would read the second screen as a bug.
+   * Two steps, and both are needed. The read above names the occupant, which is
+   * the only thing that can be *shown*; the write below is what actually decides
+   * — `claimSeat` opens (or adopts) the session row on this machine, and the
+   * server refuses when somebody else is on it. Without the write, "occupied"
+   * would be a fixture the client politely believed and two arrivals could win
+   * the same chair by reading it at the same moment.
+   *
+   * `enter` is only called once the seat is *ours*, so the welcome toast and the
+   * screen swap stay together — a player told "Welcome back" and then shown a
+   * "station is in use" panel would read the second screen as a bug.
    */
-  const admit = async (userId: ID | null, enter: () => void) => {
-    const holder = await heldBy(userId)
-    if (!holder) {
-      enter()
+  const admit = async (arrival: Arrival, enter: () => void) => {
+    const holder = await heldBy(arrival.userId)
+    if (holder) {
+      // The card stops spinning: nothing else is in flight, and the panel that
+      // replaces the form has its own action.
+      setLoading(false)
+      setBlocked({ holder, arrival, enter })
       return
     }
-    // The card stops spinning: nothing else is in flight, and the panel that
-    // replaces the form has its own action.
-    setLoading(false)
-    setBlocked({ holder, userId, enter })
+
+    const claim = await claimSeat(arrival)
+    if (!claim.granted) {
+      setLoading(false)
+      // Lost the race in the gap between the read and the write. With a name it
+      // is the same dead end as before, so it gets the same panel; without one
+      // there is nothing honest to print on a card whose whole job is to say
+      // *whose* session this is, so the refusal stays a toast over the form.
+      if (claim.holder) setBlocked({ holder: claim.holder, arrival, enter })
+      else {
+        triggerShake()
+        toast('error', t('errors.conflict'))
+      }
+      return
+    }
+
+    enter()
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -192,7 +217,7 @@ export function LockScreen() {
       // The endpoint returns a session (`profile` + `userId` + token + role): the
       // shell needs the profile, the seat check needs the id.
       const { profile, userId } = await login({ identifier, password })
-      await admit(userId, () => {
+      await admit({ userId, guestId: null }, () => {
         toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
         loginSuccess(profile)
       })
@@ -221,7 +246,7 @@ export function LockScreen() {
     setSignup(null)
     // The chair is checked for a brand-new member too (C1.7): an account created
     // at an occupied station is a real account, and it still cannot sit down.
-    await admit(userId, () => {
+    await admit({ userId, guestId: null }, () => {
       toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
       // A brand-new profile keeps the language picked on this station.
       loginSuccess({ ...profile, lang })
@@ -232,7 +257,7 @@ export function LockScreen() {
     setLoading(true)
     try {
       const { profile, userId } = await loginAsDemo()
-      await admit(userId, () => {
+      await admit({ userId, guestId: null }, () => {
         toast('info', t('auth.enteringDemo'))
         loginSuccess(profile)
       })
@@ -256,7 +281,7 @@ export function LockScreen() {
       // *any* live session on this seat blocks them (C1.7). Which is the point —
       // the visit they were handed is exactly the second one nobody wants opened
       // on top of the first.
-      await admit(null, () => {
+      await admit({ userId: null, guestId }, () => {
         toast('info', t('guest.startedToast', { label }))
         guestSuccess({ guestId, label })
       })
@@ -279,7 +304,7 @@ export function LockScreen() {
    */
   const finishQr = async ({ profile, userId }: AuthResult) => {
     setQrOpen(false)
-    await admit(userId, () => loginSuccess(profile))
+    await admit({ userId, guestId: null }, () => loginSuccess(profile))
   }
 
   const switchMode = (m: Mode) => {
@@ -312,7 +337,7 @@ export function LockScreen() {
    */
   const finishRecovery = async ({ profile, userId }: AuthResult) => {
     setRecovery(null)
-    await admit(userId, () => {
+    await admit({ userId, guestId: null }, () => {
       toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
       loginSuccess(profile)
     })
@@ -595,8 +620,14 @@ export function LockScreen() {
                 <SeatTaken
                   key="seat-taken"
                   holder={blocked.holder}
-                  onRecheck={() => heldBy(blocked.userId)}
-                  onFreed={blocked.enter}
+                  onRecheck={() => heldBy(blocked.arrival.userId)}
+                  /* Not `blocked.enter` directly: the chair being empty is not
+                     the same as it being *ours*, and between the two there is a
+                     write. Going back through the gate is what claims it — and
+                     what re-blocks the panel, with the new name, if somebody
+                     took the seat while this player was walking back from the
+                     counter. */
+                  onFreed={() => void admit(blocked.arrival, blocked.enter)}
                   onStillHeld={(holder) => setBlocked({ ...blocked, holder })}
                   onCancel={() => setBlocked(null)}
                   onToast={toast}
