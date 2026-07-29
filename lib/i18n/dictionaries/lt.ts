@@ -35,6 +35,17 @@ export const lt: Dictionary = {
     offline: 'Atsijungęs',
     comingSoon: 'Jau greitai',
     nothingHere: 'Kol kas nieko nėra',
+    // `DateField` (C1.11): segmentų užuominos — vietinis datos rašymas, todėl
+    // verčiamos, o ne naudojamos bendros.
+    dateDay: 'DD',
+    dateMonth: 'MM',
+    dateYear: 'MMMM',
+    datePicker: 'Kalendorius',
+    datePrev: 'Anksčiau',
+    dateNext: 'Vėliau',
+    datePickDay: 'Pasirinkite dieną',
+    datePickYear: 'Pradėkite nuo metų',
+    dateClear: 'Išvalyti',
     minutes: '{n} minutė|{n} minutės|{n} minučių',
     hours: '{n} valanda|{n} valandos|{n} valandų',
     seconds: '{n} sekundė|{n} sekundės|{n} sekundžių',

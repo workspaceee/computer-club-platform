@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CodeInput, type CodeInputHandle } from '@/components/ui/code-input'
+import { DateField } from '@/components/ui/date-field'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { icons } from '@/lib/icons'
@@ -640,11 +641,15 @@ export function Registration({
 
           {/* Asked for here and not on the PIN screen: the hint explains both
               features that read it (the birthday bonus and the PIN rule), and a
-              date field that appears *next to* a keypad reads as a hoop. */}
-          <Field
+              date field that appears *next to* a keypad reads as a hoop.
+
+              `DateField` rather than `Field type="date"`: the native dropdown is
+              drawn by the browser in the OS palette, which on this dark card is
+              a grey rectangle from another product, and it opens on *today* —
+              the wrong end of a birthday. `openAt` sends the calendar to the
+              youngest allowed year instead, the first year that can be one. */}
+          <DateField
             label={t('auth.birthday')}
-            icon={<icons.calendar size={15} />}
-            type="date"
             value={birthday}
             onValueChange={(v) => {
               setBirthday(v)
@@ -652,9 +657,9 @@ export function Registration({
             }}
             min={birthdayBounds.min}
             max={birthdayBounds.max}
+            openAt={birthdayBounds.max}
             error={serverErrors.birthday ?? (touched ? detailErrors.birthday : undefined)}
             hint={t('auth.birthdayHint')}
-            autoComplete="bday"
           />
 
           <div>

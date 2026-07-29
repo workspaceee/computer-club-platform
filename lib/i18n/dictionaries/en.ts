@@ -38,6 +38,19 @@ export const en = {
     offline: 'Offline',
     comingSoon: 'Coming soon',
     nothingHere: 'Nothing here yet',
+    // `DateField` (C1.11). The segment placeholders are written in the local
+    // order, so they are translated rather than shared: RU writes ДД.ММ.ГГГГ.
+    dateDay: 'DD',
+    dateMonth: 'MM',
+    dateYear: 'YYYY',
+    datePicker: 'Calendar',
+    /** The header pages months, years or decades, so the arrows say direction. */
+    datePrev: 'Earlier',
+    dateNext: 'Later',
+    /** Footer line while nothing is chosen — it names the step, not the state. */
+    datePickDay: 'Pick a day',
+    datePickYear: 'Start with the year',
+    dateClear: 'Clear',
     // plurals: one | other
     minutes: '{n} minute|{n} minutes',
     hours: '{n} hour|{n} hours',
