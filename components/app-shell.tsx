@@ -28,6 +28,7 @@
  * See `components/toaster.tsx`.
  */
 
+import { AnimatePresence } from 'framer-motion'
 import { GuestNotice } from '@/components/launcher/guest-notice'
 import { InGameStrip } from '@/components/launcher/in-game-strip'
 import { MobileNav } from '@/components/launcher/mobile-nav'
@@ -35,6 +36,7 @@ import { TopBar } from '@/components/launcher/top-bar'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
+import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
 import { SessionManager } from '@/components/session-manager'
 import { SfxArmBridge } from '@/components/sfx-arm-bridge'
 import { SfxGameBridge } from '@/components/sfx-game-bridge'
@@ -42,6 +44,7 @@ import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
 import { useReducedMotionAttribute } from '@/hooks/use-reduced-motion'
 import { useSfxPreload } from '@/hooks/use-sfx'
+import { useSingleWindow } from '@/hooks/use-single-window'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 
@@ -147,8 +150,23 @@ export function GlobalOverlays() {
    */
   useReducedMotionAttribute()
 
+  /**
+   * One launcher per PC (C1.12).
+   *
+   * Read here rather than in `AppShell` for the same reason the toast host lives
+   * here: `AppShell` is the chrome of a *signed-in* surface, so a guard mounted
+   * inside it would leave the lock screen — the one screen where a stray window
+   * can claim a seat — unguarded, and would remount on every surface change,
+   * dropping and re-queueing the lock each time. `false` until the browser
+   * answers, so the panel never blinks on boot.
+   */
+  const duplicate = useSingleWindow()
+
   return (
     <>
+      {/* Before everything else, and it renders nothing in the window that holds
+          the lock. In the one that does not, it covers the whole product. */}
+      <AnimatePresence>{duplicate && <DuplicateWindowScreen key="duplicate" />}</AnimatePresence>
       <SfxArmBridge />
       <SfxSettingsBridge />
       <SfxGameBridge />
