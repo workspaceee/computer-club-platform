@@ -15,6 +15,7 @@ import {
   SIGNUP_COPY,
   type SignupState,
 } from '@/components/auth/registration'
+import { ActiveElsewhere } from '@/components/auth/active-elsewhere'
 import { SeatTaken, seatTakenBody } from '@/components/auth/seat-taken'
 import { SessionPaused, formatRemainder } from '@/components/auth/session-paused'
 import { BrandLabel } from '@/components/brand-label'
@@ -144,6 +145,25 @@ export function LockScreen() {
     enter: (snapshot: SessionSnapshot | null) => void
   } | null>(null)
   /**
+   * The arrival's *own* visit, running on another machine (C1.12).
+   *
+   * A second piece of state rather than a variant of `blocked`, because the two
+   * refusals have opposite repairs: that one waits for an admin's key on a chair
+   * that is not the player's, this one asks for a session that is. Collapsing
+   * them would put "ask the shift admin for the key" over a visit the player owns
+   * — or, worse, offer a transfer of somebody else's.
+   *
+   * It carries the same pending entry as `blocked`, and for the same reason: once
+   * the move is approved the arrival goes back through the gate, and the launcher
+   * it lands in has to be the one their own door was opening.
+   */
+  const [elsewhere, setElsewhere] = useState<{
+    machineLabel: string
+    sessionId: ID
+    arrival: Arrival
+    enter: (snapshot: SessionSnapshot | null) => void
+  } | null>(null)
+  /**
    * The paused visit this station is holding for its own player (C1.10).
    *
    * Read once per lock screen rather than subscribed to: the row is *this*
@@ -258,6 +278,21 @@ export function LockScreen() {
     const claim = await claimSeat(arrival)
     if (!claim.granted) {
       setLoading(false)
+      /**
+       * One PC, one session (C1.12). Not the seat refusing — the *account* is
+       * already playing somewhere else — so the card becomes the transfer panel
+       * instead of the "station is in use" one, and the pending entry rides along
+       * so an approved move lands in the launcher this door was opening.
+       */
+      if ('activeElsewhere' in claim) {
+        setElsewhere({
+          machineLabel: claim.machineLabel,
+          sessionId: claim.sessionId,
+          arrival,
+          enter,
+        })
+        return
+      }
       // Lost the race in the gap between the read and the write. With a name it
       // is the same dead end as before, so it gets the same panel; without one
       // there is nothing honest to print on a card whose whole job is to say
@@ -538,7 +573,7 @@ export function LockScreen() {
    * A held seat outranks it — `blocked` only happens *after* somebody signed in,
    * and at that point the card is about the chair.
    */
-  const pinCard = paused !== null && !pinDismissed && !blocked
+  const pinCard = paused !== null && !pinDismissed && !blocked && !elsewhere
 
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
@@ -548,6 +583,11 @@ export function LockScreen() {
     // A held seat outranks everything, including a live flow: the player is past
     // authentication and the card is now about the *chair*, not the door (C1.7).
     if (blocked) return { lead: t('auth.seatTaken'), accent: t('auth.seatTakenHi') }
+    // The account is playing on another machine (C1.12). Same rank as a held
+    // seat — the player is past authentication — but the card is about the
+    // *session*, not the chair, so the headline says so.
+    if (elsewhere)
+      return { lead: t('auth.activeElsewhere'), accent: t('auth.activeElsewhereHi') }
     // The seat is holding *this* player's own paused visit, so the card is not a
     // login at all: it names the state of the visit and asks for a PIN (C1.10).
     if (pinCard) return { lead: t('auth.sessionPaused'), accent: t('auth.sessionPausedHi') }
@@ -564,13 +604,17 @@ export function LockScreen() {
     }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [blocked, pinCard, mode, recovery, signup, t])
+  }, [blocked, elsewhere, pinCard, mode, recovery, signup, t])
 
   const subline = blocked
     ? // The whole sentence, holder's name included, lives in the subline: the
       // panel below states *who and since when*, and printing the instruction
       // twice on one card would make the second copy look like a different rule.
       t(seatTakenBody(blocked.holder), { name: blocked.holder.holder })
+    : elsewhere
+    ? // Same division as above: the sentence names the seat and offers the move,
+      // the panel below states the visit as a fact and carries the button.
+      t('auth.activeElsewhereBody', { machine: elsewhere.machineLabel })
     : pinCard && paused
     ? // The remainder is stated here, in words, and *again* as a clock in the
       // panel below — the one place in this screen where a fact is printed twice
@@ -755,6 +799,8 @@ export function LockScreen() {
                 key={
                   blocked
                     ? 'seat-taken'
+                    : elsewhere
+                    ? 'active-elsewhere'
                     : pinCard
                     ? 'session-paused'
                     : recovery
@@ -816,7 +862,11 @@ export function LockScreen() {
                 next to it would invite somebody to open a second visit on top of
                 paid time that is still running out. The way past it is the PIN,
                 or the panel's own "Use password instead". */}
+            {/* And gone while the transfer panel is up (C1.12): the player is
+                past authentication, the card is about their session, and the
+                other two doors could only open a *second* visit on top of it. */}
             {!blocked &&
+              !elsewhere &&
               !pinCard &&
               !recovery &&
               signup?.step !== 'code' &&
@@ -856,6 +906,36 @@ export function LockScreen() {
                   onFreed={() => void admit(blocked.arrival, blocked.enter)}
                   onStillHeld={(holder) => setBlocked({ ...blocked, holder })}
                   onCancel={() => setBlocked(null)}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : elsewhere ? (
+                /* The arrival's own visit is running on another machine (C1.12).
+                   The panel names that seat and asks the shift admin to move the
+                   session here; unlike C1.7 there *is* a repair, because this
+                   visit belongs to the person standing at the keyboard. */
+                <ActiveElsewhere
+                  key="active-elsewhere"
+                  machineLabel={elsewhere.machineLabel}
+                  sessionId={elsewhere.sessionId}
+                  /* The row being on this machine is not the same as it being
+                     *ours*: between the two there is a write. Going back through
+                     the gate is what claims it — as an adoption, so the used
+                     seconds and the tab come with it — and what refuses again if
+                     somebody took this chair in the meantime. */
+                  onMoved={() => {
+                    const pending = elsewhere
+                    setElsewhere(null)
+                    void admit(pending.arrival, pending.enter)
+                  }}
+                  /* Nothing left to move. The card goes back to being an ordinary
+                     lock screen, with the toast that says why — the panel the
+                     player was acting on is about to disappear under them. */
+                  onGone={(message) => {
+                    setElsewhere(null)
+                    toast('info', t(message))
+                  }}
+                  onCancel={() => setElsewhere(null)}
                   onToast={toast}
                   onReject={triggerShake}
                 />
