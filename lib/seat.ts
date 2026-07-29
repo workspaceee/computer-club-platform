@@ -36,6 +36,7 @@ import {
   type StationHolder,
 } from '@/lib/mock/api'
 import type { ID } from '@/lib/types/common'
+import type { SessionSnapshot } from '@/lib/types/session'
 
 /**
  * Who just authenticated at the keyboard. Exactly one field is set — a member
@@ -48,12 +49,25 @@ export interface Arrival {
 }
 
 /**
- * The answer to "may I sit down". `granted: false` carries the occupant so the
- * screen can name them; `holder: null` means the seat is refused *and* the
- * re-read of who holds it also failed, which is the one case with nothing
- * human to say.
+ * The answer to "may I sit down".
+ *
+ * `granted: false` carries the occupant so the screen can name them;
+ * `holder: null` means the seat is refused *and* the re-read of who holds it
+ * also failed, which is the one case with nothing human to say.
+ *
+ * `granted: true` carries the **row that was claimed**, and that is not a
+ * courtesy either (C1.10). `openSession` either opens a visit or *adopts* the
+ * paused one already on this seat, and only it knows which — so the snapshot is
+ * the one number that says how much time the arrival is actually walking into.
+ * The client store cannot answer that: it banked its own remainder before the
+ * pause and, on a reloaded or reset station, banks a full two hours nobody
+ * bought. `snapshot: null` is the honest gap — a claim granted because the
+ * request *failed* (see below) has no row to report, and the caller falls back
+ * to whatever the store already believes rather than to a fabricated clock.
  */
-export type SeatClaim = { granted: true } | { granted: false; holder: StationHolder | null }
+export type SeatClaim =
+  | { granted: true; snapshot: SessionSnapshot | null }
+  | { granted: false; holder: StationHolder | null }
 
 /**
  * Claim the chair for an arrival that already passed the lock screen's check.
@@ -74,17 +88,19 @@ export type SeatClaim = { granted: true } | { granted: false; holder: StationHol
  */
 export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
   try {
-    await openSession({
+    const snapshot = await openSession({
       userId: arrival.userId,
       guestId: arrival.guestId,
       billingMode: arrival.userId ? 'prepaid' : 'postpaid',
     })
-    return { granted: true }
+    return { granted: true, snapshot }
   } catch (err) {
     if (err instanceof ApiError && err.code === 'conflict') {
       return { granted: false, holder: await fetchStationHolder().catch(() => null) }
     }
-    return { granted: true }
+    // Granted without a row: there is nothing to adopt the clock from, so the
+    // caller keeps the one it has instead of inventing one.
+    return { granted: true, snapshot: null }
   }
 }
 
