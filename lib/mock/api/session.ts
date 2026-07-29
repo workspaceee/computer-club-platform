@@ -14,6 +14,7 @@ import {
 import type { ID, Minutes, Seconds } from '@/lib/types/common'
 import type { MachineSettings, MachineTelemetry } from '@/lib/types/machine'
 import type {
+  BillingMode,
   Session,
   SessionSnapshot,
   SessionWarning,
@@ -118,6 +119,114 @@ export function resumeSession(sessionId: ID = db.currentSessionId): Promise<Sess
       throw new ApiError('insufficientFunds')
     }
     session.state = 'active'
+    return snapshot(session)
+  })
+}
+
+/**
+ * Length of a prepaid visit opened at the station, in minutes.
+ *
+ * The counter sells the hours in stage 2 and `C6` prices them from club
+ * settings; until then the seat opens with the same two hours the store's
+ * `SESSION_LENGTH` shows, so the clock in the HUD and the row behind it cannot
+ * disagree about what was sold.
+ */
+const DEFAULT_PREPAID_MINUTES: Minutes = 120
+
+export interface OpenSessionInput {
+  /** Member visit. Exactly one of `userId` / `guestId`, like `Session`. */
+  userId?: ID | null
+  guestId?: ID | null
+  billingMode: BillingMode
+  /** Prepaid only — postpaid is granted nothing and runs into the tab. */
+  minutes?: Minutes
+  machineId?: ID
+}
+
+/**
+ * `POST /api/session/open` — claims the seat for the arrival that just passed
+ * the lock screen (C1.7).
+ *
+ * This is the write that makes the seat check mean something. Before it, a visit
+ * existed only in the client store: the lock screen asked
+ * `fetchStationHolder()`, and the answer could only ever be a fixture or an
+ * admin action, so "the chair was freed, let the next player in" was
+ * unreachable from the product itself.
+ *
+ * The seat guard lives **here**, not only on the screen, because a check the
+ * client performs is a courtesy and a check the server performs is a rule: two
+ * arrivals racing the same chair both read `null` from the holder endpoint
+ * before either of them wrote anything.
+ *
+ * A live row on the seat is not always a refusal, and the two cases that adopt
+ * it are the two the product promises:
+ *  - **Same member.** "Lock PC" leaves a paused visit behind, so its owner walks
+ *    back into *that* row instead of opening a second one on top of it.
+ *  - **Guest after guest.** A walk-in has no account to match, and the open tab
+ *    belongs to the seat (MVP §8.2) — a second row would silently abandon what
+ *    the first one owes.
+ * Anything else is a `conflict`: somebody else is sitting here.
+ */
+export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
+  return mutate('session.openSession', () => {
+    const machineId = input.machineId ?? db.currentMachineId
+    const userId = input.userId ?? null
+    const guestId = input.guestId ?? null
+    // Exactly one identity, enforced rather than assumed: a row with both set
+    // would be counted twice by every report that groups by one of them.
+    if ((userId === null) === (guestId === null)) throw new ApiError('validation')
+
+    const live = db.sessions
+      .filter((s) => s.machineId === machineId && s.state !== 'ended')
+      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
+
+    if (live) {
+      const mine = userId !== null && live.userId === userId
+      const guestAfterGuest = guestId !== null && live.guestId !== null
+      if (!mine && !guestAfterGuest) throw new ApiError('conflict')
+
+      // Adoption, not a new visit: the clock the player left behind keeps its
+      // used seconds and its debt, and unlocking is what starts it again.
+      live.state = 'active'
+      db.currentSessionId = live.id
+      return snapshot(live)
+    }
+
+    const granted =
+      input.billingMode === 'prepaid' ? (input.minutes ?? DEFAULT_PREPAID_MINUTES) * 60 : 0
+
+    const session: Session = {
+      id: newId('sess'),
+      userId,
+      guestId,
+      machineId,
+      billingMode: input.billingMode,
+      state: 'active',
+      startedAt: db.now,
+      endedAt: null,
+      secondsGranted: granted,
+      secondsUsed: 0,
+      pausedSeconds: 0,
+      debtSeconds: 0,
+      closedBy: null,
+    }
+    db.sessions.push(session)
+    db.currentSessionId = session.id
+
+    // The floor map has to agree with the seat: `endSession` frees the machine,
+    // so opening one has to take it, or an occupied chair keeps reading `free`
+    // on the admin screen and in the station strip (C1.6).
+    const machine = getMachine(machineId)
+    if (machine) machine.status = 'occupied'
+
+    if (userId) {
+      const player = db.players.get(userId)
+      if (player) {
+        player.online = true
+        player.machineId = machineId
+      }
+    }
+
     return snapshot(session)
   })
 }
