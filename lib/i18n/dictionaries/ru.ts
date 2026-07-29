@@ -122,6 +122,7 @@ export const ru: Dictionary = {
     stationOffline: 'Нет связи',
     stationHot: 'Перегрев',
     telemetryOff: 'Нет данных',
+    stationUnusable: 'Не в работе',
     agentOffline: 'Нет агента',
     // Восстановление пароля — код на e-mail (C1.3).
     forgotPassword: 'Забыли пароль?',

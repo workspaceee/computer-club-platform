@@ -133,6 +133,11 @@ export const en = {
     stationHot: 'Running hot',
     /** Agent is reachable but reporting nothing: readings unknown, not bad. */
     telemetryOff: 'No readings',
+    /**
+     * The club has taken the seat out of service, so the hardware reading is
+     * moot: a cool GPU on a machine nobody may sit at is not "Optimal".
+     */
+    stationUnusable: 'Not in service',
     agentOffline: 'No agent',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',

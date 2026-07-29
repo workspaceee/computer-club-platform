@@ -266,6 +266,22 @@ function HealthChip({
 }) {
   const { t } = useT()
 
+  // Availability outranks the thermals, and it is checked before the agent
+  // because it outranks that too: on a seat pulled from service, "No agent" is
+  // true and still the wrong answer — the reason it cannot be used is the
+  // admin, not the network. One red source (the seat chip) says why; this chip
+  // only has to stop claiming the machine is fine.
+  if (!usable) {
+    return (
+      <HudChip
+        icon={<icons.status size={13} />}
+        label={t('auth.status')}
+        value={t('auth.stationUnusable')}
+        tone="muted"
+      />
+    )
+  }
+
   if (agentStatus === 'checking') {
     return (
       <HudChip
