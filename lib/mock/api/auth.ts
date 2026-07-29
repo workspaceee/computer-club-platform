@@ -15,6 +15,16 @@ export interface LoginPayload {
 
 export interface AuthResult {
   profile: UserProfile
+  /**
+   * The account this session belongs to.
+   *
+   * `UserProfile` is display data — nickname, level, coins — and it carries no id
+   * on purpose, so it can be handed to a HUD without handing over an identity.
+   * The seat check (C1.7) asks an identity question — "is the live session on
+   * this machine *this* person's?" — so the id travels with the session, next to
+   * the token, which is where the real API puts it too.
+   */
+  userId: ID
   /** Opaque token. The real API returns a JWT; nothing reads the contents. */
   token: string
   role: UserRole
@@ -55,6 +65,7 @@ export function login(payload: LoginPayload): Promise<AuthResult> {
       db.currentUserId = match.user.id
       return {
         profile: buildProfile(match.user.id),
+        userId: match.user.id,
         token: newId('tok'),
         role: match.user.role,
       }
@@ -67,6 +78,7 @@ export function login(payload: LoginPayload): Promise<AuthResult> {
     current.user.email = identifier.includes('@') ? identifier : current.user.email
     return {
       profile: buildProfile(current.user.id),
+      userId: current.user.id,
       token: newId('tok'),
       role: current.user.role,
     }
@@ -214,6 +226,7 @@ export function loginAsDemo(): Promise<AuthResult> {
     db.currentUserId = 'u-demo'
     return {
       profile: buildProfile('u-demo'),
+      userId: 'u-demo',
       token: newId('tok'),
       role: 'member' as UserRole,
     }
@@ -470,6 +483,7 @@ export function completePasswordReset(
     const player = db.players.get(challenge.userId)
     return {
       profile: buildProfile(challenge.userId),
+      userId: challenge.userId,
       token: newId('tok'),
       role: (player?.user.role ?? 'member') as UserRole,
     }
@@ -665,7 +679,12 @@ export function completeRegistration(challengeId: ID, code: string): Promise<Aut
     signupChallenges.delete(challengeId)
     const id = createMember(challenge.nickname, challenge.email)
     db.currentUserId = id
-    return { profile: buildProfile(id), token: newId('tok'), role: 'member' as UserRole }
+    return {
+      profile: buildProfile(id),
+      userId: id,
+      token: newId('tok'),
+      role: 'member' as UserRole,
+    }
   })
 }
 
@@ -883,6 +902,7 @@ export function confirmQrChallenge(challengeId: ID, grantToken: string): Promise
     db.currentUserId = userId
     return {
       profile: buildProfile(userId),
+      userId,
       token: newId('tok'),
       role: player.user.role,
     }

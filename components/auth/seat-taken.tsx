@@ -178,11 +178,16 @@ export function SeatTaken({
               {t('auth.seatTakenSince', { time: formatTime(new Date(holder.startedAt)) })}
             </span>
           </div>
-          {/* Status plate (§3.3). "Paused" is the one worth printing: it is why
-              a held seat can look free. */}
-          <span className="label-mono shrink-0 rounded-sm border border-warning/30 bg-warning/12 px-2 py-0.5 text-[9px] text-warning">
-            {holder.state === 'paused' ? t('session.paused') : t('auth.stationOccupied')}
-          </span>
+          {/* Status plate (§3.3) — only for a paused hold, which is the one state
+              worth printing: it is why a held seat can look free. An active one
+              needs no plate, because the headline above already says "in use"
+              and the station badge next to it says so again; a third copy would
+              read as a fourth fact rather than the same one. */}
+          {holder.state === 'paused' && (
+            <span className="label-mono shrink-0 rounded-sm border border-warning/30 bg-warning/12 px-2 py-0.5 text-[9px] text-warning">
+              {t('session.paused')}
+            </span>
+          )}
         </div>
       </div>
 
