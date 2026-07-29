@@ -9,6 +9,7 @@ import { StationPanel } from '@/components/station-panel'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { useAttractPlaylist, type AttractSlide } from '@/hooks/use-attract-playlist'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { useT } from '@/lib/i18n/provider'
 import { fetchPromoTicker } from '@/lib/mock/api'
 
@@ -68,6 +69,17 @@ export function AttractMode() {
   const { t, formatFullDate } = useT()
   const now = useClock()
   const [slide, setSlide] = useState(0)
+  /**
+   * Reduced motion (§4.5).
+   *
+   * The rotation itself stays: it is the content of the screen, not decoration —
+   * a walk-in who dislikes movement still needs to learn there is a cup at
+   * 21:00. What goes is the *decorative* motion layered on top of it: the Ken
+   * Burns push, the blinking status dot and colon, and the hint's nudge. The CSS
+   * loops (`.wake-hint*`, `.marquee-track`, `.neon-digits`) are already damped
+   * by `globals.css` through `data-reduce-motion`.
+   */
+  const reduced = useReducedMotion()
 
   const useVideo = ATTRACT_VIDEOS.length > 0
 
@@ -134,7 +146,11 @@ export function AttractMode() {
       {useVideo ? (
         <VideoPlaylist sources={ATTRACT_VIDEOS} />
       ) : (
-        <KenBurnsSlideshow slide={current} durationMs={slideDuration(current)} />
+        <KenBurnsSlideshow
+          slide={current}
+          durationMs={slideDuration(current)}
+          reduced={reduced}
+        />
       )}
 
       {/* Readability veils (§3.2): floor, radial scrim under the clock, edge
@@ -155,8 +171,12 @@ export function AttractMode() {
         <div className="flex w-full flex-col items-center gap-2.5">
           <span className="label-mono flex items-center gap-2 text-[10px] uppercase tracking-[0.35em] text-text-low">
             <motion.span
-              animate={{ opacity: [1, 0.25, 1] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { opacity: 1 } : { opacity: [1, 0.25, 1] }}
+              transition={
+                reduced
+                  ? { duration: 0 }
+                  : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="h-1.5 w-1.5 rounded-full bg-primary"
             />
             {t('attract.nowOpen')}
@@ -178,8 +198,10 @@ export function AttractMode() {
                 clock read from across the room). */}
             <span className="text-[4.5rem] md:text-[6.4rem] xl:text-[7.6rem]">{hh}</span>
             <motion.span
-              animate={{ opacity: [1, 0.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { opacity: 1 } : { opacity: [1, 0.2, 1] }}
+              transition={
+                reduced ? { duration: 0 } : { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="mx-0.5 -translate-y-[0.06em] text-[3.75rem] font-normal text-primary md:mx-1 md:text-[5.4rem] xl:text-[6.4rem]"
               // The hollow treatment inherits (`-webkit-text-fill-color` /
               // `-webkit-text-stroke` both cascade), and an outlined colon at
@@ -243,8 +265,10 @@ export function AttractMode() {
             {/* The mark mimes the gesture it is asking for — a small horizontal
                 nudge reads as "move", which a static mouse icon does not. */}
             <motion.span
-              animate={{ x: [0, 5, 0] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { x: 0 } : { x: [0, 5, 0] }}
+              transition={
+                reduced ? { duration: 0 } : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="relative flex"
             >
               <icons.controls size={13} className="text-primary" />
@@ -292,10 +316,16 @@ export function AttractMode() {
       </AnimatePresence>
 
       {/* ---------- corner signature ---------- */}
-      {/* Mirrors the promo caption's band on the opposite side, above the crawl. */}
+      {/* Mirrors the showcase panel on the opposite side, at the same height.
+          It used to sit at `bottom-16/20` — the station strip's own row — which
+          is invisible on wide glass, where the strip is narrow and centred, but
+          on a portrait kiosk (1080×1920) the strip fills the width and the
+          lockup landed on top of the seat's `STATUS Optimal` chip. The club's
+          logo covering the club's own telemetry is the same fault the panel was
+          already raised to avoid, so it clears the strip the same way. */}
       <BrandLabel
         named={false}
-        className="absolute bottom-16 right-5 z-20 md:bottom-20 md:right-7"
+        className="absolute bottom-28 right-5 z-20 md:bottom-32 md:right-7"
       />
 
       {/* ---------- promo ticker ---------- */}
@@ -441,22 +471,33 @@ function VideoPlaylist({ sources }: { sources: string[] }) {
 function KenBurnsSlideshow({
   slide,
   durationMs,
+  reduced,
 }: {
   slide: AttractSlide | undefined
   /** How long this slide holds, so the zoom is still moving when it leaves. */
   durationMs: number
+  /**
+   * Reduced motion (§4.5): the slow push is the decorative half of this layer, so
+   * it is dropped — but the cross-fade stays, because cutting hard between two
+   * full-bleed photographs is a bigger jolt than the zoom ever was. The frame
+   * sits at a fixed 1.06 rather than 1: the art was composed for a cropped
+   * frame, and snapping to un-zoomed would show its edges.
+   */
+  reduced: boolean
 }) {
   if (!slide) return null
   return (
     <AnimatePresence>
       <motion.div
         key={slide.key}
-        initial={{ opacity: 0, scale: 1 }}
-        animate={{ opacity: 1, scale: 1.12 }}
+        initial={{ opacity: 0, scale: reduced ? 1.06 : 1 }}
+        animate={{ opacity: 1, scale: reduced ? 1.06 : 1.12 }}
         exit={{ opacity: 0 }}
         transition={{
-          opacity: { duration: 1.6, ease: 'easeInOut' },
-          scale: { duration: (durationMs + 2000) / 1000, ease: 'linear' },
+          opacity: { duration: reduced ? 0.8 : 1.6, ease: 'easeInOut' },
+          scale: reduced
+            ? { duration: 0 }
+            : { duration: (durationMs + 2000) / 1000, ease: 'linear' },
         }}
         className="absolute inset-0"
       >

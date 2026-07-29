@@ -40,6 +40,7 @@ import { SfxArmBridge } from '@/components/sfx-arm-bridge'
 import { SfxGameBridge } from '@/components/sfx-game-bridge'
 import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
+import { useReducedMotionAttribute } from '@/hooks/use-reduced-motion'
 import { useSfxPreload } from '@/hooks/use-sfx'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
@@ -133,6 +134,18 @@ export function AppShell({
  */
 export function GlobalOverlays() {
   useSfxPreload()
+  /**
+   * `<html data-reduce-motion>` (§4.5).
+   *
+   * `globals.css` damps the pure-CSS loops — the marquee, the wake hint, the
+   * caret, the neon ring's travelling angle — off this attribute, and nothing
+   * was setting it: the launcher's "Reduce animations" switch reached only the
+   * components that call the hook in JS, so a player who turned it on still got
+   * a scrolling crawl and a breathing pill. It belongs here for the same reason
+   * the toast host does — it has to hold on both screens and survive every
+   * screen change — and it writes to the document, so it renders nothing.
+   */
+  useReducedMotionAttribute()
 
   return (
     <>
