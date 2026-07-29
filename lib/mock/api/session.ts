@@ -12,6 +12,9 @@ import {
   getSession,
   getZone,
 } from '@/lib/mock/db'
+// The admin's transfer approval writes outside `mutate()` (see `approveTransfer`),
+// so it saves the store itself rather than relying on the transport to do it.
+import { persistDb } from '@/lib/mock/persist'
 import type { ID, Minutes, Seconds } from '@/lib/types/common'
 import type { MachineSettings, MachineTelemetry } from '@/lib/types/machine'
 import type {
@@ -19,8 +22,16 @@ import type {
   Session,
   SessionSnapshot,
   SessionWarning,
+  TransferRequest,
 } from '@/lib/types/session'
 import type { Tab } from '@/lib/types/tab'
+
+/**
+ * Re-exported so the transfer flow of C1.12 can be typed from `@/lib/mock/api`
+ * like every other endpoint's response. The UI imports from the barrel and never
+ * from `lib/mock/db`, so a type it has to name must travel out through here.
+ */
+export type { TransferRequest, TransferState } from '@/lib/types/session'
 
 /**
  * Seconds still available on a session, floored at zero.
@@ -197,6 +208,37 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
     // would be counted twice by every report that groups by one of them.
     if ((userId === null) === (guestId === null)) throw new ApiError('validation')
 
+    /**
+     * One PC, one session (C1.12).
+     *
+     * Checked **before** the seat, and the order is the rule rather than a
+     * detail: this chair may well be empty, and letting the arrival have it
+     * because of that is exactly the bug — the club would then be running two
+     * visits for one account, billing both, and the player's time would drain
+     * from a machine they are no longer sitting at.
+     *
+     * Only members. A walk-in has no account, so there is nothing to match
+     * across the floor, and the guest-after-guest adoption below is what the tab
+     * of MVP §8.2 needs anyway.
+     *
+     * The refusal carries the seat, because "you are already playing" is useless
+     * without "…on PC #05": the player has to know which chair to go back to, or
+     * which one they are asking the admin to move them off.
+     */
+    if (userId) {
+      const elsewhere = db.sessions.find(
+        (s) => s.userId === userId && s.state !== 'ended' && s.machineId !== machineId,
+      )
+      if (elsewhere) {
+        const seat = getMachine(elsewhere.machineId)
+        throw new ApiError('activeElsewhere', undefined, {
+          machineId: elsewhere.machineId,
+          machineLabel: seat?.label ?? elsewhere.machineId,
+          sessionId: elsewhere.id,
+        })
+      }
+    }
+
     const live = getLiveSession(machineId)
 
     if (live) {
@@ -248,6 +290,120 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
 
     return snapshot(session)
   })
+}
+
+/* ------------------------------------------------------------------ *
+ * Moving a visit between seats (C1.12)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `POST /api/session/request-transfer` — "my session is on PC #05, bring it
+ * here".
+ *
+ * The station may only *ask*. It cannot move the row itself, and the reason is
+ * the room rather than the data model: the other seat still has the player's bag
+ * on it, possibly their friend in the chair and certainly no one who has agreed
+ * to be logged out — so the write that ends a visit somewhere else in the club
+ * belongs to the admin on shift, exactly like the eviction C1.7 refuses to offer.
+ *
+ * Repeated asks collapse into one. A player who taps "Transfer here" twice while
+ * the first request is still pending has not changed their mind about anything,
+ * and two pending rows for one visit would let one approval move the session and
+ * the second one move it again — off a seat the player is by then sitting at.
+ */
+export function requestTransfer(
+  sessionId: ID,
+  toMachineId: ID = db.currentMachineId,
+): Promise<TransferRequest> {
+  return mutate('session.requestTransfer', () => {
+    const session = required(getSession(sessionId), 'sessionExpired')
+    if (session.state === 'ended') throw new ApiError('sessionExpired')
+    // A visit already on this seat has nothing to move, and answering "pending"
+    // would leave the player waiting for an approval that can never arrive.
+    if (session.machineId === toMachineId) throw new ApiError('conflict')
+    // Members only: the record is keyed by account, and a walk-in has none.
+    const userId = required(session.userId, 'unauthorized')
+    required(getMachine(toMachineId))
+
+    const pending = db.transferRequests.find(
+      (r) => r.sessionId === session.id && r.toMachineId === toMachineId && r.state === 'pending',
+    )
+    if (pending) return pending
+
+    const request: TransferRequest = {
+      requestId: newId('mv'),
+      userId,
+      sessionId: session.id,
+      fromMachineId: session.machineId,
+      toMachineId,
+      requestedAt: db.now,
+      state: 'pending',
+    }
+    db.transferRequests.push(request)
+    return request
+  })
+}
+
+/** What an approval hands back, so the caller can announce the move. */
+export interface TransferApproval {
+  request: TransferRequest
+  /** The moved row: `machineId` is already the new seat. */
+  session: Session
+  /** Seat label and zone of the new machine, for the `session.moved` frame. */
+  toMachineLabel: string
+  toZoneId: ID
+}
+
+/**
+ * MOCK ONLY — `POST /api/session/approve-transfer`, the **admin's** endpoint.
+ *
+ * Synchronous and outside `mutate()` for the same reason `approveQrChallenge` is
+ * (`lib/mock/api/auth.ts`): this is not the station calling the club, it is the
+ * other actor. `lib/realtime/admin-sim.ts` plays that actor and publishes
+ * `session.moved` afterwards, in the same "write, then announce" order every
+ * simulated action follows.
+ *
+ * Returns `null` when there is nothing live to approve — a request that was
+ * already answered, or whose visit ended while it was pending. A stale approval
+ * must not move a dead session onto an occupied chair.
+ *
+ * The move keeps the row and only changes its seat, which is what makes the
+ * re-claim on the target station an *adoption*: used seconds, debt and open tab
+ * all stay with the visit, so nothing is bought twice and nothing is forgiven.
+ */
+export function approveTransfer(requestId: ID): TransferApproval | null {
+  const request = db.transferRequests.find((r) => r.requestId === requestId)
+  if (!request || request.state !== 'pending') return null
+
+  const session = getSession(request.sessionId)
+  if (!session || session.state === 'ended') return null
+
+  const target = getMachine(request.toMachineId)
+  if (!target) return null
+
+  const from = getMachine(session.machineId)
+  request.state = 'approved'
+
+  // The floor map has to agree with the move in both directions: the old chair
+  // is genuinely free now, and the new one is genuinely taken. Leaving either
+  // half out is how a seat map starts lying (C1.6).
+  if (from && from.id !== target.id) from.status = 'free'
+  session.machineId = target.id
+  target.status = 'occupied'
+
+  const player = db.players.get(request.userId)
+  if (player) player.machineId = target.id
+
+  persistDb()
+
+  return { request, session, toMachineLabel: target.label, toZoneId: target.zoneId }
+}
+
+/** `GET /api/session/transfer/:id` — where an ask stands, for a waiting screen. */
+export function fetchTransfer(requestId: ID): Promise<TransferRequest> {
+  return query('session.fetchTransfer', () =>
+    required(db.transferRequests.find((r) => r.requestId === requestId)),
+  )
 }
 
 export interface EndSessionResult {

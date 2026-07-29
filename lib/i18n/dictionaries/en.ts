@@ -183,6 +183,59 @@ export const en = {
     /** The hold is gone, so the arrival that was held back goes straight in. */
     seatTakenFreedToast: 'The station is free — signing you in.',
     /**
+     * One PC, one session (C1.12).
+     *
+     * The mirror image of `seatTaken`, and it must not read like it: nothing is
+     * occupied here and nobody is in the way — the account is simply already
+     * playing across the room. So the headline is about the *session*, not the
+     * station, and the repair is offered instead of withheld: this visit belongs
+     * to the person reading the card, so they may ask for it to be moved.
+     *
+     * Why an ask and not a button that moves it. The other seat still has their
+     * bag on it and possibly a friend in the chair, so the write that ends a visit
+     * somewhere else in the club belongs to the admin on shift — the same reason
+     * `seatTaken` has no "end their session".
+     */
+    activeElsewhere: 'Session active',
+    activeElsewhereHi: 'elsewhere',
+    activeElsewhereBody:
+      'Your session is running on {machine}. Move it to this station, or go back to that one.',
+    /** The seat the visit is on, stated as a fact inside the card. */
+    activeElsewhereSeat: 'Playing on {machine}',
+    transferHere: 'Move it here',
+    /** Asked, not done: the admin on shift is the one who releases the old seat. */
+    transferPending: 'Waiting for the shift admin to approve the move…',
+    transferPendingNote:
+      'Collect your things from {machine} — the station is released as soon as the move is approved.',
+    transferRequestedToast: 'The shift admin has been asked to move your session.',
+    transferDoneToast: 'Session moved — welcome to this station.',
+    /** The visit ended, or was picked up somewhere else, while the ask waited. */
+    transferGone: 'That session is no longer there to move.',
+    /**
+     * MOCK ONLY — there is no admin app, so the way to answer the ask is named
+     * rather than hidden, exactly like the QR dialog's "play the phone" button.
+     * Never translated: it never reaches a player.
+     */
+    transferDemoTitle: 'No admin app yet',
+    transferDemoNote:
+      'The prototype has no admin screen, so approve the move from here. The frame travels the real bus and this card picks it up through its normal subscription.',
+    transferDemoApprove: 'Approve as admin',
+    /**
+     * Two launcher windows on one PC (C1.12).
+     *
+     * Not an error and not a refusal of anything the player asked for: the club is
+     * fine, the seat is theirs, there is simply already a launcher open on this
+     * machine. So the copy states which window is real and how to get back to it,
+     * and promises the takeover — because the second window *does* come alive on
+     * its own once the first is gone, and a screen that did not say so would look
+     * stuck.
+     */
+    duplicateWindow: 'Launcher already',
+    duplicateWindowHi: 'open',
+    duplicateWindowBody:
+      'This launcher is already running in another window on this PC. Switch to that window — or close it, and this one takes over by itself.',
+    duplicateWindowWaiting: 'Waiting for the other window to close…',
+    /**
      * The paused visit on this seat is *yours* — the fast way back (C1.10).
      *
      * Not a login, and it must not read like one: nobody signed out, the clock is
@@ -684,6 +737,11 @@ export const en = {
     validation: 'Check the highlighted fields',
     timeout: 'The club server took too long to answer',
     sessionExpired: 'Your session has ended',
+    /**
+     * C1.12. The toast form, for the paths that have no card to open — the panel
+     * says it properly, with the seat named.
+     */
+    activeElsewhere: 'Your session is already running on another PC',
     insufficientFunds: 'Not enough money on your balance',
     insufficientCoins: 'Not enough coins',
     outOfStock: 'Out of stock right now',

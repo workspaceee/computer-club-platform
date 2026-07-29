@@ -14,6 +14,7 @@
 // Nothing in the launcher UI may import this file: it is the *other* actor.
 import { approveQrChallenge } from '@/lib/mock/api/auth'
 import { newId, serverTime } from '@/lib/mock/api/client'
+import { approveTransfer } from '@/lib/mock/api/session'
 import { db, getMachine, getOpenTab, getPlayer, getSession } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 import { mockBus } from '@/lib/realtime/mock-bus'
@@ -268,6 +269,45 @@ export function moveSession(toMachineId?: ID): RealtimeEnvelope<'session.moved'>
       moveWithinSeconds: 300,
     },
     { scope: seatScope() },
+  )
+}
+
+/**
+ * The shift admin answers "bring my session here" (C1.12).
+ *
+ * Different from `moveSession` above in the one way that matters: that one is
+ * staff *sending* the player somewhere ("go to B-05" — the seat is reserved and
+ * the row stays put until they arrive), while this one is the player already
+ * standing at the new keyboard and the admin releasing the old chair, so the row
+ * moves now and the target seat becomes occupied rather than reserved.
+ *
+ * The frame is addressed to the **target machine** and not to the account. The
+ * station that raised the request has nobody signed in yet — that is the whole
+ * point of the refusal it is recovering from — so a `userId` scope would be
+ * matched against whatever identity the client happened to open the channel
+ * with. The seat is the thing that is certain here.
+ *
+ * `null` when there was nothing live to approve, so a dev-panel button on a stale
+ * request says so instead of silently doing nothing.
+ */
+export function approveSessionTransfer(
+  requestId: ID,
+): RealtimeEnvelope<'session.moved'> | null {
+  const approved = approveTransfer(requestId)
+  if (!approved) return null
+  commit()
+
+  return mockBus.publish(
+    'session.moved',
+    {
+      sessionId: approved.session.id,
+      fromMachineId: approved.request.fromMachineId,
+      toMachineId: approved.request.toMachineId,
+      toMachineLabel: approved.toMachineLabel,
+      toZoneId: approved.toZoneId,
+      moveWithinSeconds: 300,
+    },
+    { scope: { machineId: approved.request.toMachineId, zoneId: approved.toZoneId } },
   )
 }
 

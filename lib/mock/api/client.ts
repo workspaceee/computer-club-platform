@@ -45,6 +45,17 @@ export type ApiErrorCode =
   /** Too many requests in the cooldown window — the 60 s resend guard (C1.3). */
   | 'rateLimited'
   | 'sessionExpired'
+  /**
+   * One PC, one session (C1.12). The credentials were right and *this* chair is
+   * free — the account signing in is already playing somewhere else.
+   *
+   * Deliberately not `conflict`: `conflict` on this endpoint means "somebody else
+   * is sitting here", and the two refusals have opposite repairs. A stranger's
+   * visit can only be ended by the admin's key, while your own visit on another
+   * seat is yours to move — so the screen offers a transfer instead of sending
+   * you to the counter, and it can only tell them apart by the code.
+   */
+  | 'activeElsewhere'
   | 'insufficientFunds'
   | 'insufficientCoins'
   | 'outOfStock'
@@ -65,24 +76,49 @@ const STATUS: Record<ApiErrorCode, number> = {
   invalidCode: 401,
   rateLimited: 429,
   sessionExpired: 410,
+  activeElsewhere: 409,
   insufficientFunds: 402,
   insufficientCoins: 402,
   outOfStock: 409,
   creditLimit: 402,
 }
 
+/**
+ * Machine-readable detail attached to a refusal.
+ *
+ * Scalars only, and on purpose: this is the JSON body of an error response, so it
+ * has to survive `structuredClone` and a real `fetch` unchanged. It is *not* a
+ * place for prose — the sentence still comes from the dictionaries (rule 2
+ * above), and these are the ids and labels that get interpolated into it.
+ */
+export type ApiErrorData = Record<string, string | number | boolean | null>
+
 export class ApiError extends Error {
   readonly code: ApiErrorCode
   readonly status: number
   /** Field-level problems for `validation`, keyed by form field name. */
   readonly fields?: Record<string, ApiErrorCode>
+  /**
+   * What the screen needs in order to *name* the refusal (C1.12).
+   *
+   * A code alone cannot carry "your session is active on PC #05": the seat that
+   * holds it is known to the server and to nothing else, and a client that
+   * re-read the whole floor to find it would be guessing at the answer the
+   * refusal already had.
+   */
+  readonly data?: ApiErrorData
 
-  constructor(code: ApiErrorCode, fields?: Record<string, ApiErrorCode>) {
+  constructor(
+    code: ApiErrorCode,
+    fields?: Record<string, ApiErrorCode>,
+    data?: ApiErrorData,
+  ) {
     super(code)
     this.name = 'ApiError'
     this.code = code
     this.status = STATUS[code]
     this.fields = fields
+    this.data = data
   }
 }
 
