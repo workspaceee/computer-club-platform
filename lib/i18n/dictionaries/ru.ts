@@ -207,6 +207,39 @@ export const ru: Dictionary = {
     qrDemoConfirm: 'Подтвердить с телефона',
   },
 
+  attract: {
+    screenLabel: 'Экран ожидания. Подвигайте мышью или нажмите любую клавишу.',
+    nowOpen: 'Открыто · 24/7',
+    unlockHint: 'Подвигайте мышью',
+    fallbackHours: 'Открыто 24/7, каждый день',
+    fallbackSpecs: 'RTX 4080 и 240 Гц на каждой станции',
+    fallbackMembership: 'Спросите на стойке про клубную карту',
+    tournamentKicker: 'Сегодня в клубе',
+    tournamentStartsIn: 'Старт через {when}',
+    tournamentLive: 'Идёт прямо сейчас',
+    tournamentPrize: 'Приз',
+    tournamentEntry: 'Взнос',
+    tournamentFree: 'Бесплатно',
+    seatsKicker: 'Свободно сейчас',
+    // plural: one | few | many
+    seatsTitle: '{n} станция свободна|{n} станции свободны|{n} станций свободно',
+    seatsSubtitle: 'Из {total} в клубе. Садитесь — остальное сделает администратор.',
+    seatsFull: 'Все станции заняты',
+    seatsFullBody: 'Подойдите на стойку: места освобождаются каждые несколько минут.',
+    seatsZoneFree: '{free} из {total}',
+    barKicker: 'Из бара',
+    barTitle: 'Топливо для сессии',
+    barSubtitle: 'Заказ со станции — приносим на место.',
+    ladderKicker: 'Сезонный зачёт',
+    ladderTitle: 'Топ клуба',
+    ladderHours: '{n} ч',
+    passKicker: 'Battle Pass',
+    // plural: one | few | many
+    passDaysLeft: 'До конца сезона {n} день|До конца сезона {n} дня|До конца сезона {n} дней',
+    passSubtitle: 'Играйте, растите в уровнях, забирайте награды. Бесплатная ветка — даром.',
+    passLevels: '{n} уровней',
+  },
+
   session: {
     title: 'Сессия',
     timeLeft: 'Осталось',
@@ -450,7 +483,7 @@ export const ru: Dictionary = {
     version: 'Агент {version}',
     unavailable: 'Недоступно на этом ПК',
     unavailableBody:
-      'Агент станции не запущен, поэтому лончер не может открывать панели Windows и менять настройки железа.',
+      'Агент с��анции не запущен, поэтому лончер не может открывать панели Windows и менять настройки железа.',
     unavailableHint: 'Попросите администратора перезапустить агента станции.',
     unsupported: 'Недоступно на этом оборудовании',
     recheck: 'Проверить снова',
