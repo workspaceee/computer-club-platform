@@ -19,8 +19,14 @@ import type { ID } from '@/lib/types/common'
 
 const STORAGE_KEY = 'imba.mock.state'
 
-/** Bump whenever the shape of `Snapshot` or any persisted slice changes. */
-const SCHEMA_VERSION = 1
+/**
+ * Bump whenever the shape of `Snapshot` or any persisted slice changes — and
+ * also when a **seed row** is added to a persisted slice, which is why this is
+ * `2`: `bookings` carries the reservation the station panel reads (C1.6), and a
+ * v1 snapshot would keep restoring the old list over it, so the new state would
+ * be invisible in every browser that had ever opened the demo.
+ */
+const SCHEMA_VERSION = 2
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from

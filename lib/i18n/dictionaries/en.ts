@@ -77,7 +77,6 @@ export const en = {
   auth: {
     localTime: 'Local time',
     accessTerminal: 'Access Terminal',
-    stationReady: 'Ready',
     welcome: 'Welcome',
     welcomeHi: 'back',
     join: 'Join the',

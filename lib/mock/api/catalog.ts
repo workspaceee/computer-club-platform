@@ -4,11 +4,18 @@
 // the club's own settings. Filtering and sorting live here on purpose — the real
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
-import { mutate, newId, query, required } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer } from '@/lib/mock/db'
+import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
+import { db, getMachine, getPlayer, getZone } from '@/lib/mock/db'
+import type { BookingStatus } from '@/lib/types/booking'
 import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
-import type { ID } from '@/lib/types/common'
-import type { Machine, Zone } from '@/lib/types/machine'
+import type { ID, ISODateTime } from '@/lib/types/common'
+import type {
+  Machine,
+  MachineSpecs,
+  MachineStatus,
+  Zone,
+  ZoneClass,
+} from '@/lib/types/machine'
 import type { Club, ClubSettings } from '@/lib/types/settings'
 
 export type GameSort = 'popular' | 'rating' | 'name' | 'recent'
@@ -200,6 +207,81 @@ export function fetchMachines(zoneId?: ID): Promise<Machine[]> {
 /** `GET /api/club/machines/:id` */
 export function fetchMachine(machineId: ID = db.currentMachineId): Promise<Machine> {
   return query('catalog.fetchMachine', () => required(getMachine(machineId)))
+}
+
+/**
+ * The seat this launcher runs on, resolved into one answer (C1.6).
+ *
+ * The station panel needs the machine, its zone *and* whatever is booked on it
+ * next. Three separate reads would make the lock screen join them itself and
+ * paint a seat as free while its own booking row was still in flight, so the
+ * join happens here — the real `GET /api/club/station` answers the same shape.
+ *
+ * Hardware facts (`specs`) travel with it because the HUD strip states the panel
+ * and the GPU next to the status: those are club data, not agent telemetry, and
+ * a seat with a dead agent must still be able to say what it is (F5.4).
+ */
+export interface StationInfo {
+  machineId: ID
+  /** Display name of the seat, e.g. `PC #17`. Never built from the id in the UI. */
+  label: string
+  zoneId: ID
+  zoneName: string
+  zoneClass: ZoneClass
+  status: MachineStatus
+  /**
+   * Start of the next live reservation on this seat, `null` when the horizon
+   * below is empty. Drives the third status the panel can show — "booked from
+   * HH:MM" — which no other field can express: a seat that is free *right now*
+   * and taken in twenty minutes is neither `free` nor `reserved`.
+   */
+  nextBookingAt: ISODateTime | null
+  specs: MachineSpecs
+  /** `null` when the Windows agent has never checked in (F5.4). */
+  agentLastSeen: ISODateTime | null
+}
+
+/**
+ * How far ahead a reservation is worth naming on the lock screen. Beyond half a
+ * day "booked from 09:00" is not information a walk-in can act on, and it would
+ * make every seat in the club look taken.
+ */
+const STATION_BOOKING_HORIZON_MS = 12 * 60 * 60 * 1000
+
+/** Reservations that still hold the seat. Cancelled and no-show ones do not. */
+const HOLDING_BOOKING_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'checked-in']
+
+/** `GET /api/club/station` — seat + zone + next reservation, for the lock screen. */
+export function fetchStation(machineId: ID = db.currentMachineId): Promise<StationInfo> {
+  return query('catalog.fetchStation', () => {
+    const machine = required(getMachine(machineId))
+    const zone = required(getZone(machine.zoneId))
+    const now = Date.parse(serverTime())
+
+    const next = db.bookings
+      .filter(
+        (booking) =>
+          booking.machineId === machine.id &&
+          HOLDING_BOOKING_STATUSES.includes(booking.status) &&
+          // Still running counts: a booking whose window has started but whose
+          // check-in never happened is exactly what holds this seat now.
+          Date.parse(booking.endsAt) > now &&
+          Date.parse(booking.startsAt) - now < STATION_BOOKING_HORIZON_MS,
+      )
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0]
+
+    return {
+      machineId: machine.id,
+      label: machine.label,
+      zoneId: zone.id,
+      zoneName: zone.name,
+      zoneClass: zone.class,
+      status: machine.status,
+      nextBookingAt: next?.startsAt ?? null,
+      specs: machine.specs,
+      agentLastSeen: machine.agentLastSeen,
+    }
+  })
 }
 
 export interface OccupancySummary {

@@ -1542,6 +1542,26 @@ const bookings: Booking[] = [
     prepaidCents: 1000,
     createdAt: atDays(-1),
   },
+  /**
+   * Somebody else's reservation on **this** seat, three hours out (C1.6).
+   *
+   * Here so the station panel's third state is real data rather than a demo
+   * flag: `pc-17` is free at `db.now`, and a seat that is free now and taken
+   * later is the case a plain `machines.status` cannot express. Without a row
+   * like this the "booked from HH:MM" branch would only ever be reachable by
+   * editing the fixture.
+   */
+  {
+    id: 'bk-4',
+    userId: 'u-noscope',
+    machineId: CURRENT_MACHINE_ID,
+    zoneId: 'zone-main',
+    startsAt: atHours(3),
+    endsAt: atHours(5),
+    status: 'confirmed',
+    prepaidCents: 900,
+    createdAt: atHours(-3),
+  },
 ]
 
 /* ------------------------------------------------------------------ *
