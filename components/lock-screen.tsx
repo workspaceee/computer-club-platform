@@ -24,6 +24,7 @@ import { LangSwitcher } from '@/components/lang-switcher'
 import { StationBadge, StationPanel } from '@/components/station-panel'
 import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
+import { DEV_SHORTCUTS } from '@/lib/dev-flags'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
@@ -47,8 +48,13 @@ import type { ID } from '@/lib/types/common'
  * an admin opens the visit, the clock runs *up* and the money lands on an open
  * tab settled at the counter. Stage 2 owns the machinery, so the tab ships as an
  * explained stub: it teaches the model and names its state ("soon") instead of
- * pretending to check anyone in. `C1.9` swaps the disabled CTA for the real
- * call, when the option row below the sign-in form is reworked.
+ * pretending to check anyone in.
+ *
+ * It stays a stub after C1.9, and that is the honest reading of MVP §8.1: the
+ * *admin* hands a walk-in their time, so a client that could check itself in
+ * would be inventing a product feature. The working check-in this prototype
+ * needs to be demonstrable therefore moved where the demo account already
+ * lives — behind `DEV_SHORTCUTS`, below the sign-in form.
  */
 type Mode = 'login' | 'register' | 'guest'
 
@@ -253,6 +259,14 @@ export function LockScreen() {
     })
   }
 
+  /**
+   * The demo account (dev only, C1.9).
+   *
+   * A password-less way into a seeded member profile, which is a review tool and
+   * not a door of the club: on a station standing in a real club it would be an
+   * account anybody can take. `DEV_SHORTCUTS` keeps the button — and this call
+   * with it — out of a production build.
+   */
   const demoLogin = async () => {
     setLoading(true)
     try {
@@ -267,12 +281,20 @@ export function LockScreen() {
     }
   }
 
-  const demoAdmin = () => {
-    toast('info', t('auth.adminSeparateApp'))
-  }
-
-  // Walk-in check-in. `guestCheckoutEnabled` can be off, so the failure path is
-  // a normal API error, not a silently dead button.
+  /**
+   * Walk-in check-in (dev only, C1.9).
+   *
+   * The admin panel is a separate application, so the client used to carry an
+   * "Admin" tile that only ever explained its own absence — a door painted on a
+   * wall. It is gone; nothing here replaces it, because the way a walk-in gets
+   * time is an admin at the counter (MVP §8.1) and stage 2 delivers that as a
+   * pushed `session.started` event rather than a button on this screen.
+   *
+   * Until then the prototype still has to be walkable end to end, so this call
+   * survives as a dev shortcut: it opens a real guest visit and lands on the
+   * guest surface of the launcher. `guestCheckoutEnabled` can be off, so the
+   * failure path is a normal API error, not a silently dead button.
+   */
   const startGuest = async () => {
     setLoading(true)
     try {
@@ -713,40 +735,70 @@ export function LockScreen() {
                     <span className="h-px flex-1 bg-border" />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <OptionButton
-                      onClick={() => setQrOpen(true)}
-                      icon={icons.qr}
-                      label={t('auth.qrLogin')}
-                      disabled={loading}
-                    />
-                    <OptionButton
-                      onClick={demoLogin}
-                      icon={icons.demo}
-                      label={t('auth.demo')}
-                      disabled={loading}
-                    />
-                    <OptionButton
-                      onClick={demoAdmin}
-                      icon={icons.staff}
-                      label={t('auth.admin')}
-                      disabled={loading}
-                    />
-                  </div>
-
-                  {/* Walk-in check-in — opens the guest surface of the same
-                      launcher shell, not a separate app (F6.2 / F6.8). */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    voice="plain"
-                    onClick={startGuest}
+                  {/* One real alternative way in, so one row — the third column
+                      of the old grid was the admin tile and the second is now
+                      fenced off below (C1.9). */}
+                  <OptionButton
+                    onClick={() => setQrOpen(true)}
+                    icon={icons.qr}
+                    label={t('auth.qrLogin')}
                     disabled={loading}
-                    iconLeft={<icons.guest size={14} />}
-                    className="mt-1 self-center text-text-low hover:bg-transparent hover:text-text-high"
-                  >
-                    {t('guest.continueAsGuest')}
-                  </Button>
+                  />
+
+                  {/*
+                    Prototype shortcuts, fenced off (C1.9).
+
+                    Both of these skip something the product does not let anyone
+                    skip — a password, or the admin who opens a walk-in's visit —
+                    so they are review tools standing next to the real doors, and
+                    a reviewer has to be able to tell which is which at a glance.
+                    Hence the dashed hairline and the "dev only" plate; hence
+                    also *ghost* buttons rather than another framed row, so the
+                    two shortcuts sit visibly below the one real alternative
+                    above them. The label stays untranslated on purpose: this
+                    block never reaches a player, so it never reaches the
+                    dictionaries either.
+
+                    A hairline and not a box: a card that already runs long on a
+                    720p station cannot spend 24 px of padding on scaffolding.
+
+                    `DEV_SHORTCUTS` is a build-time constant, so production drops
+                    the branch instead of hiding it.
+                  */}
+                  {DEV_SHORTCUTS && (
+                    <div className="mt-1 flex flex-col gap-1.5 border-t border-dashed border-border pt-3">
+                      <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
+                        <icons.warning size={11} className="text-warning" />
+                        dev only
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          voice="plain"
+                          onClick={demoLogin}
+                          disabled={loading}
+                          iconLeft={<icons.demo size={14} />}
+                          className="text-text-low hover:bg-transparent hover:text-text-high"
+                        >
+                          {t('auth.demo')}
+                        </Button>
+                        {/* Opens the guest surface of the same launcher shell,
+                            not a separate app (F6.2 / F6.8). */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          voice="plain"
+                          onClick={startGuest}
+                          disabled={loading}
+                          iconLeft={<icons.guest size={14} />}
+                          className="text-text-low hover:bg-transparent hover:text-text-high"
+                        >
+                          {t('guest.continueAsGuest')}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </motion.form>
               ) : mode === 'register' && signup ? (
                 /* The whole signup, including the emailed code step, lives in
@@ -811,8 +863,11 @@ export function LockScreen() {
  * at a guest who tapped it: an error toast would blame the guest for a feature
  * that does not exist yet.
  *
- * The live walk-in check-in still hangs under the sign-in form as a quiet ghost
- * button until `C1.9` reworks that row and moves the real call up here.
+ * C1.9 deliberately left the CTA dead rather than wiring the working check-in
+ * into it: per MVP §8.1 the admin is the one who opens a walk-in's visit, so a
+ * live "Start a guest visit" here would advertise self check-in as a product
+ * feature — and `soonNote`, which sends the guest to the admin on shift, would
+ * become a lie printed above a button that does the job itself.
  */
 function GuestPanel() {
   const { t } = useT()
@@ -863,7 +918,8 @@ function GuestPanel() {
       {/* Same slot and height as the two forms' CTA, but *not* `cut` and not
           primary: the bevel is the screen's one committing action (§4), and a
           45 %-opacity red slab still reads as pressable. A dead control should
-          look dead. `C1.9` promotes this to `primary cut` with the real call. */}
+          look dead. Stage 2 turns it live, when the visit arrives as a pushed
+          `session.started` from the admin rather than as a tap on this card. */}
       <Button
         size="lg"
         variant="secondary"
@@ -878,12 +934,18 @@ function GuestPanel() {
 }
 
 /**
- * Tertiary way-in tile — icon over label, three to a row under the CTA.
+ * Tertiary way-in row — framed glyph, then label, full width of its cell.
  *
- * A composition, not a component: `Button` supplies the frame, the focus ring
- * and the `stack` layout, `IconTile` the framed glyph. `voice="plain"` is the
- * F2.6 fix — LT renders `admin` as "Administratorius", and tracked uppercase
- * made that three lines in a ~90 px cell.
+ * A composition, not a component: `Button` supplies the frame and the focus
+ * ring, `IconTile` the framed glyph. `voice="plain"` is the F2.6 fix — LT renders
+ * these labels long, and tracked uppercase made two lines of a one-word cell.
+ *
+ * Was icon-*over*-label, three to a row, which C1.9 turned on its side. With the
+ * admin tile gone and the demo one fenced off, the stacked form had nowhere left
+ * to work: one cell in a three-column grid reads as two missing buttons, and
+ * stretched across the card it centres a glyph tower over a two-word label.
+ * Laid flat it reads as the list of one it now is — and gives back the height
+ * the dev fence below it takes, which matters on a 720p station.
  */
 function OptionButton({
   onClick,
@@ -900,16 +962,16 @@ function OptionButton({
     <Button
       variant="secondary"
       voice="plain"
-      stack
+      block
       onClick={onClick}
       disabled={disabled}
-      className="h-auto px-2 text-[11px] leading-tight text-text-medium hover:text-text-high"
+      className="h-12 justify-start gap-2.5 px-2.5 text-xs text-text-medium hover:text-text-high"
     >
       <IconTile
         icon={icon}
         variant="primary"
         size="sm"
-        className="transition-all group-hover/button:border-primary/60 group-hover/button:bg-primary/20"
+        className="shrink-0 transition-all group-hover/button:border-primary/60 group-hover/button:bg-primary/20"
       />
       {label}
     </Button>

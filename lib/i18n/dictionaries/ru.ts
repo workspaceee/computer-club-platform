@@ -93,8 +93,8 @@ export const ru: Dictionary = {
     createAccount: 'Создать аккаунт',
     orContinue: 'или войти через',
     qrLogin: 'QR-вход',
+    // Ярлык только для разработки (C1.9): демо-вход живёт за `DEV_SHORTCUTS`.
     demo: 'Демо',
-    admin: 'Админ',
     encrypted: 'Шифрованная сессия',
     showPassword: 'Показать пароль',
     hidePassword: 'Скрыть пароль',
@@ -104,7 +104,6 @@ export const ru: Dictionary = {
     welcomeBackToast: 'С возвращением, {name}!',
     accountCreated: 'Аккаунт создан! Выполняем вход...',
     enteringDemo: 'Входим в демо-режим',
-    adminSeparateApp: 'Админ-панель — отдельное приложение (вне рамок прототипа).',
     // Панель станции (C1.6).
     stationPanel: 'Состояние станции',
     zone: 'Зона',
@@ -281,7 +280,7 @@ export const ru: Dictionary = {
     rating: 'Рейтинг',
     playersOnline: '{n} играет|{n} играют|{n} играют',
     noResults: 'Игры не найдены',
-    noResultsBody: 'Попробуйте другое название или сбросьте фильтр категории.',
+    noResultsBody: 'Попробуйте другое назва��ие или сбросьте фильтр категории.',
     clearFilters: 'Сбросить фильтры',
     noFeatured: 'Подборки пока нет',
     noFeaturedBody: 'Клуб ещё не выбрал избранное — откройте полную библиотеку.',
@@ -484,7 +483,7 @@ export const ru: Dictionary = {
     unavailable: 'Недоступно на этом ПК',
     unavailableBody:
       'Агент с��анции не запущен, поэтому лончер не может открывать панели Windows и менять настройки железа.',
-    unavailableHint: 'Попросите администратора перезапустить агента станции.',
+    unavailableHint: 'Попросите адм��нистратора перезапустить агента станции.',
     unsupported: 'Недоступно на этом оборудовании',
     recheck: 'Проверить снова',
     open: 'Открыть',

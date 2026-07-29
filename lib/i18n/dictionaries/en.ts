@@ -100,8 +100,16 @@ export const en = {
     createAccount: 'Create Account',
     orContinue: 'or continue with',
     qrLogin: 'QR Login',
+    /**
+     * Dev-only label (C1.9): the demo account is a review shortcut, so it is
+     * only rendered behind `DEV_SHORTCUTS`. The string stays translated because
+     * the *tile* is the same tertiary control as `qrLogin` next to it, and a
+     * half-English row would look like a missing key rather than a fenced-off
+     * one. Its neighbour "Admin" is gone entirely — the admin panel is a
+     * separate application, and a tile whose only job was to say so was a door
+     * painted on a wall.
+     */
     demo: 'Demo',
-    admin: 'Admin',
     encrypted: 'Encrypted session',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
@@ -111,7 +119,6 @@ export const en = {
     welcomeBackToast: 'Welcome back, {name}!',
     accountCreated: 'Account created! Signing you in...',
     enteringDemo: 'Entering demo mode',
-    adminSeparateApp: 'Admin Panel is a separate app (out of scope for this prototype).',
     // Station panel (C1.6). The seat's own readout: identity and availability
     // from the club, live readings from the station agent.
     stationPanel: 'Station status',
