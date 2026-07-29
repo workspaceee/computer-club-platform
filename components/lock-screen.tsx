@@ -258,9 +258,10 @@ export function LockScreen() {
    * Deliberately *not* read from the store. The store still remembers the member
    * who locked the machine — `lockPc` keeps the visit — and trusting that would
    * make the PIN door appear on a client that merely has a stale player in
-   * memory, including after a reload that resurrected one from persistence. The
-   * seat's own row is the only thing that can say a paid visit is really parked
-   * here, and it is also the only thing that knows the remainder.
+   * memory. The seat's own row is the only thing that can say a paid visit is
+   * really parked here, and it is also the only thing that knows the remainder:
+   * the same read is what a *second* client (an admin's tablet, a reopened tab)
+   * would get, and both have to agree about whose time is on this machine.
    *
    * A failed read is not a paused visit: the form stays, which is the same
    * fallback the seat check uses when the club cannot be reached.

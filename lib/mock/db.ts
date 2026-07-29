@@ -668,7 +668,13 @@ const sessions: Session[] = [
     userId: CURRENT_USER_ID,
     guestId: null,
     machineId: CURRENT_MACHINE_ID,
-    billingMode: 'postpaid',
+    // A member's visit is **prepaid** (MVP §3.2): the hours are bought at the
+    // counter and burn down, and `lib/seat.ts` opens every account visit that
+    // way. This row used to say `postpaid` while the comment below described a
+    // remainder, and C1.10 is where the contradiction became visible — the PIN
+    // unlock adopts server truth, so the launcher opened a *counting-up* tab for
+    // the same visit whose paused card had just stated "01:24 left".
+    billingMode: 'prepaid',
     state: 'active',
     startedAt: atMinutes(-96),
     endedAt: null,
