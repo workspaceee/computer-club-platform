@@ -215,6 +215,23 @@ export const lt: Dictionary = {
     editDetails: 'Keisti duomenis',
     signupCodeSub: 'Įveskite {n} skaitmenų kodą, išsiųstą adresu {email}, kad baigtumėte registraciją.',
     accountCreatedToast: 'Sveiki prisijungę prie klubo, {name}!',
+    // Gimimo data (C1.11): jos prašoma pirmame žingsnyje, nes ją naudoja du
+    // dalykai — PIN taisyklė po dviejų ekranų ir gimtadienio bonusas.
+    birthday: 'Gimimo data',
+    birthdayHint: 'Klubo gimtadienio bonusui — ir PIN kodas negali jos pakartoti',
+    birthdayInvalid: 'Tokios datos nėra',
+    birthdayTooYoung: 'Klubo paskyros — nuo {n} metų. Ateikite su pilnamečiu ir paklauskite prie baro',
+    pinStep: 'Pasirinkite',
+    pinStepHi: 'PIN kodą',
+    pinStepSub: 'Keturi skaitmenys, kuriais bet kurioje klubo stotyje tęsite savo vizitą.',
+    choosePin: 'Naujas PIN kodas',
+    repeatPin: 'Pakartokite PIN kodą',
+    pinTooShort: 'Įveskite visus {n} skaitmenis',
+    pinAllSame: 'Keturi vienodi skaitmenys — ne PIN kodas. Pakeiskite',
+    pinIsBirthday: 'Gimimo data — pirmas dalykas, kurį kas nors pabandytų',
+    pinMismatch: 'PIN kodai nesutampa',
+    pinNote:
+      'Jo paprašysime, kai vizitas pristabdytas ir kai stotis užsirakina. Klubas jo nepamato — tik atstato.',
     // QR prisijungimas — stotis parodo kodą, telefonas jį patvirtina (C1.5).
     qrSub: 'Nėra kameros? Įveskite stoties kodą programėlėje ranka.',
     qrStationCode: 'Stoties kodas',

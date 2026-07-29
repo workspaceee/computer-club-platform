@@ -258,6 +258,35 @@ export const en = {
     // own subline: nothing exists to recover, the account is being *created*.
     signupCodeSub: 'Enter the {n}-digit code sent to {email} to finish signing up.',
     accountCreatedToast: 'Welcome to the club, {name}!',
+    // Date of birth (C1.11). Asked for on the details step because two features
+    // read it — the PIN rule two screens later and the birthday bonus — and the
+    // hint says so: a form that asks for a birthday without a reason reads as
+    // data collection for its own sake.
+    birthday: 'Date of birth',
+    birthdayHint: 'For your club birthday bonus — and your PIN may not repeat it',
+    birthdayInvalid: 'That is not a real date',
+    /** The rule is the club's, so the screen states the number instead of "too young". */
+    birthdayTooYoung: 'Club accounts start at {n} — come with an adult and ask at the counter',
+    // The PIN step of signup (C1.11). Its own headline pair: the email is proven
+    // by now and the account is one tap away, so the card is no longer about mail.
+    pinStep: 'Choose your',
+    pinStepHi: 'PIN',
+    /**
+     * Says *where the PIN is used* before asking for it. Four digits look like a
+     * formality until the player learns they are what stands between a paused
+     * visit and the next person in the chair.
+     */
+    pinStepSub: 'Four digits that pick your visit back up at any station in the club.',
+    choosePin: 'New PIN',
+    repeatPin: 'Repeat PIN',
+    /** Each refusal names one rule, because each has a different repair. */
+    pinTooShort: 'Enter all {n} digits',
+    pinAllSame: 'Four of the same digit is not a PIN — mix them up',
+    pinIsBirthday: 'Your birthday is the first thing anyone would try',
+    pinMismatch: 'The two PINs do not match',
+    /** The one rule the player has to keep after leaving: nobody can look it up. */
+    pinNote:
+      'You will be asked for it when a visit is paused and when the station locks itself. The club cannot look it up — only reset it.',
     // QR sign-in — the station shows a code, the phone confirms it (C1.5).
     qrSub: 'No camera? Type the station code into the app instead.',
     qrStationCode: 'Station code',

@@ -14,25 +14,37 @@ import {
   ApiError,
   checkNickname,
   completeRegistration,
+  judgeBirthday,
+  judgePin,
+  MIN_AGE_YEARS,
   NICKNAME_MAX,
   NICKNAME_MIN,
   resendRegistrationCode,
   startRegistration,
+  verifyRegistrationCode,
   type AuthResult,
   type NicknameVerdict,
   type RegistrationChallenge,
+  type RegistrationVerification,
 } from '@/lib/mock/api'
 import { formatCountdown } from '@/lib/time'
 
 /**
- * Where the player is in signing up (C1.4).
+ * Where the player is in signing up (C1.4, C1.11).
  *
- * Two steps, not one form: the details, then the code from the inbox. The split
- * is what makes the code screen honest — the account does not exist until the
- * code lands, so a player who walks away at the second step leaves nothing
- * behind and the nickname they were about to take stays free.
+ * Three steps, not one form: the details, the code from the inbox, then the PIN.
+ * The first split is what makes the code screen honest — the account does not
+ * exist until the code lands, so a player who walks away leaves nothing behind
+ * and the nickname they were about to take stays free.
+ *
+ * The second split exists because **the PIN has to be asked for after the inbox
+ * is proven and before the account exists**. After, because a PIN keypad on the
+ * first screen is a fourth credential asked of somebody who has not yet shown
+ * they own the address; before, because C1.10 and C14.7 both put a member in
+ * front of a keypad with no other way in, and a member without a PIN would be
+ * locked out of their own paused visit.
  */
-export type SignupStep = 'details' | 'code'
+export type SignupStep = 'details' | 'code' | 'pin'
 
 /** What the card header needs to word a live signup. */
 export interface SignupState {
@@ -48,10 +60,14 @@ export interface SignupState {
  * literally the same instruction, but it gets **its own subline**: nothing is
  * being recovered here, an account is being created, and "enter the code to
  * finish signing up" is the sentence that says so.
+ *
+ * The PIN step gets a pair of its own. By then the mail is behind the player and
+ * a headline still about email would describe the wrong screen.
  */
 export const SIGNUP_COPY: Record<SignupStep, { lead: TKey; accent: TKey; sub: TKey }> = {
   details: { lead: 'auth.join', accent: 'auth.joinHi', sub: 'auth.registerSub' },
   code: { lead: 'auth.codeStep', accent: 'auth.codeStepHi', sub: 'auth.signupCodeSub' },
+  pin: { lead: 'auth.pinStep', accent: 'auth.pinStepHi', sub: 'auth.pinStepSub' },
 }
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)

@@ -6,7 +6,7 @@ import { ApiError, mutate, newId, query, required } from '@/lib/mock/api/client'
 import { buildProfile } from '@/lib/mock/api/profile'
 import { resumeSessionRow, secondsLeft } from '@/lib/mock/api/session'
 import { CLUB_ID, db, getCurrentPlayer, getLiveSession, getSession } from '@/lib/mock/db'
-import type { ID, ISODateTime, Seconds } from '@/lib/types/common'
+import type { ID, ISODate, ISODateTime, Seconds } from '@/lib/types/common'
 import type { SessionSnapshot } from '@/lib/types/session'
 import type { UserProfile, UserRole } from '@/lib/types/user'
 
@@ -193,7 +193,7 @@ export function checkNickname(nickname: string): Promise<NicknameCheck> {
  * Writes the member row. The only account writer in the mock, so a player
  * created by the signup flow is indistinguishable from a seeded one.
  */
-function createMember(nickname: string, email: string): ID {
+function createMember(nickname: string, email: string, birthday: ISODate): ID {
   const id: ID = newId('u')
   db.players.set(id, {
     user: {
@@ -204,6 +204,11 @@ function createMember(nickname: string, email: string): ID {
       role: 'member',
       level: 1,
       xp: 0,
+      // Collected at signup and kept on the account, because two features read
+      // it later: the PIN rule below ("not your birthday") and the birthday
+      // bonus of L10. A field only one of them needed would be a field the
+      // other has to ask for again.
+      birthday,
       createdAt: db.now,
     },
     wallet: { userId: id, moneyCents: 0, coins: 0 },
@@ -509,11 +514,20 @@ interface SignupChallenge {
   nickname: string
   email: string
   password: string
+  /** Needed by the PIN rules below, so it is collected before the code is sent. */
+  birthday: ISODate
   code: string
   /** Epoch ms — the same wall clock as recovery (see `otpClock()`). */
   expiresAt: number
   lastSentAt: number
   attemptsLeft: number
+  /**
+   * Handed out by `verifyRegistrationCode`, spent by `completeRegistration` —
+   * the same single-use ticket shape recovery uses for its new-password step.
+   * `null` until the inbox is proven, which is what keeps the PIN step
+   * unreachable for somebody who only knows an email address.
+   */
+  pinToken: string | null
 }
 
 const signupChallenges = new Map<ID, SignupChallenge>()
@@ -553,8 +567,51 @@ export interface StartRegistrationPayload {
   email: string
   password: string
   confirmPassword: string
+  /** `YYYY-MM-DD`. Required: the PIN step of C1.11 judges the PIN against it. */
+  birthday: string
   /** The club-rules checkbox. Server-checked, not just a disabled button. */
   acceptedRules: boolean
+}
+
+/**
+ * Youngest member the club signs up on its own. Not a moral position — an
+ * unaccompanied minor at a paid station is the club's problem at the counter,
+ * not the form's, so the number is stated once and enforced server-side.
+ */
+export const MIN_AGE_YEARS = 14
+
+/**
+ * Why a birthday cannot be used — or `ok`.
+ *
+ * A verdict rather than a boolean for the same reason the nickname has one: "not
+ * a date", "that is in the future" and "too young for a club account" have three
+ * different repairs, and one red frame saying "invalid" would hide which.
+ */
+export type BirthdayVerdict = 'ok' | 'required' | 'invalidDate' | 'tooYoung'
+
+/** The whole birthday rule set in one place — the form and signup share it. */
+export function judgeBirthday(raw: string, today: Date = new Date()): BirthdayVerdict {
+  const value = raw.trim()
+  if (!value) return 'required'
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'invalidDate'
+
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  // Round-trip check: `2001-02-30` parses into March and would otherwise pass.
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return 'invalidDate'
+  }
+  if (year < 1900) return 'invalidDate'
+
+  const now = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  if (date.getTime() > now) return 'invalidDate'
+
+  const adult = Date.UTC(year + MIN_AGE_YEARS, month - 1, day)
+  return adult > now ? 'tooYoung' : 'ok'
 }
 
 /**
@@ -586,6 +643,8 @@ export function startRegistration(
     if (payload.password !== payload.confirmPassword) {
       fields.confirmPassword = 'passwordsMismatch'
     }
+    const birthdayVerdict = judgeBirthday(payload.birthday)
+    if (birthdayVerdict !== 'ok') fields.birthday = birthdayVerdict
     if (!payload.acceptedRules) fields.acceptedRules = 'required'
     if (Object.keys(fields).length > 0) {
       throw new ApiError('validation', fields as never)
@@ -604,10 +663,12 @@ export function startRegistration(
       nickname,
       email,
       password: payload.password,
+      birthday: payload.birthday.trim(),
       code: generateOtpCode(),
       expiresAt: now + SIGNUP_CODE_TTL_SEC * 1000,
       lastSentAt: now,
       attemptsLeft: SIGNUP_MAX_ATTEMPTS,
+      pinToken: null,
     }
     signupChallenges.set(challengeId, challenge)
     return issuedSignup(challengeId, challenge)
@@ -632,24 +693,42 @@ export function resendRegistrationCode(challengeId: ID): Promise<RegistrationCha
     challenge.expiresAt = now + SIGNUP_CODE_TTL_SEC * 1000
     challenge.lastSentAt = now
     challenge.attemptsLeft = SIGNUP_MAX_ATTEMPTS
+    // A new code invalidates the ticket the old one bought: the inbox has to be
+    // proven again, or a stale `pinToken` would outlive the proof behind it.
+    challenge.pinToken = null
     return issuedSignup(challengeId, challenge)
   })
 }
 
+export interface RegistrationVerification {
+  /** Single-use ticket for `completeRegistration`. */
+  pinToken: string
+  /** Digits the PIN step must collect — server-driven, like every code row. */
+  pinLength: number
+  /** Seconds left to choose a PIN before the ticket dies with the code. */
+  expiresInSec: number
+  /**
+   * The birthday the PIN may not repeat, echoed back so the client can run the
+   * same rules before spending a round trip. Not a secret the server is leaking:
+   * it is what this very player typed two screens ago.
+   */
+  birthday: ISODate
+}
+
 /**
- * `POST /api/auth/register/confirm` — the one call that creates the account.
+ * `POST /api/auth/register/verify` — prove the inbox, get a ticket (C1.11).
  *
- * The nickname and the address are judged **again** here, because the live check
- * reserves nothing (see `checkNickname`) and minutes may have passed while the
- * player looked for the mail. Losing that race is a `conflict` on the field, not
- * a generic failure, so the UI can send them back to the name and keep the rest
- * of what they typed.
- *
- * Success signs the player in: they are standing at the station, and a form that
- * says "account created, now log in" would be theatre.
+ * Splitting the code from the account is what makes a PIN step possible at all:
+ * the address is proven here, and the member row is still written by exactly one
+ * call — the next one. Same shape as `verifyPasswordResetCode`, so both OTP flows
+ * end with "you are who you said, now choose the thing" instead of one of them
+ * finishing early.
  */
-export function completeRegistration(challengeId: ID, code: string): Promise<AuthResult> {
-  return mutate('auth.completeRegistration', () => {
+export function verifyRegistrationCode(
+  challengeId: ID,
+  code: string,
+): Promise<RegistrationVerification> {
+  return mutate('auth.verifyRegistrationCode', () => {
     const challenge = signupChallenges.get(challengeId)
     if (!challenge) throw new ApiError('notFound')
     // Expired ≠ wrong: `timeout` tells the UI to offer a resend instead of
@@ -671,6 +750,60 @@ export function completeRegistration(challengeId: ID, code: string): Promise<Aut
       throw new ApiError('invalidCode')
     }
 
+    challenge.pinToken = newId('sgp')
+    return {
+      pinToken: challenge.pinToken,
+      pinLength: PIN_LENGTH,
+      expiresInSec: Math.max(0, Math.round((challenge.expiresAt - otpClock()) / 1000)),
+      birthday: challenge.birthday,
+    }
+  })
+}
+
+export interface CompleteRegistrationPayload {
+  challengeId: ID
+  /** From `verifyRegistrationCode` — the proof that the inbox answered. */
+  pinToken: string
+  pin: string
+  confirmPin: string
+}
+
+/**
+ * `POST /api/auth/register/confirm` — the one call that creates the account.
+ *
+ * It now also *sets the PIN*, and the two belong in one round trip: an account
+ * written first and a PIN written second can leave a member who cannot use the
+ * paused-visit door (C1.10) or the idle lock (C14.7) if the second call drops —
+ * and the whole point of C1.11 is that no member exists without one.
+ *
+ * The nickname and the address are judged **again** here, because the live check
+ * reserves nothing (see `checkNickname`) and minutes may have passed while the
+ * player looked for the mail. Losing that race is a `conflict` on the field, not
+ * a generic failure, so the UI can send them back to the name and keep the rest
+ * of what they typed.
+ *
+ * Success signs the player in: they are standing at the station, and a form that
+ * says "account created, now log in" would be theatre.
+ */
+export function completeRegistration(
+  payload: CompleteRegistrationPayload,
+): Promise<AuthResult> {
+  return mutate('auth.completeRegistration', () => {
+    const challenge = signupChallenges.get(payload.challengeId)
+    if (!challenge || !challenge.pinToken) throw new ApiError('notFound')
+    if (challenge.pinToken !== payload.pinToken) throw new ApiError('unauthorized')
+    if (otpClock() > challenge.expiresAt) throw new ApiError('timeout')
+
+    const verdict = judgePin(payload.pin, challenge.birthday)
+    const fields: Record<string, string> = {}
+    if (verdict !== 'ok') fields.pin = verdict
+    else if (payload.pin.replace(/\D/g, '') !== payload.confirmPin.replace(/\D/g, '')) {
+      fields.confirmPin = 'pinMismatch'
+    }
+    if (Object.keys(fields).length > 0) {
+      throw new ApiError('validation', fields as never)
+    }
+
     if (judgeNickname(challenge.nickname) !== 'free') {
       throw new ApiError('validation', { nickname: 'taken' } as never)
     }
@@ -678,8 +811,9 @@ export function completeRegistration(challengeId: ID, code: string): Promise<Aut
       throw new ApiError('validation', { email: 'conflict' } as never)
     }
 
-    signupChallenges.delete(challengeId)
-    const id = createMember(challenge.nickname, challenge.email)
+    signupChallenges.delete(payload.challengeId)
+    const id = createMember(challenge.nickname, challenge.email, challenge.birthday)
+    memberPins.set(id, payload.pin.replace(/\D/g, ''))
     db.currentUserId = id
     return {
       profile: buildProfile(id),
@@ -939,13 +1073,55 @@ export const PIN_MAX_ATTEMPTS = 5
  *
  * Seeded from the demo accounts and **not persisted** (`lib/mock/persist.ts`
  * stores the dataset, not credentials): the seed is re-derived from code on every
- * load, so a reload cannot leave a station with a PIN nobody knows. `C1.11` adds
- * the real thing — a PIN the player chooses after confirming their email — and
- * this map becomes the store it writes into. Nothing in the client may depend on
- * the seeded value, which is why the only place it is ever printed is the dev
- * plate behind `DEV_SHORTCUTS`.
+ * load, so a reload cannot leave a station with a PIN nobody knows. It is also
+ * the store `completeRegistration` writes into (C1.11): a PIN chosen by a player
+ * and a seeded one are the same kind of value here. Nothing in the client may
+ * depend on the seeded value, which is why the only place it is ever printed is
+ * the dev plate behind `DEV_SHORTCUTS`.
  */
 const memberPins = new Map<ID, string>()
+
+/**
+ * Why a chosen PIN cannot be used — or `ok`.
+ *
+ * Named verdicts rather than a boolean, and each one is a *different sentence* on
+ * the screen: "four digits", "not four of the same digit" and "not your birthday"
+ * are three separate repairs, and a single "invalid PIN" would make the player
+ * guess which rule they broke on a keypad with four cells.
+ *
+ * The rules exist because four digits are only a credential if the obvious ones
+ * are refused: `0000`–`9999` repeats and the date printed on the ID in the same
+ * wallet as the club card are the first things anybody standing behind the seat
+ * would try.
+ */
+export type PinVerdict = 'ok' | 'pinLength' | 'pinRepeated' | 'pinBirthday'
+
+/**
+ * The whole PIN rule set in one place (C1.11).
+ *
+ * Exported so the signup form can refuse a PIN *before* spending a round trip and
+ * hear the same verdict the server would give — the nickname check's arrangement,
+ * for the same reason: two copies of a rule are two rules.
+ */
+export function judgePin(raw: string, birthday?: ISODate | null): PinVerdict {
+  const pin = raw.replace(/\D/g, '')
+  if (pin.length !== PIN_LENGTH) return 'pinLength'
+  if (new Set(pin).size === 1) return 'pinRepeated'
+  if (birthday && birthdayPins(birthday).has(pin)) return 'pinBirthday'
+  return 'ok'
+}
+
+/**
+ * The four-digit shapes a birthday can be typed as: `DDMM`, `MMDD` and the year.
+ * All three, because "not my birthday" is not a format rule — somebody who picks
+ * their birthday picks whichever of the three their keyboard muscle memory has.
+ */
+function birthdayPins(birthday: ISODate): Set<string> {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthday.trim())
+  if (!match) return new Set()
+  const [, year, month, day] = match
+  return new Set([`${day}${month}`, `${month}${day}`, year])
+}
 
 /**
  * The seeded PIN. One value for every seeded member on purpose: a per-account
@@ -967,9 +1143,10 @@ const SEEDED_USER_IDS = new Set(db.players.keys())
 function pinOf(userId: ID): string | null {
   const existing = memberPins.get(userId)
   if (existing) return existing
-  // Seeded members get theirs lazily, on the first read; an account created by
-  // the signup flow of C1.4 is not in the seed and therefore has none, which is
-  // the honest state until C1.11 asks the player for one.
+  // Seeded members get theirs lazily, on the first read. An account created by
+  // the signup flow already has one — `completeRegistration` writes it (C1.11) —
+  // so reaching this line means an account from neither source, and `null` is
+  // the honest answer rather than a PIN the mock invented.
   if (!SEEDED_USER_IDS.has(userId)) return null
   memberPins.set(userId, SEEDED_PIN)
   return SEEDED_PIN
