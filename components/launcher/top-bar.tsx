@@ -12,6 +12,7 @@ import { formatDuration } from '@/lib/time'
 import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
+import { holdSeat, releaseSeat } from '@/lib/seat'
 import { overlayZ } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
@@ -319,6 +320,12 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
         onConfirm={() => {
           setConfirm(null)
           toast('info', t('session.lockedToast'))
+          // The seat keeps the visit, so the *server* has to know it is paused:
+          // that is what makes the next arrival's holder read say "paused" and
+          // stops a second session being opened on top of this one (C1.7). Not
+          // awaited — locking the station is instant by promise, and the store
+          // transition below is what the player is waiting to see.
+          void holdSeat()
           lockPc()
         }}
         onCancel={() => setConfirm(null)}
@@ -331,6 +338,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
         danger
         onConfirm={() => {
           setConfirm(null)
+          // Hand the chair back before the store forgets whose it was: the seat
+          // is what the next player at this keyboard is checked against (C1.7),
+          // and a visit that ended only in the client would leave the station
+          // reading "occupied" until an admin cleared it by hand.
+          void releaseSeat()
           logout()
         }}
         onCancel={() => setConfirm(null)}
