@@ -139,6 +139,29 @@ export const en = {
      */
     stationUnusable: 'Not in service',
     agentOffline: 'No agent',
+    /**
+     * The seat is held by somebody else's live session (C1.7).
+     *
+     * This is not an authentication failure and must not read like one: the
+     * password was right, the account is fine, the *chair* is taken. So the
+     * headline names the seat rather than the login, and the body names the
+     * person and the one thing that actually unblocks the player — the admin's
+     * key. There is no self-service repair here on purpose: a client that could
+     * evict a live session from the lock screen would be a way to end a
+     * stranger's paid visit.
+     */
+    seatTaken: 'Station is',
+    seatTakenHi: 'in use',
+    seatTakenBody: "{name}'s session is active. Ask the shift admin for the key.",
+    /** A walk-in holds it: there is a name, but no account behind the name. */
+    seatTakenGuestBody: 'A guest visit ({name}) is running on this station. Ask the shift admin for the key.',
+    /** Paused, not gone: "Lock PC" keeps the seat, which is why it looks free. */
+    seatTakenPausedBody:
+      "{name}'s session is paused on this station, not finished. Ask the shift admin for the key.",
+    seatTakenSince: 'Started at {time}',
+    seatTakenRecheck: 'Check again',
+    seatTakenStillHeld: 'The station is still held by {name}.',
+    seatTakenFreedToast: 'The station is free — you can sign in now.',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',
