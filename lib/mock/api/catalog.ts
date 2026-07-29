@@ -16,6 +16,7 @@ import type {
   Zone,
   ZoneClass,
 } from '@/lib/types/machine'
+import type { SessionState } from '@/lib/types/session'
 import type { Club, ClubSettings } from '@/lib/types/settings'
 
 export type GameSort = 'popular' | 'rating' | 'name' | 'recent'
@@ -280,6 +281,75 @@ export function fetchStation(machineId: ID = db.currentMachineId): Promise<Stati
       nextBookingAt: next?.startsAt ?? null,
       specs: machine.specs,
       agentLastSeen: machine.agentLastSeen,
+    }
+  })
+}
+
+/**
+ * Who is sitting here right now (C1.7).
+ *
+ * `StationInfo.status` answers "can this seat be taken", which is the question
+ * the lock screen's strip asks. It cannot answer the one the *sign-in* asks —
+ * "is the person who just authenticated the person this seat already belongs
+ * to" — because `occupied` is an aggregate for the floor map and names nobody.
+ * Only the session row knows, so this is a separate read against the sessions,
+ * not another field on the seat.
+ *
+ * `holder` is a display name and the only human-readable field: a nickname for a
+ * member, the walk-in's own label for a guest. It travels as *data* because it is
+ * data — an admin-authored account name, not copy to translate (F2.2).
+ */
+export interface StationHolder {
+  sessionId: ID
+  machineId: ID
+  /** Nickname of the member, or the walk-in's label. Never an id. */
+  holder: string
+  /** `null` for a walk-in — there is no account to compare an arrival against. */
+  userId: ID | null
+  /** `null` for a member. Exactly one of the two is set, like `Session`. */
+  guestId: ID | null
+  /**
+   * `ended` never reaches the client: a closed session holds nothing, and a
+   * screen that had to filter it out would be one `if` away from locking a
+   * player out of a seat nobody is on.
+   */
+  state: Exclude<SessionState, 'ended'>
+  startedAt: ISODateTime
+}
+
+/**
+ * `GET /api/club/station/holder` — the live session on this seat, or `null`.
+ *
+ * A paused session counts, and that is the whole point: "Lock PC" keeps the
+ * seat, so a paused visit is exactly the case where the machine looks free and
+ * is not. `C1.10` will let *its own* player back in by PIN; until then, and for
+ * everybody else, this endpoint is what stops a second visit from being opened
+ * on top of the first.
+ */
+export function fetchStationHolder(
+  machineId: ID = db.currentMachineId,
+): Promise<StationHolder | null> {
+  return query('catalog.fetchStationHolder', () => {
+    // Newest first: a seat should never have two live sessions, but if a fixture
+    // or a bad write ever produces one, the honest answer is the current
+    // occupant rather than whichever row happens to be first in the array.
+    const live = db.sessions
+      .filter((session) => session.machineId === machineId && session.state !== 'ended')
+      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
+
+    if (!live) return null
+
+    const member = live.userId ? getPlayer(live.userId) : undefined
+    return {
+      sessionId: live.id,
+      machineId,
+      // Same label shape `continueAsGuest` hands out, so the screen does not
+      // have to tell a member and a walk-in apart just to print a name.
+      holder: member?.user.nickname ?? `Guest ${(live.guestId ?? live.id).slice(-4).toUpperCase()}`,
+      userId: live.userId,
+      guestId: live.guestId,
+      state: live.state as Exclude<SessionState, 'ended'>,
+      startedAt: live.startedAt,
     }
   })
 }
