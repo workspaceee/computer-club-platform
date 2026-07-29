@@ -113,6 +113,58 @@ function derive(s: {
   })
 }
 
+/**
+ * Seconds this visit has burned that the **server has not been told about yet**.
+ *
+ * The one number a client is allowed to report about time (F3.7): the agent says
+ * how much *elapsed*, the club does the accounting. Everything else in this slice
+ * answers "how much is left"; this answers "how much of that has the club not
+ * heard".
+ *
+ * It is derived from the anchors rather than counted, for the same reason the
+ * clock is (F6.3) — and, more importantly, because *counting* it is exactly the
+ * bug this function replaces. "Lock PC" used to report `SESSION_LENGTH - seconds`
+ * for a prepaid seat: the visit's total spent time, on the assumption that the
+ * clock had started at the store's own two hours and that nothing had ever been
+ * reported. Both halves fail on the path C1.10 is built for. A member who walks
+ * back into an adopted visit is anchored from the server's `secondsLeft`, so the
+ * difference from `SESSION_LENGTH` is time the row *already* counted — and
+ * locking the station charged it a second time. Measured on a real seat: 01:23:51
+ * on the launcher clock, 00:47 on the paused card it locked into. Thirty-six
+ * minutes destroyed by pressing lock, on the one screen whose whole promise is
+ * that the remainder survives.
+ *
+ * So both modes report the same thing — the span since the last anchor — and it
+ * is the same subtraction in each, only phrased in the direction that mode runs:
+ *
+ *  - **prepaid** — what the server said was left when the snapshot landed
+ *    (`expiresAt - serverTime`), minus what is left now.
+ *  - **postpaid** — how long the current running span has been running, which is
+ *    what `runningSince` was stamped for. The accrued `debtSeconds` that came
+ *    with the snapshot is *not* included: the row already has it.
+ *
+ * Zero while paused (a stopped clock burns nothing) and zero for a prepaid seat
+ * with no deadline to measure against. Under-reporting is the safe direction: an
+ * unreported second is time the club has not billed, while an over-reported one
+ * is time a player paid for and lost.
+ */
+export function unreportedSeconds(s: {
+  billingMode: BillingMode
+  timerRunning: boolean
+  expiresAt: ISODateTime | null
+  runningSince: ISODateTime | null
+  serverTime: ISODateTime | null
+  bankedSeconds: Seconds
+}): Seconds {
+  if (!s.timerRunning) return 0
+  if (s.billingMode === 'postpaid') return secondsSince(s.runningSince)
+  const deadline = Date.parse(s.expiresAt ?? '')
+  const stamped = Date.parse(s.serverTime ?? '')
+  if (Number.isNaN(deadline) || Number.isNaN(stamped)) return 0
+  const atAnchor = Math.max(0, Math.floor((deadline - stamped) / 1000))
+  return Math.max(0, atAnchor - derive(s))
+}
+
 const nowIso = (): ISODateTime => new Date().toISOString()
 
 /** Anchors for a running span, from a banked value. */

@@ -98,6 +98,30 @@ export function SessionPaused({
   const [attemptsLeft, setAttemptsLeft] = useState(visit.attemptsLeft)
   const [locked, setLocked] = useState(visit.attemptsLeft <= 0)
 
+  /**
+   * The visit is parked with nothing left on it.
+   *
+   * A member seat is prepaid, and `resumeSessionRow` refuses to restart a prepaid
+   * clock at zero no matter who proves they own it — so a keypad here is a door
+   * with no room behind it. The `submit` handler already catches that verdict
+   * (`insufficientFunds` → `onGone`), but only *after* the player has typed four
+   * digits and spent an attempt on an answer the digits never influenced. This is
+   * the same fact known one render earlier, at mount, from the number the card is
+   * already printing.
+   *
+   * It is deliberately not `onGone` at mount either: the visit is real, its owner
+   * is standing here, and "00:00 is still on this station" plus the password door
+   * is the honest thing to say. Silently falling back to a login form would make
+   * the club's refusal look like the screen forgetting the visit existed.
+   */
+  const spent = visit.secondsLeft <= 0
+  /**
+   * The keypad has no reason to exist: budget spent, or clock spent. One name for
+   * the two, because every branch below cares about the *door*, not about which
+   * of the two closed it — only the sentence differs.
+   */
+  const closed = locked || spent
+
   const cells = useRef<CodeInputHandle>(null)
 
   /**
@@ -113,9 +137,9 @@ export function SessionPaused({
    * which is the first instant focus sticks.
    */
   useEffect(() => {
-    if (loading || locked) return
+    if (loading || closed) return
     cells.current?.focus()
-  }, [loading, locked])
+  }, [loading, closed])
 
   /**
    * Tell the screen above, from the *rendered* state rather than from the
@@ -123,11 +147,11 @@ export function SessionPaused({
    * never passes through the miss branch, and its header has the same problem.
    */
   useEffect(() => {
-    onLockedChange?.(locked)
-  }, [locked, onLockedChange])
+    onLockedChange?.(closed)
+  }, [closed, onLockedChange])
 
   const submit = async (value: string = pin) => {
-    if (locked || loading) return
+    if (closed || loading) return
     if (value.length !== visit.pinLength) {
       setError(t('auth.pinIncomplete', { n: visit.pinLength }))
       onReject()
@@ -217,11 +241,15 @@ export function SessionPaused({
         </div>
       </div>
 
-      {locked ? (
+      {closed ? (
         // The keypad is gone rather than disabled: a dead row of cells invites a
-        // player to keep typing into a door that will not open again.
+        // player to keep typing into a door that will not open again. Which
+        // sentence it is matters — "too many wrong PINs" tells a player to reach
+        // for their password, "no money on the balance" tells them to reach for
+        // the counter, and printing the first one over a spent clock would send
+        // them to a password that cannot restart it either.
         <p className="text-sm leading-relaxed text-danger" role="alert">
-          {t('auth.pinLocked')}
+          {spent ? t('errors.insufficientFunds') : t('auth.pinLocked')}
         </p>
       ) : (
         <CodeInput
@@ -243,7 +271,7 @@ export function SessionPaused({
         />
       )}
 
-      {!locked && (
+      {!closed && (
         /* The screen's one bevelled CTA (§4) — the action that commits. */
         <Button
           size="lg"
