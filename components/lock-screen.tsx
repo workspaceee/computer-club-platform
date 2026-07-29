@@ -33,11 +33,11 @@ import {
   fetchStationHolder,
   login,
   loginAsDemo,
+  type AuthResult,
   type StationHolder,
 } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { ID } from '@/lib/types/common'
-import type { UserProfile } from '@/lib/types/user'
 
 /**
  * The three doors of the terminal (C1.2).
@@ -189,10 +189,10 @@ export function LockScreen() {
     }
     setLoading(true)
     try {
-      // The endpoint returns a session (`profile` + token + role); the shell only
-      // needs the profile.
-      const { profile } = await login({ identifier, password })
-      await admit(profile.id, () => {
+      // The endpoint returns a session (`profile` + `userId` + token + role): the
+      // shell needs the profile, the seat check needs the id.
+      const { profile, userId } = await login({ identifier, password })
+      await admit(userId, () => {
         toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
         loginSuccess(profile)
       })
@@ -217,11 +217,11 @@ export function LockScreen() {
    * `signup` is cleared before the shell swaps the screen, so the card cannot
    * paint a code-step header over a login form for one frame.
    */
-  const finishSignup = async (profile: UserProfile) => {
+  const finishSignup = async ({ profile, userId }: AuthResult) => {
     setSignup(null)
     // The chair is checked for a brand-new member too (C1.7): an account created
     // at an occupied station is a real account, and it still cannot sit down.
-    await admit(profile.id, () => {
+    await admit(userId, () => {
       toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
       // A brand-new profile keeps the language picked on this station.
       loginSuccess({ ...profile, lang })
@@ -231,8 +231,8 @@ export function LockScreen() {
   const demoLogin = async () => {
     setLoading(true)
     try {
-      const { profile } = await loginAsDemo()
-      await admit(profile.id, () => {
+      const { profile, userId } = await loginAsDemo()
+      await admit(userId, () => {
         toast('info', t('auth.enteringDemo'))
         loginSuccess(profile)
       })
@@ -277,9 +277,9 @@ export function LockScreen() {
    * exchange, or a guest who backs out and starts typing their password gets
    * signed in as whoever the phone confirmed a second later.
    */
-  const finishQr = async (profile: UserProfile) => {
+  const finishQr = async ({ profile, userId }: AuthResult) => {
     setQrOpen(false)
-    await admit(profile.id, () => loginSuccess(profile))
+    await admit(userId, () => loginSuccess(profile))
   }
 
   const switchMode = (m: Mode) => {
@@ -310,10 +310,10 @@ export function LockScreen() {
    * unlock run here. Clearing `recovery` first keeps the card from painting a
    * recovery header for the frame before the shell swaps the screen out.
    */
-  const finishRecovery = async (profile: UserProfile, name: string) => {
+  const finishRecovery = async ({ profile, userId }: AuthResult) => {
     setRecovery(null)
-    await admit(profile.id, () => {
-      toast('success', t('auth.welcomeBackToast', { name }))
+    await admit(userId, () => {
+      toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
       loginSuccess(profile)
     })
   }

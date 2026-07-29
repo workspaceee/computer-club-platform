@@ -18,11 +18,11 @@ import {
   NICKNAME_MIN,
   resendRegistrationCode,
   startRegistration,
+  type AuthResult,
   type NicknameVerdict,
   type RegistrationChallenge,
 } from '@/lib/mock/api'
 import { formatCountdown } from '@/lib/time'
-import type { UserProfile } from '@/lib/types/user'
 
 /**
  * Where the player is in signing up (C1.4).
@@ -65,8 +65,12 @@ interface RegistrationProps {
   onStateChange: (state: SignupState) => void
   /** Back out to the sign-in form. */
   onCancel: () => void
-  /** The flow ends signed in — `completeRegistration` returns a session. */
-  onSuccess: (profile: UserProfile) => void
+  /**
+   * The flow ends signed in — `completeRegistration` returns a session, and the
+   * whole session goes up: the screen still has the seat check to run (C1.7),
+   * which asks for an account id the profile does not carry.
+   */
+  onSuccess: (session: AuthResult) => void
   /** Localized toast, so the screen keeps owning the toast voice. */
   onToast: (tone: 'success' | 'info' | 'error', message: string) => void
   /** Shake the card, like a failed sign-in. */
@@ -346,8 +350,8 @@ export function Registration({
       setCodeError(null)
       setLoading(true)
       try {
-        const { profile } = await completeRegistration(challenge.challengeId, entered)
-        onSuccess(profile)
+        const session = await completeRegistration(challenge.challengeId, entered)
+        onSuccess(session)
       } catch (err) {
         // Losing the nickname race between the code being sent and typed is a
         // *details* problem, so the flow walks back to the field that owns it
