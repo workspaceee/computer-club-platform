@@ -13,7 +13,7 @@
 //
 // Nothing in the launcher UI may import this file: it is the *other* actor.
 import { approveQrChallenge } from '@/lib/mock/api/auth'
-import { newId, serverTime } from '@/lib/mock/api/client'
+import { newId, serverNowMs } from '@/lib/mock/api/client'
 import { approveTransfer } from '@/lib/mock/api/session'
 import { db, getMachine, getOpenTab, getPlayer, getSession } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
@@ -58,19 +58,21 @@ function secondsLeft(session: Session): Seconds {
  */
 function snapshot(session: Session): SessionSnapshot {
   const left = secondsLeft(session)
+  // One instant for both stamps, for the reason spelled out in `lib/mock/api/session.ts`:
+  // the client recovers the promised span by subtracting them, so a pair taken from
+  // two different clocks silently moves a paid deadline.
+  const nowMs = serverNowMs()
   return {
     sessionId: session.id,
     state: session.state,
     billingMode: session.billingMode,
     machineId: session.machineId,
     expiresAt:
-      session.state === 'active'
-        ? new Date(Date.parse(db.now) + left * 1000).toISOString()
-        : null,
+      session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
     secondsLeft: left,
     debtSeconds: session.debtSeconds,
     tabTotalCents: getOpenTab(session.id)?.totalCents ?? 0,
-    serverTime: serverTime(),
+    serverTime: new Date(nowMs).toISOString(),
   }
 }
 

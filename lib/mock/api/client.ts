@@ -281,12 +281,33 @@ export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
 }
 
 /**
+ * Server clock, in ms. Anchored at the fixture instant `db.now` and **moving**
+ * from there at the rate of real time.
+ *
+ * The movement is the point. `db.now` is a frozen Sunday evening so the dataset
+ * is deterministic (`lib/mock/db.ts` rule 2), but a stamp that never advances is
+ * not a clock — and `remainingSeconds()` (F3.7) uses `serverTime` as the instant
+ * a snapshot was *produced*, subtracting how long the client has held it since.
+ * Handed the same frozen stamp on every response, that correction re-subtracts
+ * the whole visit: a member with 01:57 banked locked the station and came back to
+ * 01:54:03, having lost exactly the time they had played. Fixture windows
+ * (schedules, campaigns, tournament starts) still read `db.now` and stay put; only
+ * response stamps move, which is what a real server does.
+ */
+export function serverNowMs(): number {
+  return Date.parse(db.now) + (Date.now() - bootedAtMs)
+}
+
+/** Client instant the mock server "started", so its clock can run from `db.now`. */
+const bootedAtMs = Date.now()
+
+/**
  * Server clock. Endpoints must stamp responses with this rather than
- * `new Date()` at the call site, so `db.now` stays the single time source and
+ * `new Date()` at the call site, so the mock keeps one time source and
  * countdowns are derived from a server value (F3.7).
  */
 export function serverTime(): string {
-  return db.now
+  return new Date(serverNowMs()).toISOString()
 }
 
 /** Throws `notFound` when a lookup came back empty — keeps endpoints to one line. */
