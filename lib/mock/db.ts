@@ -172,6 +172,26 @@ const MAINTENANCE_SEATS = new Set(['pc-13', 'pc-30'])
 const OFFLINE_SEATS = new Set(['pc-35', 'ps5-4'])
 const RESERVED_SEATS = new Set(['pc-06', 'pc-22'])
 
+/**
+ * The seat this launcher instance runs on — the demo player's PC.
+ *
+ * Declared above `buildMachines` because the seed below pins its status: a `const`
+ * read during module init cannot live further down the file.
+ */
+export const CURRENT_MACHINE_ID: ID = 'pc-17'
+
+/**
+ * The launcher's own seat, pinned free (C1.6).
+ *
+ * Every other seat takes its status from the 60 % coin flip below, which is fine
+ * for a floor map but not for `CURRENT_MACHINE_ID`: the station panel reads this
+ * row, so a seat that seeded as `occupied` would put "In use" on the very lock
+ * screen nobody is signed into. It is free until somebody unlocks it — the
+ * `booked from HH:MM` case is covered by a real reservation row (`bk-4`) three
+ * hours out rather than by faking the seat's own status.
+ */
+const FREE_SEATS = new Set([CURRENT_MACHINE_ID])
+
 function buildMachines(): Machine[] {
   const rng = makeRng(20260726)
   const list: Machine[] = []
@@ -220,13 +240,16 @@ function resolveStatus(id: ID, rng: () => number): MachineStatus {
   if (OFFLINE_SEATS.has(id)) return 'offline'
   if (RESERVED_SEATS.has(id)) return 'reserved'
   // ~60% occupancy: busy enough to look alive, free enough to pick a seat.
-  return rng() < 0.6 ? 'occupied' : 'free'
+  // The draw happens before the `FREE_SEATS` override on purpose: returning
+  // early would consume one fewer number and shift every later seat's status,
+  // which would quietly move the friends seeded onto `pc-19` and `pc-24` onto
+  // seats this function had just called free.
+  const occupied = rng() < 0.6
+  if (FREE_SEATS.has(id)) return 'free'
+  return occupied ? 'occupied' : 'free'
 }
 
 const machines: Machine[] = buildMachines()
-
-/** The seat this launcher instance runs on — the demo player's PC. */
-export const CURRENT_MACHINE_ID: ID = 'pc-17'
 
 /* ------------------------------------------------------------------ *
  * Game catalogue (60+)

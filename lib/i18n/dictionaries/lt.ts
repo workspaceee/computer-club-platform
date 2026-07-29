@@ -71,7 +71,6 @@ export const lt: Dictionary = {
   auth: {
     localTime: 'Vietos laikas',
     accessTerminal: 'Prieigos terminalas',
-    stationReady: 'Paruošta',
     welcome: 'Sveiki sugrįžę',
     welcomeHi: '',
     join: 'Prisijunk prie',
@@ -107,11 +106,29 @@ export const lt: Dictionary = {
     accountCreated: 'Paskyra sukurta! Prijungiame...',
     enteringDemo: 'Įjungiamas demo režimas',
     adminSeparateApp: 'Administratoriaus skydas yra atskira programa (ne šio prototipo dalis).',
+    // Stoties juosta (C1.6) — iš kitos salės pusės matoma, ar šią vietą galima
+    // užimti.
+    stationPanel: 'Stoties būsena',
+    zone: 'Zona',
     ping: 'Pingas',
     display: 'Ekranas',
     gpu: 'GPU',
     status: 'Būsena',
     optimal: 'Optimali',
+    stationFree: 'Laisva',
+    // „Laisva“ be termino — pusė tiesos: sėdantis 21:40 turi žinoti, kad 22:00
+    // vieta jau kito.
+    stationFreeUntil: 'Laisva iki {time}',
+    stationOccupied: 'Užimta',
+    stationBooked: 'Rezervuota',
+    stationBookedFrom: 'Rezervuota nuo {time}',
+    stationMaintenance: 'Techninė priežiūra',
+    stationOffline: 'Nėra ryšio',
+    stationHot: 'Kaista',
+    // Rodmenų nėra, o ne „nulis“: brūkšneliu nepatikės, o pasenusiais „4 ms“ —
+    // patikės (F5.4).
+    telemetryOff: 'Nėra rodmenų',
+    agentOffline: 'Nėra agento',
     // Slaptažodžio atkūrimas — kodas el. paštu (C1.3).
     forgotPassword: 'Pamiršote slaptažodį?',
     recover: 'Prieigos atkūrimas',
@@ -404,7 +421,7 @@ export const lt: Dictionary = {
     // Užrakto ekrano „Svečias“ skirtukas — įėjimas į 2 etapo PostPaid srautą (C1.2).
     lockTitle: 'Svečio',
     lockTitleHi: 'įėjimas',
-    lockSub: 'Užeikite ir žaiskite iškart — sąskaitą apmokėsite kasoje po seanso.',
+    lockSub: 'Užeikite ir žaiskite iškart �� sąskaitą apmokėsite kasoje po seanso.',
     flowTitle: 'Kaip veikia atvira sąskaita',
     flowStep1: 'Administratorius atrakina stotį ir pradeda jūsų vizitą.',
     flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskaitą.',

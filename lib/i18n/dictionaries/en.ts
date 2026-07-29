@@ -112,11 +112,29 @@ export const en = {
     accountCreated: 'Account created! Signing you in...',
     enteringDemo: 'Entering demo mode',
     adminSeparateApp: 'Admin Panel is a separate app (out of scope for this prototype).',
+    // Station panel (C1.6) — the strip that tells a player, from across the
+    // room, whether this seat is theirs to take.
+    stationPanel: 'Station status',
+    zone: 'Zone',
     ping: 'Ping',
     display: 'Display',
     gpu: 'GPU',
     status: 'Status',
     optimal: 'Optimal',
+    stationFree: 'Free',
+    // The interesting half of "free" is when it stops: a walk-in who takes this
+    // seat at 21:40 has to know it is somebody else's at 22:00.
+    stationFreeUntil: 'Free until {time}',
+    stationOccupied: 'In use',
+    stationBooked: 'Reserved',
+    stationBookedFrom: 'Booked from {time}',
+    stationMaintenance: 'Maintenance',
+    stationOffline: 'Offline',
+    stationHot: 'Running hot',
+    // The reading is missing, not zero: a dash cannot be believed, a stale 4 ms
+    // can (F5.4).
+    telemetryOff: 'No readings',
+    agentOffline: 'No agent',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',

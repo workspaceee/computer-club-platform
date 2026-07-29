@@ -19,14 +19,16 @@ import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
-import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
+import { StationPanel, useSeatStatus } from '@/components/station-panel'
+import { TONE_DOT } from '@/components/ui/hud-chip'
 import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
+import { useApi } from '@/hooks/use-api'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import { ApiError, continueAsGuest, login, loginAsDemo } from '@/lib/mock/api'
+import { ApiError, continueAsGuest, fetchStation, login, loginAsDemo } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { UserProfile } from '@/lib/types/user'
 
@@ -351,22 +353,18 @@ export function LockScreen() {
         </motion.div>
 
         {/* telemetry strip */}
+        {/* The five chips used to be five string literals — `PC #17`, `4 ms`,
+            `240 Hz`, `Ready` — on the one screen whose job is to tell a player
+            from across the room whether this seat is theirs. `StationPanel`
+            (C1.6) now reads the seat from the club and the readings from the
+            agent, so a booked or offline machine says so instead of always
+            claiming to be ready. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
-          className="flex flex-wrap items-center gap-3"
         >
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
-          <HudChip icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
-          <HudChip icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
-          <HudChip
-            icon={<icons.status size={13} />}
-            label={t('auth.status')}
-            value={t('auth.optimal')}
-            tone="accent"
-          />
+          <StationPanel />
         </motion.div>
       </div>
 
@@ -415,10 +413,13 @@ export function LockScreen() {
                 <icons.secure size={12} />
                 {t('auth.accessTerminal')}
               </span>
-              <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                PC-17 · {t('common.online')}
-              </span>
+              {/* `PC-17 · ONLINE` was a literal with a green pulse hardcoded
+                  next to it, so the header stayed reassuring on a seat under
+                  maintenance while the strip below it said otherwise. Both now
+                  read the same seat through the same rule (`useSeatStatus`):
+                  two places stating a fact is fine, two places *deciding* it is
+                  how a header ends up contradicting its own screen. */}
+              <SeatBadge />
             </div>
 
             <AnimatePresence mode="wait">
@@ -639,7 +640,10 @@ export function LockScreen() {
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
           <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
+          {/* Seat chip only: six chips next to a 3xl clock would wrap into three
+              lines of noise on a phone, and the seat's status is the one reading
+              a player standing at the machine actually needs. */}
+          <StationPanel variant="compact" />
         </div>
       </div>
 
@@ -653,6 +657,42 @@ export function LockScreen() {
         onToast={toast}
       />
     </div>
+  )
+}
+
+/**
+ * Seat + status in the card's top-right corner (C1.6).
+ *
+ * The same two facts the HUD strip states, in the corner of the card a player is
+ * about to type into — and deliberately the *same* source, so the two can never
+ * disagree. The dot carries the status as colour and the text carries it as
+ * words: the strip is 200 px away at the bottom of the screen, and somebody
+ * reading the form should not have to look for it to learn the seat is down.
+ *
+ * Nothing renders until the club answers. A badge is one short line in a corner,
+ * so a skeleton here would be more noticeable than the absence — and unlike the
+ * strip, it is not the element the screen is judged by.
+ */
+function SeatBadge() {
+  const seat = useApi(['catalog', 'station'], () => fetchStation(), {
+    refreshInterval: 30_000,
+  })
+  const status = useSeatStatus(seat.data)
+
+  if (!seat.data) return null
+
+  // Only a seat that is actually free gets the pulse: on a taken or broken
+  // machine an animated green dot is the most confident thing on the screen and
+  // the most wrong.
+  const free = seat.data.status === 'free'
+
+  return (
+    <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${TONE_DOT[status.tone]} ${free ? 'animate-pulse' : ''}`}
+      />
+      {seat.data.label} · {status.text}
+    </span>
   )
 }
 
