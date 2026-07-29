@@ -161,7 +161,8 @@ export const en = {
     seatTakenSince: 'Started at {time}',
     seatTakenRecheck: 'Check again',
     seatTakenStillHeld: 'The station is still held by {name}.',
-    seatTakenFreedToast: 'The station is free — you can sign in now.',
+    /** The hold is gone, so the arrival that was held back goes straight in. */
+    seatTakenFreedToast: 'The station is free — signing you in.',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',

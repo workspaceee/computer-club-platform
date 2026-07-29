@@ -125,6 +125,21 @@ export const lt: Dictionary = {
     telemetryOff: 'Nėra duomenų',
     stationUnusable: 'Neveikia',
     agentOffline: 'Nėra agento',
+    // Vietą laiko kito žmogaus gyva sesija (C1.7). Tai ne prisijungimo klaida:
+    // slaptažodis teisingas, paskyra tvarkinga — užimta vieta. Todėl antraštė
+    // apie stotį, o tekste — kas sėdi ir vienintelis veiksmas, kuris atblokuoja:
+    // pamainos administratoriaus raktas.
+    seatTaken: 'Stotis',
+    seatTakenHi: 'užimta',
+    seatTakenBody: '{name} sesija aktyvi. Paprašykite administratoriaus rakto.',
+    seatTakenGuestBody:
+      'Šioje stotyje vyksta svečio vizitas ({name}). Paprašykite administratoriaus rakto.',
+    seatTakenPausedBody:
+      '{name} sesija šioje stotyje pristabdyta, o ne baigta. Paprašykite administratoriaus rakto.',
+    seatTakenSince: 'Pradėta {time}',
+    seatTakenRecheck: 'Tikrinti dar kartą',
+    seatTakenStillHeld: 'Stotis vis dar užimta: {name}.',
+    seatTakenFreedToast: 'Stotis laisva — prijungiame.',
     // Slaptažodžio atkūrimas — kodas el. paštu (C1.3).
     forgotPassword: 'Pamiršote slaptažodį?',
     recover: 'Prieigos atkūrimas',

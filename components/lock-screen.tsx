@@ -15,6 +15,7 @@ import {
   SIGNUP_COPY,
   type SignupState,
 } from '@/components/auth/registration'
+import { SeatTaken, seatTakenBody } from '@/components/auth/seat-taken'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
@@ -26,8 +27,16 @@ import { Segmented } from '@/components/ui/segmented'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import { ApiError, continueAsGuest, login, loginAsDemo } from '@/lib/mock/api'
+import {
+  ApiError,
+  continueAsGuest,
+  fetchStationHolder,
+  login,
+  loginAsDemo,
+  type StationHolder,
+} from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
+import type { ID } from '@/lib/types/common'
 import type { UserProfile } from '@/lib/types/user'
 
 /**
@@ -83,6 +92,25 @@ export function LockScreen() {
    * is live, and where it is.
    */
   const [signup, setSignup] = useState<SignupState | null>(null)
+  /**
+   * An arrival that authenticated fine and cannot have the chair (C1.7).
+   *
+   * It holds both halves of the situation: **who** is sitting here, and **what**
+   * was about to happen. Keeping the pending entry as a closure is what makes
+   * the gate work for all five doors — sign-in, demo, QR, signup and recovery
+   * each end differently (their own toast, profile or guest label), and none of
+   * them has to know that a seat check exists between them and the launcher.
+   */
+  const [blocked, setBlocked] = useState<{
+    holder: StationHolder
+    /**
+     * The *arrival's* account, not the holder's — `null` for a walk-in. The
+     * re-check has to ask the same question the gate asked, and the answer
+     * depends on who is standing here.
+     */
+    userId: ID | null
+    enter: () => void
+  } | null>(null)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -107,6 +135,51 @@ export function LockScreen() {
     setTimeout(() => setShake(false), 500)
   }
 
+  /**
+   * Who is holding this seat *against this arrival* — `null` when nobody is.
+   *
+   * The one place that decides admission (C1.7). `StationInfo.status` cannot
+   * answer this: `occupied` is an aggregate for the floor map and names nobody,
+   * so the question "is the live session on this machine mine?" needs the
+   * session row itself.
+   *
+   * Two `null`s that are not "the seat is empty":
+   *  - **The holder is the arrival.** A paused visit is exactly what "Lock PC"
+   *    leaves behind, so its owner walks straight back into it. `C1.10` adds the
+   *    PIN in front of that door; today the account match is the proof.
+   *  - **The read failed.** A timeout is not evidence of a hold, and refusing
+   *    entry on it would lock a paying member out of their own seat because one
+   *    request dropped. The launcher opens its own session guard behind this one.
+   */
+  const heldBy = async (userId: ID | null): Promise<StationHolder | null> => {
+    try {
+      const holder = await fetchStationHolder()
+      if (!holder) return null
+      return userId && holder.userId === userId ? null : holder
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * The last gate before the launcher: every door runs its arrival through this.
+   *
+   * `enter` is only called when the chair is actually free, so the welcome toast
+   * and the screen swap stay together — a player told "Welcome back" and then
+   * shown a "station is in use" panel would read the second screen as a bug.
+   */
+  const admit = async (userId: ID | null, enter: () => void) => {
+    const holder = await heldBy(userId)
+    if (!holder) {
+      enter()
+      return
+    }
+    // The card stops spinning: nothing else is in flight, and the panel that
+    // replaces the form has its own action.
+    setLoading(false)
+    setBlocked({ holder, userId, enter })
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(true)
@@ -119,8 +192,10 @@ export function LockScreen() {
       // The endpoint returns a session (`profile` + token + role); the shell only
       // needs the profile.
       const { profile } = await login({ identifier, password })
-      toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
-      loginSuccess(profile)
+      await admit(profile.id, () => {
+        toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
+        loginSuccess(profile)
+      })
     } catch (err) {
       setLoading(false)
       triggerShake()
@@ -142,19 +217,25 @@ export function LockScreen() {
    * `signup` is cleared before the shell swaps the screen, so the card cannot
    * paint a code-step header over a login form for one frame.
    */
-  const finishSignup = (profile: UserProfile) => {
+  const finishSignup = async (profile: UserProfile) => {
     setSignup(null)
-    toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
-    // A brand-new profile keeps the language picked on this station.
-    loginSuccess({ ...profile, lang })
+    // The chair is checked for a brand-new member too (C1.7): an account created
+    // at an occupied station is a real account, and it still cannot sit down.
+    await admit(profile.id, () => {
+      toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
+      // A brand-new profile keeps the language picked on this station.
+      loginSuccess({ ...profile, lang })
+    })
   }
 
   const demoLogin = async () => {
     setLoading(true)
     try {
       const { profile } = await loginAsDemo()
-      toast('info', t('auth.enteringDemo'))
-      loginSuccess(profile)
+      await admit(profile.id, () => {
+        toast('info', t('auth.enteringDemo'))
+        loginSuccess(profile)
+      })
     } catch (err) {
       setLoading(false)
       reportError(err)
@@ -171,8 +252,14 @@ export function LockScreen() {
     setLoading(true)
     try {
       const { guestId, label } = await continueAsGuest()
-      toast('info', t('guest.startedToast', { label }))
-      guestSuccess({ guestId, label })
+      // A walk-in has no account, so nothing can match the holder: `null` means
+      // *any* live session on this seat blocks them (C1.7). Which is the point —
+      // the visit they were handed is exactly the second one nobody wants opened
+      // on top of the first.
+      await admit(null, () => {
+        toast('info', t('guest.startedToast', { label }))
+        guestSuccess({ guestId, label })
+      })
     } catch (err) {
       setLoading(false)
       reportError(err)
@@ -190,9 +277,9 @@ export function LockScreen() {
    * exchange, or a guest who backs out and starts typing their password gets
    * signed in as whoever the phone confirmed a second later.
    */
-  const finishQr = (profile: UserProfile) => {
+  const finishQr = async (profile: UserProfile) => {
     setQrOpen(false)
-    loginSuccess(profile)
+    await admit(profile.id, () => loginSuccess(profile))
   }
 
   const switchMode = (m: Mode) => {
@@ -223,10 +310,12 @@ export function LockScreen() {
    * unlock run here. Clearing `recovery` first keeps the card from painting a
    * recovery header for the frame before the shell swaps the screen out.
    */
-  const finishRecovery = (profile: UserProfile, name: string) => {
+  const finishRecovery = async (profile: UserProfile, name: string) => {
     setRecovery(null)
-    toast('success', t('auth.welcomeBackToast', { name }))
-    loginSuccess(profile)
+    await admit(profile.id, () => {
+      toast('success', t('auth.welcomeBackToast', { name }))
+      loginSuccess(profile)
+    })
   }
 
   // Headline is split in two so the accent word can be highlighted where the
@@ -234,6 +323,9 @@ export function LockScreen() {
   // A live recovery outranks the mode: the card body belongs to the flow, so the
   // one headline over it has to name the *step*, not the door it came from.
   const headline = useMemo(() => {
+    // A held seat outranks everything, including a live flow: the player is past
+    // authentication and the card is now about the *chair*, not the door (C1.7).
+    if (blocked) return { lead: t('auth.seatTaken'), accent: t('auth.seatTakenHi') }
     if (recovery) {
       const copy = RECOVERY_COPY[recovery.step]
       return { lead: t(copy.lead), accent: t(copy.accent) }
@@ -247,9 +339,14 @@ export function LockScreen() {
     }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [mode, recovery, signup, t])
+  }, [blocked, mode, recovery, signup, t])
 
-  const subline = recovery
+  const subline = blocked
+    ? // The whole sentence, holder's name included, lives in the subline: the
+      // panel below states *who and since when*, and printing the instruction
+      // twice on one card would make the second copy look like a different rule.
+      t(seatTakenBody(blocked.holder), { name: blocked.holder.holder })
+    : recovery
     ? // Only the code step reads these, and it is the step that has them: the
       // masked address and the code length travel up from the endpoint's answer
       // rather than being guessed here.
@@ -418,7 +515,9 @@ export function LockScreen() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={
-                  recovery
+                  blocked
+                    ? 'seat-taken'
+                    : recovery
                     ? `recovery-${recovery.step}`
                     : mode === 'register' && signup
                       ? `register-${signup.step}`
@@ -467,7 +566,10 @@ export function LockScreen() {
                 is halfway through, and tapping "Sign in" mid-code would throw it
                 away silently. The way back is the flow's own "Change details" /
                 "Back to sign in". */}
-            {!recovery && signup?.step !== 'code' && (
+            {/* And gone entirely while the seat is held (C1.7): the three doors
+                all lead to the same chair, so offering them would invite the
+                player to try the other two against the same hold. */}
+            {!blocked && !recovery && signup?.step !== 'code' && (
               <Segmented<Mode>
                 className="mt-6"
                 size="sm"
@@ -486,7 +588,21 @@ export function LockScreen() {
           {/* ------- form body ------- */}
           <div className="relative z-[2] p-7 pt-5">
             <AnimatePresence mode="wait">
-              {recovery ? (
+              {blocked ? (
+                /* The seat is held by somebody else's live session (C1.7). The
+                   panel names the occupant and re-checks; the way past it is an
+                   admin with a key, which is why there is no third button. */
+                <SeatTaken
+                  key="seat-taken"
+                  holder={blocked.holder}
+                  onRecheck={() => heldBy(blocked.userId)}
+                  onFreed={blocked.enter}
+                  onStillHeld={(holder) => setBlocked({ ...blocked, holder })}
+                  onCancel={() => setBlocked(null)}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : recovery ? (
                 <PasswordRecovery
                   key="recovery"
                   initialEmail={identifier.includes('@') ? identifier : ''}
