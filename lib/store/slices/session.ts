@@ -216,7 +216,16 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     set({
       billingMode: snapshot.billingMode,
       expiresAt: running && !postpaid ? snapshot.expiresAt : null,
-      runningSince: running && postpaid ? snapshot.serverTime : null,
+      // The postpaid anchor is stamped on the **client** clock, not copied from
+      // `serverTime`. `derive` counts a running tab up with `secondsSince()`,
+      // which measures against `Date.now()`, so a server stamp here would be two
+      // timelines subtracted from each other: every second of skew between the
+      // club and this kiosk would land on the tab as billed time. Prepaid can
+      // safely carry the server's `expiresAt` because `remainingSeconds()` keeps
+      // the pair together and corrects for exactly that difference; the "up"
+      // direction has no such pair, so the snapshot's accrued seconds are banked
+      // and the count starts again from now.
+      runningSince: running && postpaid ? nowIso() : null,
       serverTime: snapshot.serverTime,
       bankedSeconds: banked,
       sessionSeconds: banked,
