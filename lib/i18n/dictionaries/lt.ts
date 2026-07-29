@@ -92,7 +92,6 @@ export const lt: Dictionary = {
     minChars: 'Mažiausiai 6 simboliai',
     unlock: 'Atrakinti stotį',
     createAccount: 'Sukurti paskyrą',
-    orContinue: 'arba tęskite su',
     qrLogin: 'QR prisijungimas',
     // Tik kūrimo aplinkai (C1.9): demo prisijungimas gyvena už `DEV_SHORTCUTS`.
     demo: 'Demo',

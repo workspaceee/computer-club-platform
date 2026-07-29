@@ -98,7 +98,6 @@ export const en = {
     minChars: 'Min 6 characters',
     unlock: 'Unlock Station',
     createAccount: 'Create Account',
-    orContinue: 'or continue with',
     qrLogin: 'QR Login',
     /**
      * Dev-only label (C1.9): the demo account is a review shortcut, so it is
