@@ -2131,6 +2131,23 @@ export function getSession(sessionId: ID): Session | undefined {
   return db.sessions.find((s) => s.id === sessionId)
 }
 
+/**
+ * The visit currently holding a seat — active **or paused** — or `undefined`.
+ *
+ * Four endpoints ask this exact question (the holder read of C1.7, the seat
+ * claim in `openSession`, the paused-visit read and the PIN unlock of C1.10),
+ * and the two halves of the answer are easy to get subtly different: a paused
+ * row still holds the chair, and a seat that somehow carries two live rows must
+ * report the newest rather than whichever one the array happens to hold first.
+ * Written once here, so no endpoint can drift into its own definition of
+ * "occupied".
+ */
+export function getLiveSession(machineId: ID = db.currentMachineId): Session | undefined {
+  return db.sessions
+    .filter((s) => s.machineId === machineId && s.state !== 'ended')
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
+}
+
 export function getOpenTab(sessionId: ID): Tab | undefined {
   return db.tabs.find((t) => t.sessionId === sessionId && t.status === 'open')
 }

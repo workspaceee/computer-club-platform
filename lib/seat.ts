@@ -30,6 +30,7 @@ import {
   ApiError,
   endSession,
   fetchStationHolder,
+  heartbeat,
   openSession,
   pauseSession as pauseSessionOnServer,
   type StationHolder,
@@ -93,8 +94,19 @@ export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
  * This is what makes a paused hold visible to the *next* person: the holder
  * endpoint reports `paused`, and the panel prints it, because a paused visit is
  * exactly the case where the machine looks free and is not.
+ *
+ * `usedSeconds` is the visit's spent time as the shell has been counting it, and
+ * it is reported **before** the pause because the paused screen of C1.10 states
+ * the remainder as a fact of the club ("42:17 left"): a row that was opened two
+ * hours ago and never heard from again still believes nothing was used, so
+ * without this the lock screen would promise back every minute the player had
+ * already played. It goes through the heartbeat rather than a "set the clock"
+ * call on purpose — the client reports *elapsed* and the server does the
+ * accounting (F3.7), which is the same contract the 10 s heartbeat of `C2` will
+ * use once it runs; this is the one report in its place until then.
  */
-export async function holdSeat(): Promise<void> {
+export async function holdSeat(usedSeconds = 0): Promise<void> {
+  if (usedSeconds > 0) await heartbeat(usedSeconds).catch(() => {})
   await pauseSessionOnServer().catch(() => {})
 }
 

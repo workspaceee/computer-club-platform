@@ -5,7 +5,14 @@
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
 import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer, getZone, getZoneOccupancy } from '@/lib/mock/db'
+import {
+  db,
+  getLiveSession,
+  getMachine,
+  getPlayer,
+  getZone,
+  getZoneOccupancy,
+} from '@/lib/mock/db'
 import type { BookingStatus } from '@/lib/types/booking'
 import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
 import type { ID, ISODateTime } from '@/lib/types/common'
@@ -323,21 +330,15 @@ export interface StationHolder {
  *
  * A paused session counts, and that is the whole point: "Lock PC" keeps the
  * seat, so a paused visit is exactly the case where the machine looks free and
- * is not. `C1.10` will let *its own* player back in by PIN; until then, and for
- * everybody else, this endpoint is what stops a second visit from being opened
- * on top of the first.
+ * is not. Its own player walks back in by PIN (`fetchPausedVisit` /
+ * `unlockWithPin`, C1.10); for everybody else this endpoint is what stops a
+ * second visit from being opened on top of the first.
  */
 export function fetchStationHolder(
   machineId: ID = db.currentMachineId,
 ): Promise<StationHolder | null> {
   return query('catalog.fetchStationHolder', () => {
-    // Newest first: a seat should never have two live sessions, but if a fixture
-    // or a bad write ever produces one, the honest answer is the current
-    // occupant rather than whichever row happens to be first in the array.
-    const live = db.sessions
-      .filter((session) => session.machineId === machineId && session.state !== 'ended')
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
-
+    const live = getLiveSession(machineId)
     if (!live) return null
 
     const member = live.userId ? getPlayer(live.userId) : undefined
