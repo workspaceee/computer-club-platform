@@ -94,8 +94,8 @@ export const lt: Dictionary = {
     createAccount: 'Sukurti paskyrą',
     orContinue: 'arba tęskite su',
     qrLogin: 'QR prisijungimas',
+    // Tik kūrimo aplinkai (C1.9): demo prisijungimas gyvena už `DEV_SHORTCUTS`.
     demo: 'Demo',
-    admin: 'Administratorius',
     encrypted: 'Šifruota sesija',
     showPassword: 'Rodyti slaptažodį',
     hidePassword: 'Slėpti slaptažodį',
@@ -105,7 +105,6 @@ export const lt: Dictionary = {
     welcomeBackToast: 'Sveiki sugrįžę, {name}!',
     accountCreated: 'Paskyra sukurta! Prijungiame...',
     enteringDemo: 'Įjungiamas demo režimas',
-    adminSeparateApp: 'Administratoriaus skydas yra atskira programa (ne šio prototipo dalis).',
     // Stoties skydas (C1.6).
     stationPanel: 'Stoties būsena',
     zone: 'Zona',
