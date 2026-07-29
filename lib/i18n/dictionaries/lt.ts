@@ -123,6 +123,7 @@ export const lt: Dictionary = {
     stationOffline: 'Nėra ryšio',
     stationHot: 'Kaista',
     telemetryOff: 'Nėra duomenų',
+    stationUnusable: 'Neveikia',
     agentOffline: 'Nėra agento',
     // Slaptažodžio atkūrimas — kodas el. paštu (C1.3).
     forgotPassword: 'Pamiršote slaptažodį?',

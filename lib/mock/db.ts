@@ -216,7 +216,6 @@ function buildMachines(): Machine[] {
 }
 
 function resolveStatus(id: ID, rng: () => number): MachineStatus {
-  if (id === 'pc-17') return 'maintenance' // [v0] temporary probe
   if (MAINTENANCE_SEATS.has(id)) return 'maintenance'
   if (OFFLINE_SEATS.has(id)) return 'offline'
   if (RESERVED_SEATS.has(id)) return 'reserved'
