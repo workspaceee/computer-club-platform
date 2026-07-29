@@ -28,7 +28,12 @@
  * second. Its meaning follows the billing mode — seconds left when prepaid,
  * seconds used when postpaid.
  */
-import { remainingSeconds, secondsSince, secondsToMinutes } from '@/lib/time'
+import {
+  markSnapshotObserved,
+  remainingSeconds,
+  secondsSince,
+  secondsToMinutes,
+} from '@/lib/time'
 import type { ISODateTime, Seconds } from '@/lib/types/common'
 import type { BillingMode, SessionSnapshot } from '@/lib/types/session'
 import type { SliceCreator } from '../types'
@@ -169,11 +174,16 @@ const nowIso = (): ISODateTime => new Date().toISOString()
 
 /** Anchors for a running span, from a banked value. */
 function anchor(mode: BillingMode, banked: Seconds) {
-  const now = nowIso()
+  const nowMs = Date.now()
+  const now = new Date(nowMs).toISOString()
+  // A locally minted stamp is observed at the instant it is minted. Saying so
+  // explicitly keeps `remainingSeconds` from having to guess, and keeps a resume
+  // that re-anchors to the same second from inheriting an older arrival time.
+  markSnapshotObserved(now, nowMs)
   return mode === 'postpaid'
     ? { expiresAt: null, runningSince: now, serverTime: now }
     : {
-        expiresAt: new Date(Date.now() + banked * 1000).toISOString(),
+        expiresAt: new Date(nowMs + banked * 1000).toISOString(),
         runningSince: null,
         serverTime: now,
       }
@@ -265,6 +275,13 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     // been run up. On a walk-in seat nothing is granted, so every billed second
     // is already in `debtSeconds` — the same figure the counter settles.
     const banked = postpaid ? snapshot.debtSeconds : snapshot.secondsLeft
+    // This snapshot is being adopted *now*, so the skew correction must measure
+    // from now. Without saying so, a stamp the client had seen before (a server
+    // answering twice in one second, or a mock clock that does not move) is dated
+    // to its previous arrival, and `remainingSeconds` deducts the whole gap from a
+    // deadline that was just re-granted — the "minutes vanished after unlocking"
+    // report this line exists to prevent.
+    markSnapshotObserved(snapshot.serverTime)
     set({
       billingMode: snapshot.billingMode,
       expiresAt: running && !postpaid ? snapshot.expiresAt : null,
