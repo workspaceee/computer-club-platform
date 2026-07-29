@@ -9,7 +9,7 @@ import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { formatCoins, formatEur, sumCents } from '@/lib/money'
 import { formatDuration } from '@/lib/time'
-import { cartTotalCents, SESSION_LENGTH, timeChargeCents, useStore } from '@/lib/store'
+import { cartTotalCents, timeChargeCents, unreportedSeconds, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { holdSeat, releaseSeat } from '@/lib/seat'
@@ -330,14 +330,18 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           // awaited — locking the station is instant by promise, and the store
           // transition below is what the player is waiting to see.
           //
-          // The spent time goes with it, because the paused screen states the
-          // remainder as the club's number (C1.10): `seconds` is time *left* on a
-          // prepaid seat and time *used* on a postpaid one (F6.3), so what the
-          // server is owed is the difference in the first case and the value
-          // itself in the second.
-          void holdSeat(
-            billingMode === 'postpaid' ? seconds : Math.max(0, SESSION_LENGTH - seconds),
-          )
+          // The elapsed time goes with it, because the paused screen states the
+          // remainder as the club's number (C1.10) and a row that was opened two
+          // hours ago and never heard from still believes nothing was used.
+          //
+          // What travels is the span the server has *not* been told about, read
+          // straight off the clock's anchors — never a total computed here. The
+          // difference is not academic: this used to send
+          // `SESSION_LENGTH - seconds`, which on a visit the seat *adopted* (the
+          // C1.10 path — a member walking back into their own paused row) is time
+          // the server already counted, so locking the station billed it twice and
+          // a card that should have promised 01:23 promised 00:47.
+          void holdSeat(unreportedSeconds(useStore.getState()))
           lockPc()
         }}
         onCancel={() => setConfirm(null)}
