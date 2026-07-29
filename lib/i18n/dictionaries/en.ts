@@ -232,6 +232,50 @@ export const en = {
     qrDemoConfirm: 'Confirm from the phone',
   },
 
+  // The idle screen (C1.8). Its own namespace and not `auth`, because this copy
+  // sells the club to somebody in the doorway rather than helping a member sign
+  // in — and because it is the one screen whose every line is read from four
+  // metres away, which is why nothing here is longer than it has to be.
+  attract: {
+    screenLabel: 'Idle screen. Move the mouse or press any key to unlock.',
+    nowOpen: 'Now open · 24/7',
+    unlockHint: 'Move mouse to unlock',
+    // Crawl of last resort: evergreen club fact only, never a dated offer — a
+    // stale "prize pool tonight" is worse than no line at all.
+    fallbackHours: 'Open 24/7, every day',
+    fallbackSpecs: 'RTX 4080 + 240 Hz on every station',
+    fallbackMembership: 'Ask the counter about membership',
+    // Tonight's event.
+    tournamentKicker: 'Tonight at the club',
+    tournamentStartsIn: 'Starts in {when}',
+    tournamentLive: 'Under way right now',
+    tournamentPrize: 'Prize',
+    tournamentEntry: 'Entry',
+    tournamentFree: 'Free',
+    // Free seats per zone.
+    seatsKicker: 'Free right now',
+    // plural: one | other
+    seatsTitle: '{n} station free|{n} stations free',
+    seatsSubtitle: 'Out of {total} in the club. Take one — the counter does the rest.',
+    seatsFull: 'Every station is taken',
+    seatsFullBody: 'Ask at the counter: seats free up every few minutes.',
+    seatsZoneFree: '{free} of {total}',
+    // Bar and kitchen.
+    barKicker: 'From the bar',
+    barTitle: 'Fuel for the session',
+    barSubtitle: 'Ordered from your station, brought to your seat.',
+    // Season ladder.
+    ladderKicker: 'Season ladder',
+    ladderTitle: 'Top of the club',
+    ladderHours: '{n} h',
+    // Battle pass.
+    passKicker: 'Battle pass',
+    // plural: one | other
+    passDaysLeft: '{n} day left in the season|{n} days left in the season',
+    passSubtitle: 'Play, level up, collect. The free track costs nothing.',
+    passLevels: '{n} levels',
+  },
+
   session: {
     title: 'Session',
     timeLeft: 'Time left',

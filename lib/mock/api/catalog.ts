@@ -5,7 +5,7 @@
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
 import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer, getZone } from '@/lib/mock/db'
+import { db, getMachine, getPlayer, getZone, getZoneOccupancy } from '@/lib/mock/db'
 import type { BookingStatus } from '@/lib/types/booking'
 import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
 import type { ID, ISODateTime } from '@/lib/types/common'
@@ -15,6 +15,7 @@ import type {
   MachineStatus,
   Zone,
   ZoneClass,
+  ZoneOccupancy,
 } from '@/lib/types/machine'
 import type { SessionState } from '@/lib/types/session'
 import type { Club, ClubSettings } from '@/lib/types/settings'
@@ -379,4 +380,18 @@ export function fetchOccupancy(zoneId?: ID): Promise<OccupancySummary> {
       loadPct: seats.length === 0 ? 0 : Math.round((occupied / seats.length) * 100),
     }
   })
+}
+
+/**
+ * `GET /api/club/occupancy/zones` — free seats **per zone** (C1.8).
+ *
+ * `fetchOccupancy` answers "how full is the club"; the idle screen has to answer
+ * "where can I sit", and those are different questions: a walk-in reading `12
+ * free` from the door still has to be told that eleven of them are in the Main
+ * Hall and the last one is a €5/h console seat. Counted here rather than by the
+ * screen for the usual reason — a client that counts seats itself is a client
+ * that will disagree with the counter's screen.
+ */
+export function fetchZoneOccupancy(): Promise<ZoneOccupancy[]> {
+  return query('catalog.fetchZoneOccupancy', () => getZoneOccupancy())
 }
