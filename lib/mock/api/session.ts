@@ -3,7 +3,14 @@
 // `/api/session/*`. The one domain where the contract really matters: the client
 // must derive its countdown from `expiresAt` returned here, never from a locally
 // decremented counter (F3.7, F6.3).
-import { ApiError, mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
+import {
+  ApiError,
+  mutate,
+  newId,
+  query,
+  required,
+  serverNowMs,
+} from '@/lib/mock/api/client'
 import {
   db,
   getLiveSession,
@@ -48,23 +55,28 @@ export function secondsLeft(session: Session): Seconds {
 /**
  * Builds the snapshot the heartbeat returns. `expiresAt` is absolute server time,
  * and `null` while paused because a paused session has no deadline.
+ *
+ * Both timestamps are read from **one** instant of the moving server clock
+ * (`serverNowMs`), never one from the clock and one from the frozen `db.now`.
+ * The client subtracts the pair (`expiresAt - serverTime`) to recover the span the
+ * club promised, so a mismatch between the two is not a rounding difference — it
+ * is time added to or taken off a paid visit.
  */
 function snapshot(session: Session): SessionSnapshot {
   const left = secondsLeft(session)
   const tab = getOpenTab(session.id)
+  const nowMs = serverNowMs()
   return {
     sessionId: session.id,
     state: session.state,
     billingMode: session.billingMode,
     machineId: session.machineId,
     expiresAt:
-      session.state === 'active'
-        ? new Date(Date.parse(db.now) + left * 1000).toISOString()
-        : null,
+      session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
     secondsLeft: left,
     debtSeconds: session.debtSeconds,
     tabTotalCents: tab?.totalCents ?? 0,
-    serverTime: serverTime(),
+    serverTime: new Date(nowMs).toISOString(),
   }
 }
 
