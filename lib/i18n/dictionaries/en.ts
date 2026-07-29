@@ -181,6 +181,14 @@ export const en = {
     sessionPaused: 'Session on',
     sessionPausedHi: 'pause',
     sessionPausedSub: '{name}, {time} left on this station. Enter your PIN to pick it up.',
+    /**
+     * Same headline, budget spent. The instruction has to go: the keypad is gone
+     * with it, and a card that still says "enter your PIN" over a row of nothing
+     * reads as a broken screen rather than a closed door. The visit is still
+     * stated — it did not go anywhere — and *what to do instead* is said once,
+     * below, by `pinLocked` and the button under it.
+     */
+    sessionPausedSubLocked: '{name}, {time} is still on this station.',
     pin: 'Player PIN',
     pinUnlock: 'Unlock with PIN',
     /** The budget belongs to the club, so the screen counts it out loud. */

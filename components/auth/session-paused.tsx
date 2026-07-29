@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
 import { CodeInput, type CodeInputHandle } from '@/components/ui/code-input'
@@ -45,6 +45,15 @@ interface SessionPausedProps {
   onUsePassword: () => void
   onToast: (tone: 'success' | 'info' | 'error', message: string) => void
   onReject: () => void
+  /**
+   * The keypad is spent (or was already, on a re-read).
+   *
+   * Reported up rather than mirrored in the parent, because the budget has one
+   * owner — the club's answer, held here — and the *header* is the one thing
+   * outside this card that changes with it: a subline that still says "enter your
+   * PIN" over a card with no keypad is the screen contradicting itself.
+   */
+  onLockedChange?: (locked: boolean) => void
 }
 
 /**
@@ -78,6 +87,7 @@ export function SessionPaused({
   onUsePassword,
   onToast,
   onReject,
+  onLockedChange,
 }: SessionPausedProps) {
   const { t, tp, formatTime } = useT()
 
@@ -89,6 +99,32 @@ export function SessionPaused({
   const [locked, setLocked] = useState(visit.attemptsLeft <= 0)
 
   const cells = useRef<CodeInputHandle>(null)
+
+  /**
+   * Put the caret back on the row the moment it can hold one again.
+   *
+   * Refocusing inside the miss branch read correctly and did nothing: the cells
+   * are still `disabled` at that point — `setLoading(false)` lands in `finally`
+   * and the DOM only catches up on the next render — and a disabled input cannot
+   * take focus, so it fell through to `<body>` and the next four digits went
+   * nowhere. On a station whose keyboard is the only input device that is not a
+   * cosmetic slip: the player retypes the PIN, nothing happens, and the screen
+   * looks broken. The effect runs *after* the render that re-enables the row,
+   * which is the first instant focus sticks.
+   */
+  useEffect(() => {
+    if (loading || locked) return
+    cells.current?.focus()
+  }, [loading, locked])
+
+  /**
+   * Tell the screen above, from the *rendered* state rather than from the
+   * handler — a visit read back with an already-spent budget mounts locked and
+   * never passes through the miss branch, and its header has the same problem.
+   */
+  useEffect(() => {
+    onLockedChange?.(locked)
+  }, [locked, onLockedChange])
 
   const submit = async (value: string = pin) => {
     if (locked || loading) return
@@ -118,7 +154,6 @@ export function SessionPaused({
       } else {
         setAttemptsLeft(result.attemptsLeft)
         setError(tp('auth.pinWrong', result.attemptsLeft))
-        cells.current?.focus()
       }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'generic'

@@ -145,6 +145,11 @@ export const lt: Dictionary = {
     sessionPaused: 'Sesija pristabdyta',
     sessionPausedHi: '',
     sessionPausedSub: '{name}, stotyje liko {time}. Įveskite PIN, kad tęstumėte.',
+    // Ta pati antraštė, bet bandymai išnaudoti: PIN klaviatūros nebėra, todėl
+    // prašymas jį įvesti pašalintas — kitaip kortelė prašo to, ko nerodo.
+    // Vizitas vis dar įvardytas, o ką daryti toliau pasakyta žemiau vieną kartą
+    // (`pinLocked` ir mygtukas po juo).
+    sessionPausedSubLocked: '{name}, stotyje vis dar yra {time}.',
     pin: 'Žaidėjo PIN',
     pinUnlock: 'Atrakinti su PIN',
     // formos: viena | kelios | kita

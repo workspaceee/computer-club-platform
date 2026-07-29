@@ -159,6 +159,15 @@ export function LockScreen() {
    * it here would let the screen believe the chair is free.
    */
   const [pinDismissed, setPinDismissed] = useState(false)
+  /**
+   * The PIN budget is spent, as reported by the card that owns it.
+   *
+   * Kept here for one reason: the header lives on this screen, and once the
+   * keypad is gone the subline must stop asking for four digits. It is a mirror
+   * of the card's verdict, never a second source of truth — nothing on this
+   * screen decides it, and the only way in is `onLockedChange`.
+   */
+  const [pinLocked, setPinLocked] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -311,6 +320,7 @@ export function LockScreen() {
    */
   const finishPin = (session: AuthResult, snapshot: SessionSnapshot) => {
     setPaused(null)
+    setPinLocked(false)
     loginSuccess(session.profile)
     applySnapshot(snapshot)
   }
@@ -517,7 +527,11 @@ export function LockScreen() {
       // panel below — the one place in this screen where a fact is printed twice
       // on purpose: the sentence is what a player reads, the clock is what they
       // check. Both come from the same server number, so they cannot disagree.
-      t('auth.sessionPausedSub', {
+      //
+      // Once the budget is spent the *instruction* drops out and the fact stays:
+      // the card below no longer draws a keypad, and a subline still asking for a
+      // PIN would make a closed door look like a broken screen.
+      t(pinLocked ? 'auth.sessionPausedSubLocked' : 'auth.sessionPausedSub', {
         name: paused.holder,
         time: formatRemainder(paused.secondsLeft),
       })
@@ -806,9 +820,14 @@ export function LockScreen() {
                   onGone={(message) => {
                     setPaused(null)
                     setPinDismissed(false)
+                    // The budget belonged to *that* visit. Leaving the mirror set
+                    // would put a "still on this station" subline over the next
+                    // one — or over the password form, which has no visit at all.
+                    setPinLocked(false)
                     toast('info', t(message))
                   }}
                   onUsePassword={() => setPinDismissed(true)}
+                  onLockedChange={setPinLocked}
                   onToast={toast}
                   onReject={triggerShake}
                 />
