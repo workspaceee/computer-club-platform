@@ -57,6 +57,13 @@ const GROUPS: ActionGroup[] = [
       { label: 'Pause seat', run: () => admin.pauseSession('staff') },
       { label: 'Resume seat', run: () => admin.resumeSession(), tone: 'success' },
       { label: 'Move to free seat', run: () => admin.moveSession() },
+      // The seed of C1.12, and the only button here that is not a staff action:
+      // it relocates the fixture's own live row to PC #05 and frees this chair,
+      // which is the state a second station would have left behind. Sign in on
+      // the lock screen afterwards and the refusal is `activeElsewhere` rather
+      // than "the seat is taken" — the transfer card carries its own
+      // "Approve as admin" next to the request it raised.
+      { label: 'Seed DemoPlayer on PC-05', run: () => admin.seatSessionElsewhere('pc-05') },
       { label: 'End session', run: () => admin.endSession('staff'), tone: 'danger' },
     ],
   },

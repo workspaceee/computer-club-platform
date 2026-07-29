@@ -311,6 +311,47 @@ export function approveSessionTransfer(
   )
 }
 
+/**
+ * MOCK ONLY — puts the fixture's own visit on **another** seat, so the refusal
+ * of C1.12 can be reached by hand.
+ *
+ * Not an admin action and never will be: no member of staff "seeds" anything.
+ * It exists because the one state the transfer flow starts from — *your account
+ * is live on a PC you are not sitting at* — cannot be produced from a single
+ * client. The mock db lives in this tab, so there is no second station to walk
+ * away from; this button is that walk.
+ *
+ * It moves the row rather than opening a second one, which is the difference
+ * between seeding the story and breaking it: two live rows for one account is
+ * the exact thing `openSession` refuses, and a fixture that contains it would
+ * make every later check meaningless. The old chair is freed for the same
+ * reason — the arrival must be refused because the *account* is busy, not
+ * because the seat in front of them is (C1.7 already covers that one).
+ *
+ * Publishes nothing. A `session.moved` frame here would tell this client its
+ * visit had been relocated by staff, which is a different story with a
+ * different screen; the seed is meant to be *found* by the next sign-in.
+ */
+export function seatSessionElsewhere(toMachineId: ID = 'pc-05'): { machineLabel: string } | null {
+  const session = getSession(db.currentSessionId)
+  // Members only: `activeElsewhere` is keyed by account, and a walk-in has none.
+  if (!session || session.state === 'ended' || !session.userId) return null
+
+  const target = getMachine(toMachineId)
+  if (!target || target.id === session.machineId) return null
+
+  const from = getMachine(session.machineId)
+  if (from) from.status = 'free'
+  session.machineId = target.id
+  target.status = 'occupied'
+
+  const player = getPlayer(session.userId)
+  if (player) player.machineId = target.id
+
+  commit()
+  return { machineLabel: target.label }
+}
+
 /* ------------------------------------------------------------------ *
  * Bar orders and the tab
  * ------------------------------------------------------------------ */

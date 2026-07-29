@@ -149,6 +149,48 @@ export const lt: Dictionary = {
     seatTakenRecheck: 'Tikrinti dar kartą',
     seatTakenStillHeld: 'Stotis vis dar užimta: {name}.',
     seatTakenFreedToast: 'Stotis laisva — prijungiame.',
+    // Vienas kompiuteris — viena sesija (C1.12). `seatTaken` veidrodis, ir turi
+    // skaitytis kitaip: čia niekas neužimta ir niekas nekliudo — paskyra jau
+    // žaidžia kitame salės gale. Todėl antraštė apie *sesiją*, ne apie stotį, o
+    // sprendimas pasiūlomas, o ne atimamas: šis vizitas priklauso tam, kas skaito
+    // kortelę, tad jis gali paprašyti jį perkelti.
+    //
+    // Kodėl prašymas, o ne mygtukas „perkelti“. Ant tos vietos liko daiktai, o
+    // kėdėje gali sėdėti draugas, todėl įrašą, baigiantį vizitą kitame klubo
+    // gale, daro pamainos administratorius — dėl tos pačios priežasties
+    // `seatTaken` neturi „baigti jų sesiją“.
+    activeElsewhere: 'Sesija aktyvi',
+    activeElsewhereHi: 'kitur',
+    activeElsewhereBody:
+      'Jūsų sesija vyksta stotyje {machine}. Perkelkite ją čia — arba grįžkite prie jos.',
+    // Vieta, kurioje vyksta vizitas — faktas, pasakytas kortelės viduje.
+    activeElsewhereSeat: 'Žaidžiama: {machine}',
+    transferHere: 'Perkelti čia',
+    // Paprašyta, o ne padaryta: seną vietą atlaisvina pamainos administratorius.
+    transferPending: 'Laukiame pamainos administratoriaus patvirtinimo…',
+    transferPendingNote:
+      'Pasiimkite savo daiktus iš {machine} — stotis atlaisvinama vos patvirtinus perkėlimą.',
+    transferRequestedToast: 'Pamainos administratoriaus paprašyta perkelti jūsų sesiją.',
+    transferDoneToast: 'Sesija perkelta — sveiki šioje stotyje.',
+    // Vizitas baigėsi arba jį perėmė kitur, kol prašymas laukė atsakymo.
+    transferGone: 'Tos sesijos čia nebėra — nėra ko perkelti.',
+    // TIK MAKETAS — administratoriaus programos nėra, todėl būdas atsakyti į
+    // prašymą įvardytas atvirai, kaip QR dialogo „suvaidinti telefoną“ mygtukas.
+    // Neverčiama: šios eilutės žaidėjo nepasiekia.
+    transferDemoTitle: 'No admin app yet',
+    transferDemoNote:
+      'The prototype has no admin screen, so approve the move from here. The frame travels the real bus and this card picks it up through its normal subscription.',
+    transferDemoApprove: 'Approve as admin',
+    // Du launcher langai viename kompiuteryje (C1.12). Tai ne klaida ir ne
+    // atsisakymas: klubas tvarkoje, vieta žaidėjo — launcher tiesiog jau atidarytas
+    // šioje mašinoje. Todėl tekstas pasako, kuris langas tikras, ir pažada
+    // perėmimą: antras langas tikrai atgyja pats, o ekranas, kuris to nepasakytų,
+    // atrodytų užstrigęs.
+    duplicateWindow: 'Launcher jau',
+    duplicateWindowHi: 'atidarytas',
+    duplicateWindowBody:
+      'Šis launcher jau veikia kitame šio kompiuterio lange. Perjunkite į tą langą — arba uždarykite jį, ir šis perims stotį pats.',
+    duplicateWindowWaiting: 'Laukiame, kol užsidarys kitas langas…',
     // Pristabdytas vizitas šioje vietoje yra savas (C1.10). Tai ne prisijungimas:
     // niekas neišsiregistravo, tik sustojo laikrodis, o apmokėtas laikas liko
     // šioje mašinoje. Antraštė — viena frazė, o paantraštėje likutis kaip klubo
@@ -609,6 +651,9 @@ export const lt: Dictionary = {
     validation: 'Patikrinkite pažymėtus laukus',
     timeout: 'Klubo serveris atsakė per ilgai',
     sessionExpired: 'Jūsų sesija baigėsi',
+    // C1.12 — tostas tiems keliams, kurie neturi kortelės: panelė tą patį pasako
+    // tiksliau ir įvardija stotį.
+    activeElsewhere: 'Jūsų sesija jau vyksta kitame kompiuteryje',
     insufficientFunds: 'Balanse nepakanka pinigų',
     insufficientCoins: 'Nepakanka monetų',
     outOfStock: 'Šiuo metu neturime',
