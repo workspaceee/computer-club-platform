@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { icons, type LucideIcon } from '@/lib/icons'
+import { icons } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
 import { useEffect, useMemo, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
@@ -708,42 +708,50 @@ export function LockScreen() {
                     }
                   />
 
-                  {/* Sits under the field it repairs and is right-aligned, so it
-                      reads as a footnote to the password rather than a second
-                      way in. Ghost/plain, `-mt-1`: the row it opens is a repair,
-                      and only the bevelled CTA below commits (§4). */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    voice="plain"
-                    onClick={startRecovery}
-                    disabled={loading}
-                    className="-mt-1 self-end px-0 text-text-low hover:bg-transparent hover:text-text-high"
-                  >
-                    {t('auth.forgotPassword')}
-                  </Button>
+                  {/* Assist row — the two things a player can reach for *without*
+                      leaving the password pair, kept on one hairline-separated
+                      line directly under the fields.
+
+                      QR sits left (an alternative way in, so it leads the row and
+                      carries the only tinted glyph here) and recovery sits right,
+                      still a footnote to the field above it. Both are ghost/plain:
+                      the bevelled CTA below is the one action that commits (§4).
+
+                      This replaces the "or continue with" divider plus a
+                      full-width QR row. With the admin tile gone and demo fenced
+                      off (C1.9), a divider announced a section of one and the row
+                      under it read as a second CTA competing with Unlock — while
+                      costing ~70 px on a 720p station. Folded into the line that
+                      already existed, QR reads as part of the card. */}
+                  <div className="-mt-1 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      voice="plain"
+                      onClick={() => setQrOpen(true)}
+                      disabled={loading}
+                      iconLeft={<icons.qr size={14} className="text-primary" />}
+                      className="px-0 text-text-medium hover:bg-transparent hover:text-text-high"
+                    >
+                      {t('auth.qrLogin')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      voice="plain"
+                      onClick={startRecovery}
+                      disabled={loading}
+                      className="px-0 text-text-low hover:bg-transparent hover:text-text-high"
+                    >
+                      {t('auth.forgotPassword')}
+                    </Button>
+                  </div>
 
                   {/* The one bevelled CTA of the screen (§4) — `cut` is reserved
                       for the single action that commits. */}
                   <Button type="submit" size="lg" block cut loading={loading}>
                     {t('auth.unlock')}
                   </Button>
-
-                  <div className="my-1 flex items-center gap-3 text-text-low">
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="label-mono text-[10px]">{t('auth.orContinue')}</span>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
-
-                  {/* One real alternative way in, so one row — the third column
-                      of the old grid was the admin tile and the second is now
-                      fenced off below (C1.9). */}
-                  <OptionButton
-                    onClick={() => setQrOpen(true)}
-                    icon={icons.qr}
-                    label={t('auth.qrLogin')}
-                    disabled={loading}
-                  />
 
                   {/*
                     Prototype shortcuts, fenced off (C1.9).
@@ -752,12 +760,13 @@ export function LockScreen() {
                     skip — a password, or the admin who opens a walk-in's visit —
                     so they are review tools standing next to the real doors, and
                     a reviewer has to be able to tell which is which at a glance.
-                    Hence the dashed hairline and the "dev only" plate; hence
-                    also *ghost* buttons rather than another framed row, so the
-                    two shortcuts sit visibly below the one real alternative
-                    above them. The label stays untranslated on purpose: this
-                    block never reaches a player, so it never reaches the
-                    dictionaries either.
+                    Hence the dashed hairline and the "dev only" plate. The
+                    shortcuts share the ghost/plain shape of the assist row
+                    above, so the *dashed* rule and the warning plate — not the
+                    button style — are what separate a review tool from a real
+                    door. The label stays untranslated on purpose: this block
+                    never reaches a player, so it never reaches the dictionaries
+                    either.
 
                     A hairline and not a box: a card that already runs long on a
                     720p station cannot spend 24 px of padding on scaffolding.
@@ -930,51 +939,6 @@ function GuestPanel() {
         {t('guest.startVisit')}
       </Button>
     </motion.div>
-  )
-}
-
-/**
- * Tertiary way-in row — framed glyph, then label, full width of its cell.
- *
- * A composition, not a component: `Button` supplies the frame and the focus
- * ring, `IconTile` the framed glyph. `voice="plain"` is the F2.6 fix — LT renders
- * these labels long, and tracked uppercase made two lines of a one-word cell.
- *
- * Was icon-*over*-label, three to a row, which C1.9 turned on its side. With the
- * admin tile gone and the demo one fenced off, the stacked form had nowhere left
- * to work: one cell in a three-column grid reads as two missing buttons, and
- * stretched across the card it centres a glyph tower over a two-word label.
- * Laid flat it reads as the list of one it now is — and gives back the height
- * the dev fence below it takes, which matters on a 720p station.
- */
-function OptionButton({
-  onClick,
-  icon,
-  label,
-  disabled,
-}: {
-  onClick: () => void
-  icon: LucideIcon
-  label: string
-  disabled?: boolean
-}) {
-  return (
-    <Button
-      variant="secondary"
-      voice="plain"
-      block
-      onClick={onClick}
-      disabled={disabled}
-      className="h-12 justify-start gap-2.5 px-2.5 text-xs text-text-medium hover:text-text-high"
-    >
-      <IconTile
-        icon={icon}
-        variant="primary"
-        size="sm"
-        className="shrink-0 transition-all group-hover/button:border-primary/60 group-hover/button:bg-primary/20"
-      />
-      {label}
-    </Button>
   )
 }
 
