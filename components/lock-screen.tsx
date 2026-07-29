@@ -44,6 +44,7 @@ import type { SessionSnapshot } from '@/lib/types/session'
 import { claimSeat, type Arrival } from '@/lib/seat'
 import { useStore } from '@/lib/store'
 import type { ID } from '@/lib/types/common'
+import type { UserProfile } from '@/lib/types/user'
 
 /**
  * The three doors of the terminal (C1.2).
@@ -135,7 +136,12 @@ export function LockScreen() {
      * standing here.
      */
     arrival: Arrival
-    enter: () => void
+    /**
+     * Takes the claimed row, like every other entry closure on this screen: a
+     * player walking back from the counter re-runs the gate, and the visit they
+     * finally sit down in is whatever the *second* claim adopted.
+     */
+    enter: (snapshot: SessionSnapshot | null) => void
   } | null>(null)
   /**
    * The paused visit this station is holding for its own player (C1.10).
@@ -231,8 +237,15 @@ export function LockScreen() {
    * `enter` is only called once the seat is *ours*, so the welcome toast and the
    * screen swap stay together — a player told "Welcome back" and then shown a
    * "station is in use" panel would read the second screen as a bug.
+   *
+   * It is called **with the row the write returned** (C1.10). The claim is what
+   * adopts a paused visit, so it is also the only thing that knows the clock the
+   * arrival is inheriting: without threading it through, every door except the
+   * PIN would open the launcher on whatever the store had banked — a full two
+   * hours on a station that was reloaded, or the pre-pause remainder that the
+   * club has since disagreed with.
    */
-  const admit = async (arrival: Arrival, enter: () => void) => {
+  const admit = async (arrival: Arrival, enter: (snapshot: SessionSnapshot | null) => void) => {
     const holder = await heldBy(arrival.userId)
     if (holder) {
       // The card stops spinning: nothing else is in flight, and the panel that
@@ -257,7 +270,7 @@ export function LockScreen() {
       return
     }
 
-    enter()
+    enter(claim.snapshot)
   }
 
   /**
@@ -321,8 +334,42 @@ export function LockScreen() {
   const finishPin = (session: AuthResult, snapshot: SessionSnapshot) => {
     setPaused(null)
     setPinLocked(false)
-    loginSuccess(session.profile)
-    applySnapshot(snapshot)
+    enterAsMember(session.profile, snapshot)
+  }
+
+  /**
+   * Sign a member in and let the club's row set the clock — the one receiver
+   * every member door ends in (C1.10).
+   *
+   * It exists because the PIN used to be the only door that did the second half.
+   * The others called `loginSuccess` alone, and `loginSuccess` can only ask the
+   * *store* what a resumed visit has left — which is why the bug it hides is
+   * exactly the one this screen was built to prevent: type five wrong PINs, sign
+   * in with the password instead, and the launcher opened on the store's banked
+   * hours (a fresh 01:23:38) while the paused card had just promised 00:47. Same
+   * player, same seat, two different clocks, and the club agreed with neither.
+   *
+   * Order is load-bearing. `loginSuccess` decides whether this is a returning
+   * player and starts or resumes a clock of its own, so the snapshot has to land
+   * *after* it — it is the correction, not the input. And it stays optional: a
+   * claim that was granted because the request dropped has no row, and a
+   * `null` there means "keep what you had", never "reset to two hours".
+   */
+  const enterAsMember = (profile: UserProfile, snapshot: SessionSnapshot | null) => {
+    loginSuccess(profile)
+    if (snapshot) applySnapshot(snapshot)
+  }
+
+  /**
+   * The walk-in half of the same rule.
+   *
+   * A guest seat adopts too — `openSession` hands a second walk-in the tab the
+   * first one left open (MVP §8.2) — so the tab a guest sits down to is the
+   * server's `debtSeconds`, not a counter this client happened to keep.
+   */
+  const enterAsGuest = (guest: { guestId: ID; label: string }, snapshot: SessionSnapshot | null) => {
+    guestSuccess(guest)
+    if (snapshot) applySnapshot(snapshot)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -337,9 +384,11 @@ export function LockScreen() {
       // The endpoint returns a session (`profile` + `userId` + token + role): the
       // shell needs the profile, the seat check needs the id.
       const { profile, userId } = await login({ identifier, password })
-      await admit({ userId, guestId: null }, () => {
+      await admit({ userId, guestId: null }, (snapshot) => {
         toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
-        loginSuccess(profile)
+        // The claim above may have adopted the paused visit this screen was just
+        // offering a PIN for, so the remainder comes from it (C1.10).
+        enterAsMember(profile, snapshot)
       })
     } catch (err) {
       setLoading(false)
@@ -366,10 +415,10 @@ export function LockScreen() {
     setSignup(null)
     // The chair is checked for a brand-new member too (C1.7): an account created
     // at an occupied station is a real account, and it still cannot sit down.
-    await admit({ userId, guestId: null }, () => {
+    await admit({ userId, guestId: null }, (snapshot) => {
       toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
       // A brand-new profile keeps the language picked on this station.
-      loginSuccess({ ...profile, lang })
+      enterAsMember({ ...profile, lang }, snapshot)
     })
   }
 
@@ -385,9 +434,9 @@ export function LockScreen() {
     setLoading(true)
     try {
       const { profile, userId } = await loginAsDemo()
-      await admit({ userId, guestId: null }, () => {
+      await admit({ userId, guestId: null }, (snapshot) => {
         toast('info', t('auth.enteringDemo'))
-        loginSuccess(profile)
+        enterAsMember(profile, snapshot)
       })
     } catch (err) {
       setLoading(false)
@@ -417,9 +466,9 @@ export function LockScreen() {
       // *any* live session on this seat blocks them (C1.7). Which is the point —
       // the visit they were handed is exactly the second one nobody wants opened
       // on top of the first.
-      await admit({ userId: null, guestId }, () => {
+      await admit({ userId: null, guestId }, (snapshot) => {
         toast('info', t('guest.startedToast', { label }))
-        guestSuccess({ guestId, label })
+        enterAsGuest({ guestId, label }, snapshot)
       })
     } catch (err) {
       setLoading(false)
@@ -440,7 +489,7 @@ export function LockScreen() {
    */
   const finishQr = async ({ profile, userId }: AuthResult) => {
     setQrOpen(false)
-    await admit({ userId, guestId: null }, () => loginSuccess(profile))
+    await admit({ userId, guestId: null }, (snapshot) => enterAsMember(profile, snapshot))
   }
 
   const switchMode = (m: Mode) => {
@@ -473,9 +522,9 @@ export function LockScreen() {
    */
   const finishRecovery = async ({ profile, userId }: AuthResult) => {
     setRecovery(null)
-    await admit({ userId, guestId: null }, () => {
+    await admit({ userId, guestId: null }, (snapshot) => {
       toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
-      loginSuccess(profile)
+      enterAsMember(profile, snapshot)
     })
   }
 

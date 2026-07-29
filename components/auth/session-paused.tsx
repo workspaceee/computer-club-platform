@@ -157,9 +157,20 @@ export function SessionPaused({
       }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'generic'
-      // The visit itself is gone or already running: nothing a PIN can fix, so
-      // the screen stops offering one instead of shaking at a dead end.
-      if (code === 'sessionExpired' || code === 'conflict' || code === 'notFound') {
+      // The visit itself is gone, already running, or out of time: nothing a PIN
+      // can fix, so the screen stops offering one instead of shaking at a dead
+      // end. `insufficientFunds` is the last of those and the least obvious — a
+      // visit can be parked here with 00:00 on it (paused at the buzzer, or read
+      // back after the club counted the overrun), and `resumeSessionRow` refuses
+      // to restart a spent prepaid clock no matter who proves they own it. Right
+      // PIN, right player, door that cannot open: keeping the keypad up would
+      // spend the budget on a verdict the digits never influenced.
+      if (
+        code === 'sessionExpired' ||
+        code === 'conflict' ||
+        code === 'notFound' ||
+        code === 'insufficientFunds'
+      ) {
         onGone(`errors.${code}` as TKey)
         return
       }
