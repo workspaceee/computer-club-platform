@@ -42,7 +42,7 @@ import type { HelpThread, Notification } from '@/lib/types/notification'
 import type { Order } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
 import type { Promo, PromoAudience, PromoKind, PromoSurface } from '@/lib/types/promo'
-import type { Session } from '@/lib/types/session'
+import type { Session, TransferRequest } from '@/lib/types/session'
 import type { Club, ClubSettings, UserPreferences } from '@/lib/types/settings'
 import type { Friendship, FriendSummary, Party } from '@/lib/types/social'
 import type { Tab, Transaction } from '@/lib/types/tab'
@@ -746,6 +746,16 @@ const sessions: Session[] = [
     closedBy: 'timeout',
   },
 ]
+
+/**
+ * Pending "move my session to this seat" asks (C1.12).
+ *
+ * Seeded empty, and it has to be: a request is a live negotiation between one
+ * player standing at one keyboard and the admin on shift, so a fixture row would
+ * be a transfer nobody asked for, waiting for an approval that would move a
+ * session out from under whoever is actually sitting there.
+ */
+const transferRequests: TransferRequest[] = []
 
 const CURRENT_TAB_ID: ID = 'tab-demo'
 
@@ -2019,6 +2029,7 @@ export const db = {
   userPreferences,
   sessions,
   currentSessionId: CURRENT_SESSION_ID,
+  transferRequests,
   tabs,
   machineSettings,
   orders,

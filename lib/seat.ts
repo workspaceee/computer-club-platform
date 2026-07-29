@@ -68,6 +68,23 @@ export interface Arrival {
 export type SeatClaim =
   | { granted: true; snapshot: SessionSnapshot | null }
   | { granted: false; holder: StationHolder | null }
+  /**
+   * Refused for the opposite reason (C1.12): this chair is fine, *you* are
+   * already playing on another one.
+   *
+   * A separate branch and not a `holder` with a different name, because the two
+   * refusals have opposite repairs and the screen has to choose between them. A
+   * stranger's visit can only be ended by the admin's key, so C1.7 offers a
+   * re-check and nothing else; your own visit elsewhere is yours to move, so this
+   * one offers a transfer. Collapsing them would put "ask the shift admin for the
+   * key" over a session the player owns.
+   *
+   * `machineLabel` is the seat as the club writes it (`PC #05`) — the one string
+   * the player will read out loud, either to walk back to it or to name it at the
+   * counter. `sessionId` is what the transfer request is made against, so an
+   * approval cannot move some other visit.
+   */
+  | { granted: false; activeElsewhere: true; machineLabel: string; sessionId: ID }
 
 /**
  * Claim the chair for an arrival that already passed the lock screen's check.
@@ -97,6 +114,24 @@ export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
   } catch (err) {
     if (err instanceof ApiError && err.code === 'conflict') {
       return { granted: false, holder: await fetchStationHolder().catch(() => null) }
+    }
+    /**
+     * One PC, one session (C1.12). The seat is not re-read here — it is not the
+     * seat that refused, and asking who holds *this* chair would answer a
+     * question nobody asked. The refusal already named the machine the visit is
+     * on, so the panel is built from the error's own payload.
+     *
+     * A payload that somehow arrived without the seat falls through to the
+     * generous branch below rather than opening a panel with a blank machine
+     * name: "your session is active on ——" tells the player nothing and takes
+     * away the form they could have used.
+     */
+    if (err instanceof ApiError && err.code === 'activeElsewhere') {
+      const label = err.data?.machineLabel
+      const sessionId = err.data?.sessionId
+      if (typeof label === 'string' && typeof sessionId === 'string') {
+        return { granted: false, activeElsewhere: true, machineLabel: label, sessionId }
+      }
     }
     // Granted without a row: there is nothing to adopt the clock from, so the
     // caller keeps the one it has instead of inventing one.

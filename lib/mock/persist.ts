@@ -25,8 +25,12 @@ const STORAGE_KEY = 'imba.mock.state'
  * `2`: `bookings` carries the reservation the station panel reads (C1.6), and a
  * v1 snapshot would keep restoring the old list over it, so the new state would
  * be invisible in every browser that had ever opened the demo.
+ *
+ * `3` adds `transferRequests` (C1.12). A v2 snapshot has no such field, and
+ * restoring it would leave the slice at whatever the last run had put in memory
+ * — a pending transfer surviving a reload it was never written into.
  */
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from
@@ -43,6 +47,7 @@ interface Snapshot {
   players: [ID, DemoPlayer][]
   machines: typeof db.machines
   sessions: typeof db.sessions
+  transferRequests: typeof db.transferRequests
   tabs: typeof db.tabs
   passPurchases: typeof db.passPurchases
   orders: typeof db.orders
@@ -96,6 +101,7 @@ function buildSnapshot(): Snapshot {
     players: [...db.players.entries()],
     machines: db.machines,
     sessions: db.sessions,
+    transferRequests: db.transferRequests,
     tabs: db.tabs,
     passPurchases: db.passPurchases,
     orders: db.orders,
@@ -219,6 +225,7 @@ export function restoreDb(): boolean {
 
   replaceArray(db.machines, snap.machines)
   replaceArray(db.sessions, snap.sessions)
+  replaceArray(db.transferRequests, snap.transferRequests)
   replaceArray(db.tabs, snap.tabs)
   replaceArray(db.passPurchases, snap.passPurchases)
   replaceArray(db.orders, snap.orders)
