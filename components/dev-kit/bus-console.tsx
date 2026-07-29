@@ -96,6 +96,22 @@ const GROUPS: ActionGroup[] = [
     ],
   },
   {
+    id: 'phone',
+    title: 'Companion app',
+    note:
+      'The other actor, not staff (C1.5). These publish real login.qr.confirmed frames so the payload and the scope can be read in the log — but they cannot sign anyone in from here: the bus is in-memory per tab and the lock screen is another route, so no live challenge exists on this page. Expect "nothing in the fixture" and drive the actual flow from the QR dialog, which carries the same button next to the code it owns.',
+    actions: [
+      { label: 'Confirm QR login', run: () => admin.confirmQrLogin(), tone: 'success' },
+      // A different player on the phone: proves the station signs in whoever the
+      // frame names, rather than defaulting to the demo account the way the old
+      // fake dialog did.
+      { label: 'Confirm as ClutchQueen', run: () => admin.confirmQrLogin('u-clutch') },
+      // A code that was never on this screen. The frame is published, the dialog
+      // drops it: "a QR confirmation arrived" ≠ "this square was approved".
+      { label: 'Confirm a stale code', run: () => admin.confirmQrLogin('u-demo', 'XXX-XXX') },
+    ],
+  },
+  {
     id: 'meta',
     title: 'Loyalty, events, social',
     note: 'Everything that pays out or calls the player somewhere.',

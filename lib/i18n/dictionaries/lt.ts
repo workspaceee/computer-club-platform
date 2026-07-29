@@ -167,6 +167,17 @@ export const lt: Dictionary = {
     editDetails: 'Keisti duomenis',
     signupCodeSub: 'Įveskite {n} skaitmenų kodą, išsiųstą adresu {email}, kad baigtumėte registraciją.',
     accountCreatedToast: 'Sveiki prisijungę prie klubo, {name}!',
+    // QR prisijungimas — stotis parodo kodą, telefonas jį patvirtina (C1.5).
+    qrSub: 'Nėra kameros? Įveskite stoties kodą programėlėje ranka.',
+    qrStationCode: 'Stoties kodas',
+    qrExpired: 'Kodo laikas baigėsi.',
+    qrNewCode: 'Rodyti naują kodą',
+    qrConfirmedBy: 'Patvirtino {name} — atrakiname…',
+    qrOffline: 'Stotis neprisijungusi: telefonas negalės patvirtinti, kol ryšys neatsinaujins.',
+    qrDemoTitle: 'Demo patvirtinimas',
+    qrDemoNote:
+      'Prototipas neturi telefono programėlės, todėl telefoną atlieka šis mygtukas: jis patvirtina kodą ir paskelbia įvykį magistralėje, o dialogas jį apdoroja kaip bet kurį kitą.',
+    qrDemoConfirm: 'Patvirtinti telefonu',
   },
 
   session: {
