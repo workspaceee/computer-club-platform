@@ -406,7 +406,7 @@ export function DateField({
   const rows = weeksIn(cursor.y, cursor.m)
   const lead = firstWeekday(cursor.y, cursor.m)
 
-  /** 5 or 6 weeks of ISO days, neighbours included — a calendar has no holes. */
+  /** 5 or 6 weeks of ISO days, neighbours included �� a calendar has no holes. */
   const grid = useMemo(() => {
     const start = new Date(Date.UTC(cursor.y, cursor.m - 1, 1 - lead))
     return Array.from({ length: rows * 7 }, (_, i) => {
@@ -726,9 +726,12 @@ export function DateField({
       className={cn(
         'bg-transparent py-2.5 text-center text-sm tabular-nums text-text-high outline-none',
         'placeholder:text-text-low/70 disabled:cursor-not-allowed',
-        // `ch` of the *placeholder*, not of the digits: `YYYY`/`ГГГГ` is wider
-        // than `1998`, and 3.4ch clipped the first pass to "YYY".
-        key === 'y' ? 'w-[4.6ch]' : 'w-[2.4ch]',
+        // Sized for the *letter* placeholder, not the digits: `ch` is the width
+        // of `0`, but the masks are uppercase letters (`ГГГГ`/`MMMM`, `ММ`/`DD`)
+        // that run ~1.5× wider, so a digit-sized box clipped `MMMM`→`MMM` and
+        // `MM`→`M`. These fit the widest of the three locales' masks while the
+        // centered digit value still sits comfortably inside.
+        key === 'y' ? 'w-[6.4ch]' : 'w-[3.4ch]',
       )}
     />
   )
