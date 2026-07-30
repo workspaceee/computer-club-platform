@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
 import { Field } from '@/components/ui/field'
 import { HudChip } from '@/components/ui/hud-chip'
+import { HudPlate } from '@/components/ui/hud-plate'
 import { Money } from '@/components/ui/money'
+import { NavRail, type NavRailItem } from '@/components/ui/nav-rail'
 import { Panel } from '@/components/ui/panel'
 import { Progress } from '@/components/ui/progress'
 import { RingProgress } from '@/components/ui/ring-progress'
@@ -341,6 +343,83 @@ export function KitData() {
           <HudChip label="Zone" value="VIP" />
           <HudChip dot label="Session" value="LIVE" tone="accent" />
           <HudChip dot icon={<icons.status size={13} />} label="Uplink" value="Stable" />
+        </Row>
+      </Spec>
+
+      <Spec
+        id="C2.1"
+        name="HudPlate"
+        note="bar-mounted reading — the right block of the top bar, tone tints the edge"
+      >
+        <Row label="tones (default / coin / warning ≤ 15m / danger ≤ 5m)">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={2 * 3600} size="sm" />}
+          />
+          <HudPlate
+            tone="coin"
+            icon={<icons.coins size={14} />}
+            label="Coins"
+            labelAt="always"
+            value="1 240"
+          />
+          <HudPlate
+            tone="warning"
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={12 * 60} size="sm" />}
+          />
+          <HudPlate
+            tone="danger"
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={3 * 60} size="sm" />}
+          />
+        </Row>
+        <Row label="what the two surfaces actually show (member coins vs walk-in tab, rising clock)">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Session time"
+            labelAt="always"
+            value={<Countdown seconds={47 * 60} size="sm" mode="elapsed" />}
+          />
+          <HudPlate
+            icon={<icons.bill size={14} />}
+            label="Open tab"
+            labelAt="always"
+            value={<Money value={1740} fromCents size="sm" />}
+          />
+          <HudPlate label="No icon" labelAt="always" value="—" />
+        </Row>
+      </Spec>
+
+      <Spec
+        id="C2.1 / nav"
+        name="NavRail"
+        note="launcher navigation — underline in the top bar, pill in the mobile bar"
+      >
+        <Row label="underline (desktop top bar; the rule hangs off the bar's edge, so it clips here)">
+          <NavRail
+            items={RAIL_ITEMS}
+            value={rail}
+            onChange={setRail}
+            label="Kit navigation"
+            className="h-12"
+          />
+        </Row>
+        <Row label="pill (mobile bottom bar), on the material it ships with">
+          <NavRail
+            items={RAIL_ITEMS}
+            value={rail}
+            onChange={setRail}
+            variant="pill"
+            label="Kit navigation, compact"
+            className="glass-strong w-full max-w-sm rounded-lg p-1"
+          />
         </Row>
       </Spec>
     </>
