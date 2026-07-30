@@ -103,6 +103,15 @@ export function HudPlate({
         >
           {label}
         </span>
+        {/* Dropping the micro-label at 360 px is a *visual* economy, and until now
+            it took the reading's name with it: `hidden` leaves the accessibility
+            tree too, so on a phone the top bar announced a bare `01:23:00` with
+            nothing saying it was time left, from a pass. The label comes back as a
+            spoken copy at exactly the widths where the printed one is gone — one
+            of the two is always hidden, so nothing is announced twice.
+            `normal-case`, because the printed label is tracked caps and a reader
+            handed "ОСТАЛОСЬ" may spell it out letter by letter. */}
+        {labelAt === 'sm' && <span className="sr-only normal-case sm:hidden">{label}</span>}
         {/* A `div`, not a `span`: the readings that matter here are primitives
             (`Countdown` renders a block), and a span wrapping a div is invalid
             markup that React will happily ship and the browser will re-parse. */}
