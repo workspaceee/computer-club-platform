@@ -451,6 +451,58 @@ export const en = {
     // plural: one | other
     minutesLeft: '{n} minute left|{n} minutes left',
     warningLowTime: 'Less than {n} min of session time left.',
+
+    /* ---------------------------------------------------------------- *
+     * "My session" — the panel behind the HUD (C2.3)
+     * ---------------------------------------------------------------- */
+    mine: 'My session',
+    /** Sits on the HUD trigger, so it says what opens rather than what it is. */
+    openMine: 'Session details',
+    seat: 'Station',
+    startedAt: 'Started',
+    playedSoFar: 'Played so far',
+    /**
+     * The heading over the source line. "What is being spent" and not "Time
+     * source" — the panel has room for the question the player is actually
+     * asking, and the four answers below are the *consequence*, not the label.
+     */
+    spending: 'What is being spent',
+    spendingPass: 'Minutes from a pass you already paid for. When they run out the clock simply stops — nothing further is charged.',
+    spendingWallet: 'Hours bought against your wallet. Extending spends money again.',
+    spendingStaff: 'Minutes an admin put on this seat. Nobody is paying for them, so they will not renew themselves — ask at the counter before they run out.',
+    spendingPostpaid: 'Every minute is billed onto your open tab and settled at the counter when you leave.',
+    /** The tab is a *reading* here, next to the time it is accruing from. */
+    onTabNow: 'On the tab now',
+    history: 'Time added',
+    historyEmpty: 'Nothing added yet',
+    historyEmptyBody: 'Every extension — yours or the admin\u2019s — is listed here with the minute it landed.',
+    /** One line per act, so a purchase never reads as a favour. */
+    historyExtend: 'You extended',
+    historyStaff: 'Admin added time',
+    historyCorrection: 'Admin correction',
+    /**
+     * Signed, and the sign is in the *copy* rather than computed at the point of
+     * use: a minus rendered by string concatenation on a negative number prints
+     * "+-30 min" the first time somebody forgets, and an admin correction is the
+     * one line in this list where the direction is the whole meaning.
+     *
+     * Not plural forms: the unit is an abbreviation in all three languages
+     * ("min" / "мин" / "min"), so there is nothing to inflect.
+     */
+    historyMinutes: '+{n} min',
+    historyMinutesNegative: '−{n} min',
+    /** Banked pass minutes an extend can draw from. */
+    banked: '{n} min banked on your pass',
+    extendBy: '+{n} min',
+    extendedToast: 'Session extended by {n} min.',
+    /** No banked minutes: the honest button is the shop, not a failing extend. */
+    buyTime: 'Buy time',
+    buyTimeHint: 'No pass minutes banked. Time passes are in the shop.',
+    /** A walk-in cannot extend — there is nothing to extend *to* (F6.3). */
+    postpaidNoExtend: 'A PostPaid seat has no time to extend: play as long as you like and settle the tab at the counter.',
+    callAdmin: 'Call the admin',
+    callAdminSent: 'The admin has been called — someone is on the way to your seat.',
+    callAdminAgain: 'The admin already has your call.',
   },
 
   games: {

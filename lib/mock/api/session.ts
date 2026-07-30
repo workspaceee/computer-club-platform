@@ -23,7 +23,7 @@ import {
 // The admin's transfer approval writes outside `mutate()` (see `approveTransfer`),
 // so it saves the store itself rather than relying on the transport to do it.
 import { persistDb } from '@/lib/mock/persist'
-import type { ID, Minutes, Seconds } from '@/lib/types/common'
+import type { ID, ISODateTime, Minutes, Seconds } from '@/lib/types/common'
 import type { MachineSettings, MachineTelemetry } from '@/lib/types/machine'
 import type {
   BillingMode,
@@ -102,6 +102,131 @@ export function fetchSessionHistory(userId: ID = db.currentUserId): Promise<Sess
       .filter((s) => s.userId === userId && s.state === 'ended')
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt)),
   )
+}
+
+/* ------------------------------------------------------------------ *
+ * The visit, as the player's own panel reads it (C2.3)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Who put the minutes on the clock, for one line of the history.
+ *
+ * Three values and not `TimeSource`, because this answers a different question.
+ * `TimeSource` names the pocket the *current* remainder comes out of; this names
+ * the **act**: the player extended, the admin granted, the admin corrected. A
+ * line saying "Pass" would leave the panel unable to distinguish the 30 minutes
+ * a member bought from the 30 an admin gave them — which is the one distinction
+ * the history exists to show.
+ */
+export type SessionGrantSource = 'extend' | 'staff' | 'correction'
+
+/** One movement of time on this visit. */
+export interface SessionGrant {
+  id: ID
+  /**
+   * Signed seconds: positive for time added, negative for a correction. Signed
+   * rather than an absolute value plus a direction flag, because the ledger
+   * already stores it signed and re-deriving the sign in the UI is how a
+   * deduction ends up printed as a gift.
+   */
+  seconds: Seconds
+  source: SessionGrantSource
+  at: ISODateTime
+  /** Admin's note, when there was one. Logs and the panel's second line only. */
+  note?: string
+}
+
+/**
+ * Everything the "My session" panel states about the visit (C2.3).
+ *
+ * One read, and that is the point. The panel names the seat, the zone, the start
+ * of the visit, the pocket being spent and every extension so far — five facts
+ * that live in four different places of the mock db, and a client that fetched
+ * them separately would render a seat from one instant next to a history from
+ * another. It also cannot *derive* any of them: the store holds a clock and a
+ * billing mode, not a start time or a ledger.
+ *
+ * What is deliberately **not** here is the live clock. `snapshot` carries the
+ * server's own remainder so the panel can be honest when it opens, but the
+ * digits it shows keep coming from the one interval of `session-manager.tsx`
+ * (F6.3) — a second clock ticking off a fetched payload is exactly the drift
+ * that rule exists to prevent.
+ */
+export interface SessionDetail {
+  snapshot: SessionSnapshot
+  /** Seat as the club writes it (`PC #05`), never built from the id. */
+  machineLabel: string
+  zoneName: string
+  startedAt: ISODateTime
+  secondsGranted: Seconds
+  secondsUsed: Seconds
+  /**
+   * Pass minutes the player could extend from **right now**, zero for a walk-in.
+   *
+   * It travels with the panel because it decides which button the panel offers:
+   * a member with banked minutes extends on the spot, everybody else is sent to
+   * buy time. Asking the wallet separately would let the panel offer an extend
+   * that the extend endpoint then refuses with `insufficientFunds`.
+   */
+  minutesBanked: Minutes
+  /** Newest first — the history reads downwards from what just happened. */
+  grants: SessionGrant[]
+}
+
+/** Which act a ledger row records. `time_spend` on a session is a correction. */
+function grantSourceOf(tx: { type: string; staffId: ID | null }): SessionGrantSource {
+  if (tx.type === 'time_spend') return 'correction'
+  return tx.staffId ? 'staff' : 'extend'
+}
+
+/**
+ * `GET /api/session/current/detail` — the panel behind the HUD (C2.3).
+ *
+ * The history is read out of the **ledger**, not kept as a list on the session:
+ * every path that moves time already writes a `transactions` row (MVP §9.4), so
+ * a second record would be a copy that can disagree with the money. Only rows
+ * pointing at *this* session are counted — a pass purchase writes
+ * `refType: 'pass'`, and it belongs to the player's bank rather than to this
+ * visit, so printing it here would promise minutes the clock never received.
+ */
+export function fetchSessionDetail(
+  sessionId: ID = db.currentSessionId,
+): Promise<SessionDetail> {
+  return query('session.fetchSessionDetail', () => {
+    const session = required(getSession(sessionId), 'sessionExpired')
+    const machine = getMachine(session.machineId)
+    const zone = machine ? getZone(machine.zoneId) : undefined
+
+    const grants: SessionGrant[] = db.transactions
+      .filter(
+        (tx) =>
+          tx.refType === 'session' &&
+          tx.refId === session.id &&
+          (tx.type === 'time_grant' || tx.type === 'time_spend'),
+      )
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .map((tx) => ({
+        id: tx.id,
+        seconds: tx.amount,
+        source: grantSourceOf(tx),
+        at: tx.createdAt,
+        note: tx.note,
+      }))
+
+    return {
+      snapshot: snapshot(session),
+      // The seat's own label, falling back to the id rather than to a guess: a
+      // panel that invents `PC #—` sends the player to the counter with nothing
+      // to name.
+      machineLabel: machine?.label ?? session.machineId,
+      zoneName: zone?.name ?? '',
+      startedAt: session.startedAt,
+      secondsGranted: session.secondsGranted,
+      secondsUsed: session.secondsUsed,
+      minutesBanked: session.userId ? getMinutesBanked(session.userId) : 0,
+      grants,
+    }
+  })
 }
 
 /**
