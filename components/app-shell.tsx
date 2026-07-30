@@ -173,6 +173,12 @@ export function GlobalOverlays() {
       <SfxGameBridge />
       <GameLaunchModal />
       <CartDrawer />
+      {/* "My session" (C2.3). Mounted with the other global overlays rather than
+          in the top bar, because the HUD plate that opens it lives in chrome that
+          re-renders every second — a panel parented to it would remount its own
+          fetch on each tick. Reads its own `open` flag from the UI slice, so the
+          trigger only has to flip one boolean. */}
+      <SessionDetailModal />
       <SettingsModal />
       <SessionManager />
       <Toaster />

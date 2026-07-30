@@ -129,6 +129,15 @@ function SessionDetailPanel({ open, onClose }: { open: boolean; onClose: () => v
       eyebrow={<icons.timer size={14} aria-hidden />}
       title={t('session.mine')}
       size="md"
+      // The two actions ride in the modal's own pinned footer rather than at the
+      // end of the scroll body. A player opens this panel *because* the clock is
+      // low, and a long grant history would push "Extend" and "Call the admin"
+      // under the fold — the one place in the panel where being one scroll away
+      // costs minutes. Rendered only once the payload has landed, because which
+      // action is honest depends on `minutesBanked` and the billing mode.
+      footer={
+        detail.data ? <SessionActions detail={detail.data} onRefresh={detail.mutate} /> : undefined
+      }
     >
       <DataBoundary
         state={detail}
@@ -160,16 +169,8 @@ function SessionDetailBody({
   // panel describes the *visit* the server just reported.
   const seconds = useStore((s) => s.sessionSeconds)
   const cart = useStore((s) => s.cart)
-  const toast = useStore((s) => s.toast)
-  const setView = useStore((s) => s.setView)
-  const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
-  const applySnapshot = useStore((s) => s.applySnapshot)
 
-  const [extending, setExtending] = useState<number | null>(null)
-  const [calling, setCalling] = useState(false)
-  const [called, setCalled] = useState(false)
-
-  const { snapshot, minutesBanked, grants } = detail
+  const { snapshot, grants } = detail
   const postpaid = snapshot.billingMode === 'postpaid'
   const source = snapshot.timeSource
 
@@ -181,49 +182,6 @@ function SessionDetailBody({
     [cart, seconds],
   )
 
-  const steps = useMemo(
-    () => EXTEND_STEPS.filter((minutes) => minutes <= minutesBanked),
-    [minutesBanked],
-  )
-
-  const extend = useCallback(
-    async (minutes: number) => {
-      setExtending(minutes)
-      try {
-        // The response is a snapshot, so the deadline moves through the one write
-        // path the clock has (`applySnapshot`) — there is no counter to patch and
-        // no way for the grant to be lost or applied twice.
-        const next = await extendSession(minutes)
-        applySnapshot(next)
-        onRefresh()
-        toast('success', t('session.extendedToast', { n: minutes }))
-      } catch (error) {
-        toast('error', t(`errors.${toApiError(error).code}` as TKey))
-      } finally {
-        setExtending(null)
-      }
-    },
-    [applySnapshot, onRefresh, t, toast],
-  )
-
-  const call = useCallback(async () => {
-    setCalling(true)
-    try {
-      await callStaff({ category: 'other' })
-      setCalled(true)
-      toast('info', t('session.callAdminSent'))
-    } catch (error) {
-      toast('error', t(`errors.${toApiError(error).code}` as TKey))
-    } finally {
-      setCalling(false)
-    }
-  }, [t, toast])
-
-  const buyTime = useCallback(() => {
-    setSessionPanelOpen(false)
-    setView('shop')
-  }, [setSessionPanelOpen, setView])
-
   return (
     <div className="flex flex-col gap-5">
       {/* ── The visit, as four facts ─────────────────────────────────── */}
@@ -234,7 +192,7 @@ function SessionDetailBody({
           </span>
           <Countdown
             seconds={seconds}
-            size="lg"
+            size="xl"
             mode={postpaid ? 'elapsed' : 'remaining'}
             // The panel is a card, not a takeover: the pulse belongs to the HUD
             // plate that stays visible behind it, and two runners on one fact is
@@ -287,12 +245,15 @@ function SessionDetailBody({
       <section className="flex flex-col gap-2">
         <h3 className="label-mono text-[9px] text-text-low">{t('session.history')}</h3>
         {grants.length === 0 ? (
+          // `bare` and without the icon tile: the ledger is empty for most of a
+          // visit, and a 56 px circle here made the *absence* of history the
+          // tallest thing in the panel — taller than the clock it explains.
           <EmptyState
             bare
             size="sm"
-            icon={icons.clock}
             title={t('session.historyEmpty')}
             description={t('session.historyEmptyBody')}
+            className="py-4"
           />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
@@ -303,83 +264,155 @@ function SessionDetailBody({
         )}
       </section>
 
-      {/* ── The two actions ─────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3 border-t border-border pt-4">
-        {postpaid ? (
-          // Nothing to extend *to*: a walk-in's clock counts up into the tab, so
-          // an "Extend" here would offer to buy time the seat never sold (F6.3).
-          <p className="text-pretty text-xs leading-relaxed text-text-medium">
-            {t('session.postpaidNoExtend')}
-          </p>
-        ) : steps.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="label-mono text-[9px] text-text-low">{t('session.extend')}</span>
-              <span className="font-display text-[11px] font-semibold tabular-nums text-text-medium">
-                {t('session.banked', { n: minutesBanked })}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {steps.map((minutes) => (
-                <Button
-                  key={minutes}
-                  variant="secondary"
-                  size="sm"
-                  loading={extending === minutes}
-                  disabled={extending !== null}
-                  onClick={() => void extend(minutes)}
-                  iconLeft={<icons.add aria-hidden />}
-                >
-                  {t('session.extendBy', { n: minutes })}
-                </Button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          // No banked minutes, so the honest button is the shop rather than an
-          // extend the endpoint would refuse.
-          <div className="flex flex-col gap-2">
-            <p className="text-pretty text-xs leading-relaxed text-text-medium">
-              {t('session.buyTimeHint')}
-            </p>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={buyTime}
-              iconLeft={<icons.shop aria-hidden />}
-              className="self-start"
-            >
-              {t('session.buyTime')}
-            </Button>
-          </div>
-        )}
+      {/* The two actions are not here: they live in the modal's pinned footer
+          (`SessionActions`), so a long history cannot push them out of reach. */}
+    </div>
+  )
+}
 
-        <div className="flex flex-col gap-1.5">
+/**
+ * Extend, and call the admin — the panel's footer (C2.3).
+ *
+ * Separate from the body because it is mounted somewhere else in the modal, and
+ * because it owns the only mutating state in the file: nothing here re-renders
+ * when the clock ticks.
+ */
+function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefresh: () => void }) {
+  const { t } = useT()
+
+  const toast = useStore((s) => s.toast)
+  const setView = useStore((s) => s.setView)
+  const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
+  const applySnapshot = useStore((s) => s.applySnapshot)
+
+  const [extending, setExtending] = useState<number | null>(null)
+  const [calling, setCalling] = useState(false)
+  const [called, setCalled] = useState(false)
+
+  const { minutesBanked } = detail
+  const postpaid = detail.snapshot.billingMode === 'postpaid'
+
+  const steps = useMemo(
+    () => EXTEND_STEPS.filter((minutes) => minutes <= minutesBanked),
+    [minutesBanked],
+  )
+
+  const extend = useCallback(
+    async (minutes: number) => {
+      setExtending(minutes)
+      try {
+        // The response is a snapshot, so the deadline moves through the one write
+        // path the clock has (`applySnapshot`) — there is no counter to patch and
+        // no way for the grant to be lost or applied twice.
+        const next = await extendSession(minutes)
+        applySnapshot(next)
+        onRefresh()
+        toast('success', t('session.extendedToast', { n: minutes }))
+      } catch (error) {
+        toast('error', t(`errors.${toApiError(error).code}` as TKey))
+      } finally {
+        setExtending(null)
+      }
+    },
+    [applySnapshot, onRefresh, t, toast],
+  )
+
+  const call = useCallback(async () => {
+    setCalling(true)
+    try {
+      await callStaff({ category: 'other' })
+      setCalled(true)
+      toast('info', t('session.callAdminSent'))
+    } catch (error) {
+      toast('error', t(`errors.${toApiError(error).code}` as TKey))
+    } finally {
+      setCalling(false)
+    }
+  }, [t, toast])
+
+  const buyTime = useCallback(() => {
+    setSessionPanelOpen(false)
+    setView('shop')
+  }, [setSessionPanelOpen, setView])
+
+  return (
+    // `w-full`: the modal's footer is a `justify-end` row, and this is a column
+    // that has to span it.
+    <div className="flex w-full flex-col gap-3">
+      {postpaid ? (
+        // Nothing to extend *to*: a walk-in's clock counts up into the tab, so
+        // an "Extend" here would offer to buy time the seat never sold (F6.3).
+        <p className="text-pretty text-xs leading-relaxed text-text-medium">
+          {t('session.postpaidNoExtend')}
+        </p>
+      ) : steps.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="label-mono text-[9px] text-text-low">{t('session.extend')}</span>
+            <span className="font-display text-[11px] font-semibold tabular-nums text-text-medium">
+              {t('session.banked', { n: minutesBanked })}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {steps.map((minutes) => (
+              <Button
+                key={minutes}
+                variant="secondary"
+                size="sm"
+                loading={extending === minutes}
+                disabled={extending !== null}
+                onClick={() => void extend(minutes)}
+                iconLeft={<icons.add aria-hidden />}
+              >
+                {t('session.extendBy', { n: minutes })}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        // No banked minutes, so the honest button is the shop rather than an
+        // extend the endpoint would refuse.
+        <div className="flex flex-col gap-2">
+          <p className="text-pretty text-xs leading-relaxed text-text-medium">
+            {t('session.buyTimeHint')}
+          </p>
           <Button
-            variant="ghost"
+            variant="primary"
             size="sm"
-            voice="plain"
-            loading={calling}
-            // Already called: the button stays on screen and stops being an
-            // action. Hiding it would leave the player wondering whether the tap
-            // registered at all, and a second call collapses into the same open
-            // thread server-side anyway.
-            disabled={called || calling}
-            onClick={() => void call()}
-            iconLeft={<icons.support aria-hidden />}
+            onClick={buyTime}
+            iconLeft={<icons.shop aria-hidden />}
             className="self-start"
           >
-            {called ? t('session.callAdminAgain') : t('session.callAdmin')}
+            {t('session.buyTime')}
           </Button>
-          {called && (
-            // Announced, not just drawn: the player who pressed the button may
-            // not be looking at the row that changed.
-            <p role="status" className="text-xs leading-relaxed text-success">
-              {t('session.callAdminSent')}
-            </p>
-          )}
         </div>
-      </section>
+      )}
+
+      <div className="flex flex-col gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          voice="plain"
+          loading={calling}
+          // Already called: the button stays on screen and stops being an
+          // action. Hiding it would leave the player wondering whether the tap
+          // registered at all, and a second call collapses into the same open
+          // thread server-side anyway.
+          disabled={called || calling}
+          onClick={() => void call()}
+          iconLeft={<icons.support aria-hidden />}
+          className="self-start"
+        >
+          {called ? t('session.callAdminAgain') : t('session.callAdmin')}
+        </Button>
+        {called && (
+          // Announced, not just drawn: the player who pressed the button may
+          // not be looking at the row that changed.
+          <p role="status" className="text-xs leading-relaxed text-success">
+            {t('session.callAdminSent')}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
