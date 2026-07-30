@@ -361,6 +361,43 @@ export const lt: Dictionary = {
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
     warningLowTime: 'Liko mažiau nei {n} min. sesijos laiko.',
+
+    /* ---------------------------------------------------------------- *
+     * „Mano sesija“ — skydelis už HUD (C2.3)
+     * ---------------------------------------------------------------- */
+    mine: 'Mano sesija',
+    openMine: 'Sesijos informacija',
+    seat: 'Stotis',
+    startedAt: 'Pradžia',
+    playedSoFar: 'Jau žaista',
+    spending: 'Kas naudojama',
+    spendingPass:
+      'Minutės iš jau apmokėto paso. Kai jos pasibaigs, laikrodis tiesiog sustos — daugiau nieko nenuskaitysime.',
+    spendingWallet: 'Valandos nupirktos iš piniginės. Pratęsimas vėl nuskaitys pinigus.',
+    spendingStaff:
+      'Minutės, kurias administratorius skyrė šiai vietai. Už jas niekas nemoka, todėl pačios nepasipildys — užeikite prie baro, kol jos nepasibaigė.',
+    spendingPostpaid:
+      'Kiekviena minutė keliauja į atvirą sąskaitą ir apmokama prie baro išeinant.',
+    onTabNow: 'Sąskaitoje dabar',
+    history: 'Pridėtas laikas',
+    historyEmpty: 'Kol kas nieko nepridėta',
+    historyEmptyBody:
+      'Kiekvienas pratęsimas — jūsų ar administratoriaus — atsiras čia su minute, kada jis atėjo.',
+    historyExtend: 'Jūs pratęsėte',
+    historyStaff: 'Administratorius pridėjo laiko',
+    historyCorrection: 'Administratoriaus pataisa',
+    historyMinutes: '+{n} min',
+    historyMinutesNegative: '−{n} min',
+    banked: 'pase turite {n} min',
+    extendBy: '+{n} min',
+    extendedToast: 'Sesija pratęsta {n} min.',
+    buyTime: 'Pirkti laiko',
+    buyTimeHint: 'Pase minučių nėra. Laiko pasai — parduotuvėje.',
+    postpaidNoExtend:
+      'PostPaid vietos nėra ko pratęsti: žaiskite kiek norite ir apmokėkite sąskaitą prie baro.',
+    callAdmin: 'Kviesti administratorių',
+    callAdminSent: 'Administratorius pakviestas — jau eina prie jūsų.',
+    callAdminAgain: 'Administratorius jau gavo jūsų kvietimą.',
   },
 
   games: {

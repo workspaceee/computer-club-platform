@@ -13,6 +13,17 @@ export interface UiSlice {
   launchGameId: string | null
 
   /**
+   * The "My session" panel behind the HUD (C2.3).
+   *
+   * In `ui` rather than in `session` for the same reason `cartOpen` is: it is a
+   * fact about the screen, not about the visit. Nothing the panel shows is
+   * stored here either — the panel fetches `session/detail` when it opens, so
+   * this flag is the *only* state the shell has to keep, and a stale copy of the
+   * seat or the grant history cannot outlive the dialog that showed it.
+   */
+  sessionPanelOpen: boolean
+
+  /**
    * The title that currently holds the machine, or `null` (F8.4).
    *
    * It lives in `ui` rather than in `session` because it answers a question
@@ -31,6 +42,7 @@ export interface UiSlice {
   setView: (view: LauncherView) => void
   setCartOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
+  setSessionPanelOpen: (open: boolean) => void
   setLaunchGame: (id: string | null) => void
   /**
    * A title took the machine (`id`) or handed it back (`null`) — F8.4.
@@ -51,6 +63,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
   view: 'home',
   cartOpen: false,
   settingsOpen: false,
+  sessionPanelOpen: false,
   launchGameId: null,
   runningGameId: null,
 
@@ -64,13 +77,15 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
 
   setCartOpen: (open) => set({ cartOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setSessionPanelOpen: (open) => set({ sessionPanelOpen: open }),
   setLaunchGame: (id) => set({ launchGameId: id }),
   setRunningGame: (id) => set({ runningGameId: id }),
 
   // `runningGameId` deliberately survives here: locking the seat closes our
   // dialogs, it does not close the player's game. Clearing it would let the
   // launcher start talking over a match that is still up (F8.4).
-  closeOverlays: () => set({ cartOpen: false, settingsOpen: false, launchGameId: null }),
+  closeOverlays: () =>
+    set({ cartOpen: false, settingsOpen: false, sessionPanelOpen: false, launchGameId: null }),
 
   // `resetUi` is a *fresh visit*, and no title survives the end of one — so this
   // is the one path that must clear it, or the next player would inherit a
@@ -80,6 +95,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
       view: 'home',
       cartOpen: false,
       settingsOpen: false,
+      sessionPanelOpen: false,
       launchGameId: null,
       runningGameId: null,
     }),
