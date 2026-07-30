@@ -348,7 +348,7 @@ export const lt: Dictionary = {
     endSession: 'Baigti sesiją',
     endSessionConfirm: 'Baigti sesiją ir atsijungti nuo šios stoties?',
     extend: 'Pratęsti sesiją',
-    addTime: 'Prid��ti laiko',
+    addTime: 'Pridėti laiko',
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',

@@ -406,7 +406,7 @@ export function DateField({
   const rows = weeksIn(cursor.y, cursor.m)
   const lead = firstWeekday(cursor.y, cursor.m)
 
-  /** 5 or 6 weeks of ISO days, neighbours included �� a calendar has no holes. */
+  /** 5 or 6 weeks of ISO days, neighbours included — a calendar has no holes. */
   const grid = useMemo(() => {
     const start = new Date(Date.UTC(cursor.y, cursor.m - 1, 1 - lead))
     return Array.from({ length: rows * 7 }, (_, i) => {
