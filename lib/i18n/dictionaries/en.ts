@@ -81,6 +81,16 @@ export const en = {
     mainLandmark: 'Section content',
     skipToContent: 'Skip to content',
     accountMenu: 'Account menu, {name}',
+    /**
+     * The avatar trigger's name, with the level in it (C2.4).
+     *
+     * The chip on the avatar is a *badge* — decorative by definition — so the
+     * number has to reach a screen reader through the button's own name or not
+     * at all. Level is not a second HUD reading and gets no plate of its own:
+     * it changes a few times a season, and a capsule in the bar competes with
+     * the two numbers that change every minute.
+     */
+    accountMenuLevel: 'Account menu, {name}, level {level}',
     openSection: 'Open {section}',
     pendingTitle: 'This section is not live yet',
     pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',
@@ -641,6 +651,34 @@ export const en = {
     reportIssue: 'Report an issue',
     issueSent: 'Thanks! Your report has been sent to the admin.',
     describeIssue: 'Describe the issue',
+  },
+
+  /**
+   * The bell in the top bar and the panel behind it (C2.4).
+   *
+   * Its own namespace rather than a corner of `help`: an inbox is what the club
+   * says to the player, help is what the player says to the club, and C2.5 grows
+   * this one with grouping and per-card actions.
+   */
+  inbox: {
+    title: 'Notifications',
+    /**
+     * The trigger's accessible name, in two shapes. The count is the whole
+     * reason to open the panel, so it belongs *in* the name rather than in a
+     * coloured dot beside it — a badge nobody can read announces nothing.
+     */
+    openNone: 'Notifications, nothing new',
+    // plural: one | other
+    openUnread: 'Notifications, {n} unread message|Notifications, {n} unread messages',
+    unreadCount: '{n} unread',
+    /** Printed in the badge once the count no longer fits two digits. */
+    overflow: '9+',
+    markAllRead: 'Mark all as read',
+    markedAllToast: 'Everything marked as read.',
+    allRead: 'All caught up',
+    unread: 'Unread',
+    empty: 'Nothing here yet',
+    emptyBody: 'Club news, order updates and time warnings arrive here.',
   },
 
   booking: {

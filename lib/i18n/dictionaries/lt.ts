@@ -72,6 +72,7 @@ export const lt: Dictionary = {
     mainLandmark: 'Skyriaus turinys',
     skipToContent: 'Pereiti prie turinio',
     accountMenu: 'Profilio meniu, {name}',
+    accountMenuLevel: 'Profilio meniu, {name}, {level} lygis',
     openSection: 'Atidaryti „{section}“',
     pendingTitle: 'Šis skyrius dar neparuoštas',
     pendingBody: 'Jis atsiras su 1 etapo darbu {task}. Geriau tuščia nei išgalvoti skaičiai.',
@@ -536,6 +537,20 @@ export const lt: Dictionary = {
     describeIssue: 'Aprašykite problemą',
   },
 
+  inbox: {
+    title: 'Pranešimai',
+    openNone: 'Pranešimai, nieko naujo',
+    openUnread: 'Pranešimai, {n} nepraskaityta žinutė|Pranešimai, {n} nepraskaitytų žinučių',
+    unreadCount: '{n} nepraskaityta',
+    overflow: '9+',
+    markAllRead: 'Pažymėti visus kaip perskaitytus',
+    markedAllToast: 'Visi pažymėti kaip perskaityti.',
+    allRead: 'Jūs pasikeitę',
+    unread: 'Nepraskaityta',
+    empty: 'Čia nieko nėra',
+    emptyBody: 'Klubo naujienos, užsakymų atnaujinimai ir laiko įspėjimai atsiranda čia.',
+  },
+
   booking: {
     title: 'Rezervacija',
     selectZone: 'Zona',
@@ -707,7 +722,7 @@ export const lt: Dictionary = {
     agentUnavailable: 'Šiame kompiuteryje nėra stoties agento',
     unsupported: 'Šis kompiuteris to negali',
     agentTimeout: 'Stoties agentas neatsakė',
-    gameNotInstalled: 'Šis žaidimas čia neįdiegtas',
+    gameNotInstalled: 'Šis žaidimas čia ne��diegtas',
     gameAlreadyRunning: 'Žaidimas jau paleistas',
     gameNotRunning: 'Šis žaidimas nepaleistas',
     launcherFailed: 'Žaidimo paleidyklė nepasileido',
