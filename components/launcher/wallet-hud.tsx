@@ -10,6 +10,7 @@ import { formatCoins, formatEur, sumCents } from '@/lib/money'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchWallet } from '@/lib/mock/api'
 import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 /**
  * The money half of the right-hand block (C2.4).
@@ -85,35 +86,99 @@ function MemberWalletPlates() {
   return (
     <>
       {wallet.data ? (
-        // A button for the same reason the time plate is one: `HudPlate` is a
-        // `div`, and the wallet section behind it is where a low balance gets
-        // fixed. The name carries the amount, because `aria-label` replaces the
-        // subtree it wraps — without it the balance would be drawn and unspoken.
-        <button
-          type="button"
+        <PlateButton
           onClick={() => setView('wallet')}
-          aria-label={t('wallet.openWallet', { amount: formatEur(wallet.data.moneyCents) })}
-          className="hidden rounded-md transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 md:block"
+          label={t('wallet.openWallet', { amount: formatEur(wallet.data.moneyCents) })}
+          className="hidden md:block"
         >
           <HudPlate
             icon={<icons.wallet size={14} />}
             label={t('wallet.balance')}
             value={<Money value={wallet.data.moneyCents} fromCents size="sm" />}
           />
-        </button>
+        </PlateButton>
+      ) : wallet.error ? (
+        // A failed read used to render *nothing*, which is the one outcome the
+        // bar must not have: the row silently closed up and the player was left
+        // with a launcher that looked like it had no wallet at all, two
+        // centimetres from a basket they were about to pay from. The plate stays,
+        // states that it does not know, and its press retries the read instead of
+        // navigating — the section behind it would only show the same failure.
+        <PlateButton
+          onClick={() => void wallet.mutate()}
+          label={t('wallet.balanceUnknown')}
+          className="hidden md:block"
+        >
+          <HudPlate
+            icon={<icons.wallet size={14} />}
+            label={t('wallet.balance')}
+            // An em dash rather than €0.00: the balance is unknown, and a zero
+            // here is a number the club never sent.
+            value={<span aria-hidden>—</span>}
+          />
+        </PlateButton>
       ) : (
         // Same footprint as the plate it stands in for, so the bar does not
         // reflow around the avatar when the balance arrives. `Skeleton` is
         // `aria-hidden` by construction: a loading balance has nothing to say.
-        !wallet.error && <Skeleton radius="md" className="hidden h-[42px] w-24 md:block" />
+        <Skeleton radius="md" className="hidden h-[42px] w-24 md:block" />
       )}
 
-      <HudPlate
-        tone="coin"
-        icon={<icons.coins size={14} />}
-        label={t('wallet.coinBalance')}
-        value={formatCoins(coins)}
-      />
+      {/* Coins are the second pocket of the same wallet, so the plate is a button
+          on the same terms as the balance beside it. It was a bare `HudPlate`
+          until now, which made the pair inconsistent in the way that matters
+          least visually and most for use: two readings side by side, one of them
+          keyboard-reachable and named, the other a decorative `div` a player
+          could see and never open. */}
+      <PlateButton
+        onClick={() => setView('wallet')}
+        label={t('wallet.openCoins', { amount: formatCoins(coins) })}
+      >
+        <HudPlate
+          tone="coin"
+          icon={<icons.coins size={14} />}
+          label={t('wallet.coinBalance')}
+          value={formatCoins(coins)}
+        />
+      </PlateButton>
     </>
+  )
+}
+
+/**
+ * A plate that can be pressed (C2.4).
+ *
+ * `HudPlate` is a `div` by design — it is a reading, not a control — so every
+ * plate in the bar that leads somewhere wraps itself in a button. That wrapper
+ * had been typed out twice here with the same six classes, which is how the coin
+ * plate ended up with none of them.
+ *
+ * The name is `aria-label` on the button and the plate inside is left in the
+ * tree: the label replaces the subtree it wraps, so the amount has to travel in
+ * the name or it is drawn and never spoken.
+ */
+function PlateButton({
+  label,
+  onClick,
+  className,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        'rounded-md transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
+        className,
+      )}
+    >
+      {children}
+    </button>
   )
 }

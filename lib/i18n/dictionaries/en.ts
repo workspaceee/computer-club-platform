@@ -582,6 +582,18 @@ export const en = {
     /** The balance plate's name in the bar, amount included (C2.4). */
     openWallet: 'Wallet, balance {amount}',
     coinBalance: 'IMBA coins',
+    /**
+     * The coin plate's name in the bar (C2.4). Coins and euros are two pockets of
+     * one wallet, so both plates open the same section and both carry their
+     * reading in the name.
+     */
+    openCoins: 'Wallet, {amount} IMBA coins',
+    /**
+     * Printed in the balance plate when the read failed (C2.4). The plate stays
+     * in the row rather than vanishing: a missing plate reads as "no balance",
+     * which is a different and wrong statement.
+     */
+    balanceUnknown: 'Balance unavailable, tap to retry',
     topUp: 'Top up',
     history: 'History',
     deposit: 'Deposit',
@@ -681,6 +693,11 @@ export const en = {
     openNone: 'Notifications, nothing new',
     // plural: one | other
     openUnread: 'Notifications, {n} unread message|Notifications, {n} unread messages',
+    /**
+     * The panel's subtitle. Deliberately shorter than the trigger's name: it sits
+     * on one line beside "Mark all as read" in a 22 rem popover, and the noun it
+     * would repeat is already the panel's own title.
+     */
     unreadCount: '{n} unread',
     /** Printed in the badge once the count no longer fits two digits. */
     overflow: '9+',
