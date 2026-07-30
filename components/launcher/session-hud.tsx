@@ -27,31 +27,28 @@ const SOURCE_LABEL: Record<TimeSource, TKey> = {
 }
 
 /**
- * The right-hand readings of the top bar (C2.1): what is left of the seat, and
- * what the visit is worth so far.
+ * The seat reading of the top bar (C2.1): what is left of the visit, and which
+ * pocket it is coming out of.
  *
- * Two plates, and which second one you get is the whole difference between the
- * surfaces: a member sees a coin balance, a walk-in sees the open tab. A guest
- * never earns coins, so a zero coin balance on that surface would be a lie
- * (F6.2), and a member has no tab to run.
+ * One plate. The money readings beside it — balance, coins, open tab — moved to
+ * `WalletHud` when C2.4 added the euro balance: they change when *money* moves,
+ * this one changes every second, and keeping them in one component made the
+ * whole block re-render on the tick.
  *
- * The time plate reads the *billing mode*, not the surface. That distinction is
- * the one the top bar used to get wrong by proxy: it asked "is this the guest
- * skin?" to decide whether the clock counts down, when the answer belongs to the
- * visit — a postpaid seat is postpaid whoever is sitting on it (F6.3).
+ * The plate reads the *billing mode*, not the surface. That distinction is the
+ * one the top bar used to get wrong by proxy: it asked "is this the guest skin?"
+ * to decide whether the clock counts down, when the answer belongs to the visit —
+ * a postpaid seat is postpaid whoever is sitting on it (F6.3).
  */
-export function SessionHud({ surface }: { surface: LauncherSurface }) {
+export function SessionHud() {
   const { t } = useT()
 
   const seconds = useStore((s) => s.sessionSeconds)
   const billingMode = useStore((s) => s.billingMode)
   const timeSource = useStore((s) => s.timeSource)
-  const coins = useStore((s) => s.coins)
-  const cart = useStore((s) => s.cart)
   const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
 
-  const isGuest = surface === 'guest'
-  // Postpaid: `seconds` is time *used*, and it climbs into the tab below.
+  // Postpaid: `seconds` is time *used*, and it climbs into the open tab.
   const countsUp = billingMode === 'postpaid'
 
   // Thresholds come from the countdown primitive (F1.17) instead of a second
@@ -74,7 +71,7 @@ export function SessionHud({ surface }: { surface: LauncherSurface }) {
 
   return (
     <>
-      {/* The time plate is the door to "My session" (C2.3).
+      {/* The plate is the door to "My session" (C2.3).
           A `button` wrapping the plate rather than an `onClick` on the plate
           itself: `HudPlate` is a `div`, and a clickable div is unreachable by
           keyboard and unannounced as an action. The plate keeps its own border
@@ -126,21 +123,6 @@ export function SessionHud({ surface }: { surface: LauncherSurface }) {
           }
         />
       </button>
-
-      {isGuest ? (
-        <HudPlate
-          icon={<icons.bill size={14} />}
-          label={t('guest.tab')}
-          value={<Money value={tabTotal} fromCents size="sm" />}
-        />
-      ) : (
-        <HudPlate
-          tone="coin"
-          icon={<icons.coins size={14} />}
-          label={t('wallet.coinBalance')}
-          value={formatCoins(coins)}
-        />
-      )}
     </>
   )
 }
