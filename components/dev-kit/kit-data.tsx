@@ -21,6 +21,20 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { Toggle } from '@/components/ui/toggle'
 import { useStore } from '@/lib/store'
 
+/**
+ * Stand-in sections for the rail demo.
+ *
+ * Deliberately *not* imported from `lib/launcher-nav`: the kit demonstrates the
+ * primitive, and wiring it to the real table would make this page render whatever
+ * the launcher's navigation happens to be — and break when a section is renamed.
+ */
+const RAIL_ITEMS: NavRailItem<'home' | 'games' | 'shop' | 'profile'>[] = [
+  { id: 'home', label: 'Home', index: '01', icon: icons.home },
+  { id: 'games', label: 'Games', index: '02', icon: icons.games },
+  { id: 'shop', label: 'Shop', index: '03', icon: icons.shop },
+  { id: 'profile', label: 'Profile', index: '04', icon: icons.player },
+]
+
 /** Form controls, data display and loyalty primitives (F1.5–F1.7, F1.11, F1.12, F1.17–F1.20, F1.23). */
 export function KitData() {
   const [text, setText] = useState('')
@@ -29,6 +43,7 @@ export function KitData() {
   const [volume, setVolume] = useState(70)
   const [reduce, setReduce] = useState(false)
   const [res, setRes] = useState('1920x1080')
+  const [rail, setRail] = useState<(typeof RAIL_ITEMS)[number]['id']>('games')
   const toast = useStore((s) => s.toast)
 
   return (
