@@ -675,6 +675,10 @@ const sessions: Session[] = [
     // unlock adopts server truth, so the launcher opened a *counting-up* tab for
     // the same visit whose paused card had just stated "01:24 left".
     billingMode: 'prepaid',
+    // The remainder is being drawn from the banked pass `pp-1` below, so the HUD
+    // says "TIME LEFT · PASS": nothing more will be charged when it runs out,
+    // there are simply no more minutes (C2.2).
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-96),
     endedAt: null,
@@ -691,6 +695,7 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-01',
     billingMode: 'prepaid',
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-210),
     endedAt: null,
@@ -706,6 +711,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-09',
     billingMode: 'postpaid',
+    // A postpaid seat has no granted minutes to have a pocket: the clock runs up
+    // into the open tab, which is what the source has to say out loud.
+    timeSource: 'postpaid',
     state: 'paused',
     startedAt: atMinutes(-60),
     endedAt: null,
@@ -721,6 +729,10 @@ const sessions: Session[] = [
     guestId: 'guest-1',
     machineId: 'pc-20',
     billingMode: 'prepaid',
+    // A walk-in with granted, counting-down time is the one shape that can only
+    // have come from the counter: the admin issued an hour on this seat (MVP S9),
+    // and a guest owns neither a pass nor a wallet to have paid for it.
+    timeSource: 'staff',
     state: 'active',
     startedAt: atMinutes(-35),
     endedAt: null,
@@ -736,6 +748,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-14',
     billingMode: 'prepaid',
+    // Yesterday's five hours were paid straight off the wallet, so the history
+    // row keeps a source the receipt of C2.3 can state.
+    timeSource: 'wallet',
     state: 'ended',
     startedAt: atDays(-1),
     endedAt: atHours(-19),
