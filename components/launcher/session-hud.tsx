@@ -2,13 +2,10 @@
 
 import { Countdown, countdownLevel } from '@/components/ui/countdown'
 import { HudPlate } from '@/components/ui/hud-plate'
-import { Money } from '@/components/ui/money'
 import { icons } from '@/lib/icons'
-import { formatCoins, sumCents } from '@/lib/money'
-import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import type { LauncherSurface } from '@/lib/launcher-nav'
 import type { TimeSource } from '@/lib/types/session'
 
 /**
@@ -56,12 +53,6 @@ export function SessionHud() {
   // no threshold to cross, so the plate stays neutral and the digits keep still.
   const level = countsUp ? 'neutral' : countdownLevel(seconds)
   const timeTone = level === 'warning' ? 'warning' : level === 'neutral' ? 'default' : 'danger'
-
-  // What the walk-in owes so far: the bar order **plus** the time on the seat.
-  // The counter bills used time by the minute, so leaving that term out would
-  // show a tab that quietly understates the bill (F6.3). Both terms are cents,
-  // so this is a plain sum — no float round-trip (F7.2).
-  const tabTotal = sumCents(cartTotalCents(cart), timeChargeCents(seconds))
 
   // The source rides *in* the time plate rather than on a plate of its own: it is
   // not a second reading, it is what the first one means. A fourth capsule in the
