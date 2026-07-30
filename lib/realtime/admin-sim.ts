@@ -66,6 +66,7 @@ function snapshot(session: Session): SessionSnapshot {
     sessionId: session.id,
     state: session.state,
     billingMode: session.billingMode,
+    timeSource: session.timeSource,
     machineId: session.machineId,
     expiresAt:
       session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
@@ -111,6 +112,26 @@ export function grantTime(
   session.secondsGranted += Math.round(minutes) * 60
   // A grant on a paused seat resumes it: staff just paid for more play.
   if (session.state === 'paused') session.state = 'active'
+
+  /**
+   * The grant rewrites the pocket, and only a *staff* grant does (C2.2).
+   *
+   * The reason is what the label promises when the clock next goes amber. Minutes
+   * an admin put on the seat as a favour or a compensation will not renew
+   * themselves — nobody's wallet or pass is behind them — so "TIME LEFT · FROM
+   * ADMIN" is a warning to go and ask, while `pass` and `wallet` tell the player
+   * they can extend on their own. The other reasons keep their own truth: a
+   * purchase or a redeemed pass came out of the member's pocket even when the
+   * counter is what typed it in, and calling that "from admin" would send a
+   * player who paid for their hours to the desk to beg for more.
+   *
+   * A postpaid seat is left alone entirely. A tab that starts naming a pocket has
+   * stopped being a tab, and the granted minutes there are the club's decision to
+   * stop billing this guest by the minute — that is `C2.7`'s story, not a label.
+   */
+  if (reason === 'staff' && session.billingMode !== 'postpaid') {
+    session.timeSource = 'staff'
+  }
 
   ledger({
     userId: db.currentUserId,

@@ -8,6 +8,29 @@ export type BillingMode = 'prepaid' | 'postpaid'
 
 export type SessionState = 'active' | 'paused' | 'ended'
 
+/**
+ * `sessions.time_source` — **where the minutes currently on the clock came
+ * from** (C2.2, MVP §3.2 / S2).
+ *
+ * The HUD has to name it, and the reason is money rather than decoration: the
+ * same `01:23` means four different things to the player at the keyboard, and
+ * three of them change what they should do when it runs low. Minutes from a
+ * banked pass are already paid for; minutes bought off the wallet will keep
+ * spending euros; minutes an admin put on the seat are a favour that will not
+ * renew itself; and a postpaid seat is not counting *down* at all.
+ *
+ * It is deliberately **not** the same axis as `billingMode`. `postpaid` appears
+ * here because on that model there is no granted time to have a source — the
+ * clock runs up into the open tab — but the other three are all prepaid, and a
+ * client that inferred "pass" from `billingMode === 'prepaid'` would be
+ * guessing at the one fact the counter and the admin actually decide.
+ *
+ * Server-owned, like every other number about time (F3.7): the client displays
+ * whatever arrives in the snapshot and never derives it from balances it
+ * happens to be holding.
+ */
+export type TimeSource = 'pass' | 'wallet' | 'staff' | 'postpaid'
+
 /** Who closed the session — used by the receipt and the audit log. */
 export type SessionClosedBy = 'user' | 'staff' | 'system' | 'timeout'
 
@@ -18,6 +41,8 @@ export interface Session {
   guestId: ID | null
   machineId: ID
   billingMode: BillingMode
+  /** Where the minutes on this row came from. Rewritten by whatever adds time. */
+  timeSource: TimeSource
   state: SessionState
   startedAt: ISODateTime
   endedAt: ISODateTime | null
@@ -40,6 +65,14 @@ export interface SessionSnapshot {
   sessionId: ID
   state: SessionState
   billingMode: BillingMode
+  /**
+   * Which pocket the running minutes come out of (C2.2). Travels with the
+   * snapshot rather than being fetched separately, so a grant that changes the
+   * source (`time.added` from the admin) changes the label in the same frame it
+   * changes the deadline — the HUD cannot end up naming the previous source
+   * above the new remainder.
+   */
+  timeSource: TimeSource
   machineId: ID
   /** `null` while paused — there is no deadline until the session resumes. */
   expiresAt: ISODateTime | null

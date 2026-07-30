@@ -15,6 +15,7 @@ import {
   db,
   getLiveSession,
   getMachine,
+  getMinutesBanked,
   getOpenTab,
   getSession,
   getZone,
@@ -29,6 +30,7 @@ import type {
   Session,
   SessionSnapshot,
   SessionWarning,
+  TimeSource,
   TransferRequest,
 } from '@/lib/types/session'
 import type { Tab } from '@/lib/types/tab'
@@ -70,6 +72,7 @@ function snapshot(session: Session): SessionSnapshot {
     sessionId: session.id,
     state: session.state,
     billingMode: session.billingMode,
+    timeSource: session.timeSource,
     machineId: session.machineId,
     expiresAt:
       session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
@@ -177,6 +180,32 @@ export function resumeSession(sessionId: ID = db.currentSessionId): Promise<Sess
  */
 const DEFAULT_PREPAID_MINUTES: Minutes = 120
 
+/**
+ * Which pocket a *new* visit's minutes come out of (C2.2).
+ *
+ * Decided **here**, on the server side of the mock, and that is the whole point:
+ * the client is holding a coin balance and a wallet balance of its own, so a
+ * client-side guess would be a second opinion about the one fact the counter
+ * decides — and it would be wrong on exactly the interesting seat. The rules are
+ * the three shapes a visit can open in:
+ *
+ *  - **postpaid** — nothing was granted, so there is no pocket; the clock runs up
+ *    into the tab and the source says so.
+ *  - **member with banked pass minutes** — the seat draws them down (`pass`).
+ *    Running out costs nothing more; it just stops.
+ *  - **member without any** — the hours were sold against the wallet (`wallet`),
+ *    so "extend" will spend euros again and the label has to warn of it.
+ *
+ * A prepaid *guest* is not reachable through this door — `lib/seat.ts` opens every
+ * walk-in postpaid — so the `staff` source is written by the grant that creates
+ * it (`grantTime` in `lib/realtime/admin-sim.ts`, the admin's endpoint), never
+ * inferred from an absent account.
+ */
+function openingTimeSource(mode: BillingMode, userId: ID | null): TimeSource {
+  if (mode === 'postpaid') return 'postpaid'
+  return userId && getMinutesBanked(userId) > 0 ? 'pass' : 'wallet'
+}
+
 export interface OpenSessionInput {
   /** Member visit. Exactly one of `userId` / `guestId`, like `Session`. */
   userId?: ID | null
@@ -274,6 +303,7 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
       guestId,
       machineId,
       billingMode: input.billingMode,
+      timeSource: openingTimeSource(input.billingMode, userId),
       state: 'active',
       startedAt: db.now,
       endedAt: null,
@@ -482,6 +512,11 @@ export function extendSession(
     }
 
     session.secondsGranted += minutes * 60
+    // The minutes just burned came out of a banked pass, so the pocket the HUD
+    // names follows them: a wallet-funded seat that is extended from a pass is a
+    // pass seat from here on, and the *newest* grant is the one whose exhaustion
+    // the player is counting down to.
+    session.timeSource = 'pass'
     if (session.state === 'paused') session.state = 'active'
 
     db.transactions.push({
