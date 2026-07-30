@@ -146,7 +146,16 @@ export function NavRail<T extends string>({
             ) : (
               <>
                 {index && (
-                  <span className="label-mono text-[9px] text-primary/70 tabular-nums">
+                  // The number is dropped below `xl` so the bar's right-hand
+                  // readings fit (C2.4): six of them cost ~150 px, which is the
+                  // difference between a bar that fits at 1216 px and one that
+                  // overflows. It is the right thing to lose — the word beside it
+                  // still names the section, and the *shortcut* the number
+                  // documents keeps working either way, because it is announced
+                  // through `aria-keyshortcuts` on the button and bound in
+                  // `use-nav-shortcuts`, neither of which depends on this span
+                  // being painted.
+                  <span className="label-mono hidden text-[9px] text-primary/70 tabular-nums xl:inline">
                     {index}
                   </span>
                 )}
