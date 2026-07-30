@@ -35,7 +35,7 @@ import {
   secondsToMinutes,
 } from '@/lib/time'
 import type { ISODateTime, Seconds } from '@/lib/types/common'
-import type { BillingMode, SessionSnapshot } from '@/lib/types/session'
+import type { BillingMode, SessionSnapshot, TimeSource } from '@/lib/types/session'
 import type { SliceCreator } from '../types'
 
 /** Length of a prepaid session sold at the counter. */
@@ -61,6 +61,17 @@ export function timeChargeCents(secondsUsed: Seconds): number {
 
 export interface SessionSlice {
   billingMode: BillingMode
+  /**
+   * Which pocket the minutes on the clock came out of (C2.2).
+   *
+   * Server-owned like the clock itself: it arrives in the snapshot and is
+   * *replaced* whenever one does, because whatever adds time also decides where
+   * the new time came from. An admin grant is the case that makes this a stored
+   * field rather than something derived — the seat keeps its billing mode and its
+   * deadline moves, so nothing else in this slice records that the extra minutes
+   * were a favour rather than a purchase.
+   */
+  timeSource: TimeSource
   /** Absolute deadline for prepaid time. `null` while paused — and always for postpaid. */
   expiresAt: ISODateTime | null
   /** Start of the current running span. Used by postpaid, `null` while paused. */
@@ -77,8 +88,16 @@ export interface SessionSlice {
   /** Derived cache written by `syncClock()`. Never decremented by hand. */
   sessionSeconds: Seconds
 
-  /** Fresh visit on the given billing model. */
-  startSession: (mode: BillingMode) => void
+  /**
+   * Fresh visit on the given billing model.
+   *
+   * `source` is optional because this is the *offline* opening path: when the
+   * mock API answered, `applySnapshot` has already named the pocket, and only a
+   * visit opened without server truth has to guess. The guess is deliberately the
+   * expensive one (`wallet`) — telling a player their minutes are banked pass
+   * time when they may be spending euros is the error that costs them money.
+   */
+  startSession: (mode: BillingMode, source?: TimeSource) => void
   /** Lock PC — the visit survives, the clock does not run. */
   pauseSession: () => void
   /** Unlock — re-anchor and resume, unless prepaid time is already spent. */
@@ -191,6 +210,7 @@ function anchor(mode: BillingMode, banked: Seconds) {
 
 export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   billingMode: 'prepaid',
+  timeSource: 'wallet',
   expiresAt: null,
   runningSince: null,
   serverTime: null,
@@ -199,12 +219,15 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   sessionExpired: false,
   sessionSeconds: SESSION_LENGTH,
 
-  startSession: (mode) => {
+  startSession: (mode, source) => {
     // A prepaid visit opens with the hours it bought; a postpaid one opens at
     // zero used, because nothing has been owed yet.
     const banked = mode === 'prepaid' ? SESSION_LENGTH : 0
     set({
       billingMode: mode,
+      // Postpaid has no granted time to have a source, so the mode *is* the
+      // answer and a caller cannot override it into a lie.
+      timeSource: mode === 'postpaid' ? 'postpaid' : (source ?? 'wallet'),
       bankedSeconds: banked,
       sessionSeconds: banked,
       timerRunning: true,
@@ -240,6 +263,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   resetSession: () =>
     set({
       billingMode: 'prepaid',
+      // The teardown path: a free station must not keep naming the pocket the
+      // player who just left was spending from, least of all an admin grant that
+      // belonged to their visit alone.
+      timeSource: 'wallet',
       bankedSeconds: SESSION_LENGTH,
       sessionSeconds: SESSION_LENGTH,
       timerRunning: false,
@@ -284,6 +311,11 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     markSnapshotObserved(snapshot.serverTime)
     set({
       billingMode: snapshot.billingMode,
+      // Written in the same `set` as the deadline it describes. A grant arrives as
+      // one snapshot — more minutes *and* a new pocket — so splitting the two
+      // writes would let the HUD render a frame naming the old source above the
+      // new remainder, which is the one combination that misinforms the player.
+      timeSource: snapshot.timeSource,
       expiresAt: running && !postpaid ? snapshot.expiresAt : null,
       // The postpaid anchor is stamped on the **client** clock, not copied from
       // `serverTime`. `derive` counts a running tab up with `secondsSince()`,

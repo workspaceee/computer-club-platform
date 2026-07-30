@@ -118,8 +118,8 @@ export function grantTime(
    *
    * The reason is what the label promises when the clock next goes amber. Minutes
    * an admin put on the seat as a favour or a compensation will not renew
-   * themselves — nobody's wallet or pass is behind them — so "TIME LEFT · FROM
-   * ADMIN" is a warning to go and ask, while `pass` and `wallet` tell the player
+   * themselves — nobody's wallet or pass is behind them — so "TIME LEFT ·
+   * GRANTED" is a warning to go and ask, while `pass` and `wallet` tell the player
    * they can extend on their own. The other reasons keep their own truth: a
    * purchase or a redeemed pass came out of the member's pocket even when the
    * counter is what typed it in, and calling that "from admin" would send a

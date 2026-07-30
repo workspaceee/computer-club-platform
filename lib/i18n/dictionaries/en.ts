@@ -414,6 +414,22 @@ export const en = {
     title: 'Session',
     timeLeft: 'Time left',
     sessionTime: 'Session time',
+    /**
+     * Where the minutes on the clock came from (C2.2).
+     *
+     * One word each, because they ride in the top bar's micro-label next to the
+     * digits — and because the player only needs the *difference*: pass minutes
+     * are already paid for, wallet minutes keep spending money, granted minutes
+     * were a favour that will not renew, and a PostPaid seat is not counting down
+     * at all. `sourceStaff` says "Granted" rather than "Admin": what matters is
+     * that the time was given, not which key opened the drawer.
+     */
+    sourcePass: 'Pass',
+    sourceWallet: 'Wallet',
+    sourceStaff: 'Granted',
+    sourcePostpaid: 'PostPaid',
+    /** Screen-reader phrasing — the visual plate says it with layout instead. */
+    timeSource: 'Time source: {source}',
     timeBalance: 'Time balance',
     running: 'Running',
     paused: 'Paused',

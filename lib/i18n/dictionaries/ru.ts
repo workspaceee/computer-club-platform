@@ -334,6 +334,11 @@ export const ru: Dictionary = {
     title: 'Сессия',
     timeLeft: 'Осталось',
     sessionTime: 'Время сессии',
+    sourcePass: 'Пасс',
+    sourceWallet: 'Кошелёк',
+    sourceStaff: 'Выдано',
+    sourcePostpaid: 'PostPaid',
+    timeSource: 'Источник времени: {source}',
     timeBalance: 'Баланс времени',
     running: 'Идёт',
     paused: 'Пауза',
@@ -410,7 +415,7 @@ export const ru: Dictionary = {
   wallet: {
     title: 'Кошелёк',
     balance: 'Баланс',
-    coinBalance: 'IMBA-коины',
+    coinBalance: 'IMBA-ко��ны',
     topUp: 'Пополнить',
     history: 'История',
     deposit: 'Пополнение',
@@ -536,7 +541,7 @@ export const ru: Dictionary = {
     languageHint: 'Применяется к станции сразу и сохраняется в профиле.',
     languageHintGuest: 'Действует до конца сеанса. У гостя нет профиля, чтобы сохранить выбор.',
     languageSaved: 'Язык интерфейса сохранён в профиле.',
-    languageSaveFailed: 'Язык сменился для этого сеанса, но сохранить его в профиль не удалось.',
+    languageSaveFailed: 'Язык сменился для этого сеанс��, но сохранить его в профиль не удалось.',
   },
 
   guest: {

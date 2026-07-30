@@ -410,6 +410,40 @@ export function KitData() {
           />
           <HudPlate label="No icon" labelAt="always" value="—" />
         </Row>
+        {/* C2.2. The four sources in one row, because their whole job is to be
+            told apart — and reaching them in the launcher means four different
+            session states (a banked pass, a wallet purchase, an admin grant, a
+            walk-in tab), which is exactly what a kit page is for. Labels are
+            written out rather than translated: the kit is dev-only, and reading
+            `t('session.sourceStaff')` here would only prove the dictionary
+            resolves, not that the four read differently at a glance. */}
+        <Row label="time source (C2.2) — pass / wallet / granted by admin / PostPaid">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left · Pass"
+            labelAt="always"
+            value={<Countdown seconds={84 * 60} size="sm" />}
+          />
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left · Wallet"
+            labelAt="always"
+            value={<Countdown seconds={38 * 60} size="sm" />}
+          />
+          <HudPlate
+            tone="warning"
+            icon={<icons.timer size={14} />}
+            label="Time left · Granted"
+            labelAt="always"
+            value={<Countdown seconds={11 * 60} size="sm" />}
+          />
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Session time · PostPaid"
+            labelAt="always"
+            value={<Countdown seconds={47 * 60} size="sm" mode="elapsed" />}
+          />
+        </Row>
       </Spec>
 
       <Spec
