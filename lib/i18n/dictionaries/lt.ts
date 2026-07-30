@@ -537,6 +537,20 @@ export const lt: Dictionary = {
     describeIssue: 'Aprašykite problemą',
   },
 
+  inbox: {
+    title: 'Pranešimai',
+    openNone: 'Pranešimai, nieko naujo',
+    openUnread: 'Pranešimai, {n} nepraskaityta žinutė|Pranešimai, {n} nepraskaitytų žinučių',
+    unreadCount: '{n} nepraskaityta',
+    overflow: '9+',
+    markAllRead: 'Pažymėti visus kaip perskaitytus',
+    markedAllToast: 'Visi pažymėti kaip perskaityti.',
+    allRead: 'Jūs pasikeitę',
+    unread: 'Nepraskaityta',
+    empty: 'Čia nieko nėra',
+    emptyBody: 'Klubo naujienos, užsakymų atnaujinimai ir laiko įspėjimai atsiranda čia.',
+  },
+
   booking: {
     title: 'Rezervacija',
     selectZone: 'Zona',
