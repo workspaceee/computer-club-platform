@@ -449,11 +449,15 @@ export const lt: Dictionary = {
     catGear: 'Įranga',
     sectionEmpty: 'Šiame skyriuje nieko nėra',
     sectionEmptyBody: 'Klubas pildo atsargas. Pabandykite kitą skirtuką arba paklauskite prie baro.',
+    openCartEmpty: 'Krepšelis tuščias',
+    // plural: one | few | other
+    openCart: 'Krepšelis, {n} prekė|Krepšelis, {n} prekės|Krepšelis, {n} prekių',
   },
 
   wallet: {
     title: 'Piniginė',
     balance: 'Balansas',
+    openWallet: 'Piniginė, balansas {amount}',
     coinBalance: 'IMBA monetos',
     topUp: 'Papildyti',
     history: 'Istorija',

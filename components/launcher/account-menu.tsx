@@ -97,7 +97,14 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
-          aria-label={t('nav.accountMenu', { name: displayName })}
+          // The level joins the name when there is one (C2.4). It has to arrive
+          // this way or not at all: the chip below is a badge, and a badge is
+          // decoration by definition — a screen reader would never read it.
+          aria-label={
+            user
+              ? t('nav.accountMenuLevel', { name: displayName, level: user.level })
+              : t('nav.accountMenu', { name: displayName })
+          }
           className="flex items-center gap-2 rounded-md border border-border pill py-1 pl-1 pr-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         >
           {/* `Avatar` instead of a hand-rolled initials tile: it derives the
@@ -106,6 +113,20 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
               sees in their profile. Hidden from the tree because the button
               above already carries the name. */}
           <Avatar aria-hidden name={displayName} size="xs" level={user?.level} square />
+          {/* The printed level (C2.4). Not a `HudPlate`: a plate is a reading that
+              moves — the clock every second, the balance whenever money does —
+              and a number that changes a few times a season would only crowd the
+              two that matter. It sits on the avatar it belongs to, and it is the
+              first thing the bar drops on a narrow screen, because the ring
+              around the avatar already encodes the tier. */}
+          {user && (
+            <span
+              aria-hidden
+              className="label-mono hidden text-[9px] text-text-medium sm:inline"
+            >
+              {`LVL ${user.level}`}
+            </span>
+          )}
           <icons.expand
             size={15}
             aria-hidden

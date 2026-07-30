@@ -565,11 +565,22 @@ export const en = {
     catGear: 'Gear',
     sectionEmpty: 'Nothing in this section',
     sectionEmptyBody: 'The club is restocking. Try another tab or ask at the counter.',
+    /**
+     * The cart button in the top bar (C2.4), in two shapes.
+     *
+     * The count is the reason to press it, so it lives *in* the accessible name
+     * rather than only in the badge: a red disc reading "2" announces nothing.
+     */
+    openCartEmpty: 'Cart, empty',
+    // plural: one | other
+    openCart: 'Cart, {n} item|Cart, {n} items',
   },
 
   wallet: {
     title: 'Wallet',
     balance: 'Balance',
+    /** The balance plate's name in the bar, amount included (C2.4). */
+    openWallet: 'Wallet, balance {amount}',
     coinBalance: 'IMBA coins',
     topUp: 'Top up',
     history: 'History',
