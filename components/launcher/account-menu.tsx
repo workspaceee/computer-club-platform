@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useId, useState } from 'react'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { icons } from '@/lib/icons'
@@ -97,7 +98,14 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
-          aria-label={t('nav.accountMenu', { name: displayName })}
+          // The level chip below is a badge — decorative by definition — so the
+          // number reaches a screen reader through the trigger's own name or not
+          // at all. Guests have no level, and the shorter name is theirs (C2.4).
+          aria-label={
+            user
+              ? t('nav.accountMenuLevel', { name: displayName, level: user.level })
+              : t('nav.accountMenu', { name: displayName })
+          }
           className="flex items-center gap-2 rounded-md border border-border pill py-1 pl-1 pr-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         >
           {/* `Avatar` instead of a hand-rolled initials tile: it derives the
@@ -106,6 +114,19 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
               sees in their profile. Hidden from the tree because the button
               above already carries the name. */}
           <Avatar aria-hidden name={displayName} size="xs" level={user?.level} square />
+          {/* Level, as a chip on the trigger rather than a fourth HUD plate.
+              It changes a few times a season, so a capsule in the bar would spend
+              a permanent slot competing with the two numbers that change every
+              minute — and it would be the slot dropped first at 360 px. Inline
+              rather than `Avatar`'s own `showLevel`, whose chip hangs below the
+              tile and would sit outside this pill. Hidden from the tree: the
+              button's name above already says "level 12". */}
+          {user && (
+            <Badge aria-hidden tone="neutral" size="sm" className="tabular-nums">
+              <icons.level size={11} />
+              {user.level}
+            </Badge>
+          )}
           <icons.expand
             size={15}
             aria-hidden

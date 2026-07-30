@@ -3,7 +3,10 @@
 import { Countdown, countdownLevel } from '@/components/ui/countdown'
 import { HudPlate } from '@/components/ui/hud-plate'
 import { Money } from '@/components/ui/money'
+import { Skeleton } from '@/components/skeleton'
+import { useApi } from '@/hooks/use-api'
 import { icons } from '@/lib/icons'
+import { fetchWallet } from '@/lib/mock/api'
 import { formatCoins, sumCents } from '@/lib/money'
 import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
@@ -134,13 +137,56 @@ export function SessionHud({ surface }: { surface: LauncherSurface }) {
           value={<Money value={tabTotal} fromCents size="sm" />}
         />
       ) : (
-        <HudPlate
-          tone="coin"
-          icon={<icons.coins size={14} />}
-          label={t('wallet.coinBalance')}
-          value={formatCoins(coins)}
-        />
+        <>
+          <HudPlate
+            tone="coin"
+            icon={<icons.coins size={14} />}
+            label={t('wallet.coinBalance')}
+            value={formatCoins(coins)}
+          />
+          {/* Money, next to the coins that cannot pay for time (C2.4). The pair is
+              the whole reason both are here: coins buy rewards, euros buy minutes,
+              and a player deciding whether to extend needs the second number —
+              which the bar used to keep one section away, in a wallet that has not
+              even shipped yet. Members only: a walk-in has the tab above instead,
+              and a €0.00 balance on that surface would be a lie about an account
+              they do not have (F6.2). */}
+          <WalletPlate />
+        </>
       )}
     </>
+  )
+}
+
+/**
+ * The EUR balance, on its own so the clock does not drag it along.
+ *
+ * `SessionHud` re-renders every second by design — it holds the countdown — and a
+ * fetch hook living in that body would be re-evaluated on every tick. Split out,
+ * the plate re-renders only when the balance actually moves.
+ *
+ * The read is `useApi` rather than the store: the money is the club's number, and
+ * `wallet` is the prefix realtime already invalidates on `wallet.updated`,
+ * `tab.updated` and `time.added` (`EVENT_INVALIDATES`) — so an admin top-up at the
+ * counter reaches the bar without this component subscribing to anything.
+ */
+function WalletPlate() {
+  const { t } = useT()
+  const wallet = useApi('wallet', () => fetchWallet())
+
+  // First load: a plate-shaped skeleton, so the bar does not reflow when the
+  // number lands. A *failure* renders nothing at all — chrome is the wrong place
+  // to explain a broken read, and a plate stuck on "—" beside a live clock reads
+  // as a balance of zero. The wallet section owns that error surface (C7).
+  if (wallet.data === undefined) {
+    return wallet.error ? null : <Skeleton className="h-[46px] w-24 rounded-md" />
+  }
+
+  return (
+    <HudPlate
+      icon={<icons.wallet size={14} />}
+      label={t('wallet.balance')}
+      value={<Money value={wallet.data.moneyCents} fromCents size="sm" />}
+    />
   )
 }

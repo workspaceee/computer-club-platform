@@ -1,9 +1,12 @@
 'use client'
 
 import { AccountMenu } from '@/components/launcher/account-menu'
+import { InboxBell } from '@/components/launcher/inbox'
 import { SessionHud } from '@/components/launcher/session-hud'
 import { ImbaLogo } from '@/components/imba-logo'
+import { IconButton } from '@/components/ui/button'
 import { NavRail } from '@/components/ui/nav-rail'
+import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface, type LauncherView } from '@/lib/launcher-nav'
 import { overlayZ } from '@/lib/overlay'
@@ -65,6 +68,24 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
 
       <div className="flex items-center gap-2">
         <SessionHud surface={surface} />
+        {/* The two standing controls of the frame, between the readings and the
+            way out (C2.4). Both are in the bar rather than in the avatar menu
+            because both are answers to something that just happened — a message
+            arrived, something broke — and a player who needs help should not have
+            to find it behind a menu whose other items end the visit.
+
+            Help is not a second door into support: it opens section `09` from the
+            one navigation table (F6.2), so while C11 is unbuilt it lands on
+            `PendingView` like every other section that has not shipped. */}
+        <InboxBell surface={surface} />
+        <IconButton
+          size="sm"
+          variant="ghost"
+          onClick={() => setView('help')}
+          label={t('nav.openSection', { section: t('nav.help') })}
+        >
+          <icons.support aria-hidden />
+        </IconButton>
         <AccountMenu surface={surface} />
       </div>
     </header>
