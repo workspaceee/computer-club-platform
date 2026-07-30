@@ -150,14 +150,18 @@ export function NotificationBell() {
                   {t('inbox.title')}
                 </p>
                 <p className="text-xs text-text-low">
-                  {count > 0 ? t('inbox.unreadCount', { n: count }) : t('inbox.allRead')}
+                  {count > 0 ? tp('inbox.unreadCount', count) : t('inbox.allRead')}
                 </p>
               </div>
               {count > 0 && (
                 <button
                   type="button"
                   onClick={() => void readAll()}
-                  className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                  // `whitespace-nowrap` with the `min-w-0` beside it: the label is
+                  // the longest string in the header and the three languages
+                  // disagree about how long, so the wrapping is spent on the
+                  // subtitle rather than folding the action onto two lines.
+                  className="shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                 >
                   {t('inbox.markAllRead')}
                 </button>
