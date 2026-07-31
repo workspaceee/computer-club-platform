@@ -133,6 +133,27 @@ function snapshotTakenAt(serverMs: number): number {
   return now
 }
 
+/**
+ * "Now" on the **server's** timeline: the last stamp the server sent, plus how
+ * long this client has been holding it.
+ *
+ * Same correction `remainingSeconds()` applies, exposed for the places that need
+ * an instant rather than a remainder — the notification centre's "Today" /
+ * "Yesterday" headings being the first (C2.5). Deciding which calendar day a
+ * server-stamped message belongs to from `Date.now()` makes the heading a fact
+ * about the kiosk's system clock: a machine an hour off files this evening's
+ * messages under yesterday, and the mock's fixed anchor puts every one of them
+ * under a full date because the branch can never match.
+ *
+ * Falls back to the client clock until a snapshot has been observed — a guest at
+ * the lock screen has no session and therefore no server stamp, and the local
+ * clock is then the only clock there is.
+ */
+export function serverNowMs(nowMs: number = Date.now()): number {
+  if (observed === null) return nowMs
+  return observed.serverMs + (nowMs - observed.at)
+}
+
 /** `true` once the deadline has passed. */
 export function isExpired(expiresAt: ISODateTime | null, nowMs?: number): boolean {
   const deadline = parseTime(expiresAt)
