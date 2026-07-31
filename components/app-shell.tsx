@@ -93,8 +93,11 @@ export function AppShell({
           unless a title holds the machine. */}
       <InGameStrip />
 
-      {/* `pb-24` on narrow screens is the mobile bar's reserved space: the bar is
-          fixed, so without it the last card would sit underneath the navigation. */}
+      {/* The 6rem rung on narrow screens is the mobile bar's reserved space: the
+          bar is fixed, so without it the last card would sit underneath the
+          navigation. It carries the device's bottom inset for the same reason the
+          bar does (C2.9) — the bar grew by that much, so the space held for it
+          has to as well, or the last row hides behind it on a notched phone. */}
       <main
         id="main-content"
         // The skip link's target has to be focusable itself, or the jump moves
@@ -102,7 +105,7 @@ export function AppShell({
         // go back to the avatar menu instead of into the section.
         tabIndex={-1}
         aria-label={t('nav.mainLandmark')}
-        className="flex-1 pb-24 outline-none sm:pb-10"
+        className="flex-1 pb-[calc(6rem+var(--frame-inset-bottom))] outline-none sm:pb-10"
       >
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
       </main>
