@@ -53,7 +53,22 @@ interface HudPlateProps extends Omit<React.ComponentProps<'div'>, 'children'> {
    * naming the number and there is room to say it.
    */
   labelAt?: keyof typeof LABEL_AT
+  /**
+   * From which width the glyph is *printed* (C2.9).
+   *
+   * `always` (default) is a plate inside a panel, where there is room. `sm` is
+   * for the bar-mounted plates: the glyph plus its gap is ~24 px of a phone-width
+   * row that has to end with the avatar menu — the only route out of a visit —
+   * and it is the cheapest thing in the plate to lose, because it is `aria-hidden`
+   * decoration that repeats what the label already says.
+   */
+  iconAt?: keyof typeof ICON_AT
 }
+
+const ICON_AT = {
+  always: '',
+  sm: 'hidden sm:flex',
+} as const
 
 /**
  * Printed and spoken are two halves of one switch: at every width exactly one of
@@ -90,6 +105,7 @@ export function HudPlate({
   icon,
   tone = 'default',
   labelAt = 'sm',
+  iconAt = 'always',
   className,
   ...props
 }: HudPlateProps) {
@@ -107,7 +123,7 @@ export function HudPlate({
       {...props}
     >
       {icon && (
-        <span className={cn('shrink-0', t.icon)} aria-hidden>
+        <span className={cn('flex shrink-0 items-center', t.icon, ICON_AT[iconAt])} aria-hidden>
           {icon}
         </span>
       )}

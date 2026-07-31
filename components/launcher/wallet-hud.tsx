@@ -55,6 +55,11 @@ function GuestTabPlate() {
       // below `xl` is what keeps the avatar menu on screen on the kiosk; the
       // label is still spoken at every width (C2.4).
       labelAt="xl"
+      // Stays at every width, unlike the member plates below: what a walk-in owes
+      // is the only money reading their surface has, and there is no wallet
+      // section to go and read it in (C2.9). It pays for that by dropping its
+      // glyph on a phone, like the clock beside it.
+      iconAt="sm"
       icon={<icons.bill size={14} />}
       label={t('guest.tab')}
       value={<Money value={tabTotal} fromCents size="sm" />}
@@ -143,9 +148,17 @@ function MemberWalletPlates() {
       <PlateButton
         onClick={() => setView('wallet')}
         label={t('wallet.openCoins', { amount: formatCoins(coins) })}
+        // Gone below `sm` (C2.9), one step later than the euro balance beside it,
+        // because it is the reading a member glances at most — but it does go: a
+        // phone-width bar cannot hold two money plates, a clock, two badges and
+        // the avatar menu, and both pockets live one tap away in the wallet
+        // section (`07`, in that menu). The clock and the club's two badges are
+        // what a narrow bar exists for; a coin count is not urgent.
+        className="hidden sm:block"
       >
         <HudPlate
           labelAt="xl"
+          iconAt="sm"
           tone="coin"
           icon={<icons.coins size={14} />}
           label={t('wallet.coinBalance')}

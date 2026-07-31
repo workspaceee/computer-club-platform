@@ -123,6 +123,12 @@ export function SessionHud() {
           // the source when the printed label is gone (C2.4).
           labelAt="xl"
           tone={timeTone}
+          // The glyph goes below `sm` (C2.9). It is the one plate a phone keeps,
+          // so it is also the one that has to be narrowest: an hour-glass beside
+          // `01:23:58` is decoration next to the least ambiguous reading in the
+          // product, and the 24 px it costs are what keeps the avatar menu on a
+          // 360 px screen.
+          iconAt="sm"
           icon={<icons.timer size={14} />}
           // The label has to say which way the number moves: a guest reading
           // "TIME LEFT" next to a rising clock would be told a lie. And it has to
