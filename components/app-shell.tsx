@@ -39,6 +39,7 @@ import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { TimeWarnings } from '@/components/launcher/time-warnings'
 import { SessionPauseOverlay } from '@/components/launcher/session-pause-overlay'
+import { SessionMovedOverlay } from '@/components/launcher/session-moved-overlay'
 import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
 import { SessionManager } from '@/components/session-manager'
 import { SfxArmBridge } from '@/components/sfx-arm-bridge'
@@ -196,6 +197,14 @@ export function GlobalOverlays() {
           navigation, and lifting it hands back the exact screen — open cart,
           typed search, scroll position — the player was on. */}
       <SessionPauseOverlay />
+      {/* Re-seated by an admin (C2.8). Below the pause overlay in the tree and
+          below it in the stacking order too (`modal` under `blocking`), which is
+          the right way round: a paused seat cannot be walked away from until the
+          club unfreezes it, so the pause has to stay on top when both arrive.
+          Mounted globally for the same reason as the rest of this list — the
+          frame can land while the player is anywhere in the launcher, and a
+          watcher mounted per screen would miss it on every section change. */}
+      <SessionMovedOverlay />
       <Toaster />
     </>
   )
