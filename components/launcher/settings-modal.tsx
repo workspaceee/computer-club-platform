@@ -208,7 +208,7 @@ export function SettingsModal() {
             // now comes from the ladder, and `86vh` becomes the shared `svh` cap
             // so the header cannot leave the top of a short window (F6.4).
             className={cn(
-              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl',
+              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl outline-none',
               OVERLAY_MAX_H,
             )}
             initial={{ scale: 0.95, y: 12 }}
