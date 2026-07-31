@@ -57,10 +57,11 @@ export function CartButton() {
 /**
  * "Help" — the labelled button of the block (C2.4).
  *
- * The one control in the bar that keeps its printed word from `md` up, because it
- * is the one a player looks for while something is already going wrong: a lone
+ * The one control in the bar that prints a word beside its glyph, because it is
+ * the one a player looks for while something is already going wrong: a lone
  * life-ring glyph is a guess, and the section behind it (C11) is where "call
- * staff" lives. Below `md` the word goes and the name carries it.
+ * staff" lives. The word goes below `xl` (`IconAction`, C2.4) and the whole button
+ * goes below `sm` (C2.9); the accessible name carries it either way.
  *
  * It navigates rather than opening a panel of its own: help is a section in the
  * one navigation table (`LAUNCHER_NAV`), so the bar, the avatar menu and the
@@ -78,6 +79,13 @@ export function HelpButton() {
       text={t('nav.help')}
       active={view === 'help'}
       onClick={() => setView('help')}
+      // Gone below `sm` (C2.9). Help is a *section* (`09`), so it stays one tap
+      // away in the avatar menu on every surface, guests included — which is what
+      // makes it the door a phone can afford to lose. The two that stay are the
+      // ones carrying a count: an unread message and a basket with something in it
+      // are facts the bar has to keep printing, and neither has a badge anywhere
+      // else in the frame.
+      className="hidden sm:flex"
     />
   )
 }

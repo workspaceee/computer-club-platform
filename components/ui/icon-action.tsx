@@ -21,7 +21,7 @@ interface IconActionProps extends Omit<React.ComponentProps<'button'>, 'children
    * than optional. Callers put the *count* in it — see `label` at the call sites.
    */
   label: string
-  /** Printed beside the icon from `md` up. Icon-only below, name unaffected. */
+  /** Printed beside the icon from `xl` up. Icon-only below, name unaffected. */
   text?: string
   /**
    * A number worth interrupting for: unread messages, items in the basket.
