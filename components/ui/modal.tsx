@@ -34,6 +34,17 @@ interface ModalProps {
   hideClose?: boolean
   /** Disable dismissal via overlay click / Escape. */
   dismissable?: boolean
+  /**
+   * Which rung of `lib/overlay.ts` the card sits on.
+   *
+   * `modal` for everything a player opened themselves. `takeover` for the one
+   * dialog the *clock* opens (C2.6): the last minute of a visit has to cover a
+   * half-finished checkout the way expiry does, and a dialog on the normal rung
+   * would appear *under* whatever the player happened to have up. A prop rather
+   * than a second copy of this card, so the most important dialog in the product
+   * cannot drift from the product's one dialog.
+   */
+  layer?: 'modal' | 'takeover'
   className?: string
   children?: React.ReactNode
 }
@@ -54,6 +65,7 @@ export function Modal({
   footer,
   hideClose = false,
   dismissable = true,
+  layer = 'modal',
   className,
   children,
 }: ModalProps) {

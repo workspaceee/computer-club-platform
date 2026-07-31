@@ -364,6 +364,26 @@ export const lt: Dictionary = {
     warningLowTime: 'Liko mažiau nei {n} min. sesijos laiko.',
 
     /* ---------------------------------------------------------------- *
+     * Laikas baigiasi (C2.6)
+     * ---------------------------------------------------------------- */
+    warnTitle: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
+    warnBody: 'Pratęskite sesijos skydelyje arba ramiai baikite.',
+    warnBodyUrgent: 'Pratęskite dabar, kad išsaugotumėte vietą, arba išsaugokite progresą.',
+    warnFinal: 'Šioje stotyje liko viena minutė.',
+    warnAction: 'Pratęsti',
+    lastCallTitle: 'Liko viena minutė',
+    lastCallBody:
+      'Sesija baigsis greičiau nei po minutės. Pridėkite laiko, kad tęstumėte, pašaukite administratorių, jei kažkas ne taip, arba išsaugokite žaidimą ir atlaisvinkite stotį.',
+    lastCallClock: 'Iki pabaigos',
+    lastCallExtend: 'Pratęsti',
+    lastCallAdmin: 'Pašaukti administratorių',
+    lastCallSaveExit: 'Išsaugoti ir baigti',
+    lastCallExtendHint: 'Abonemente nėra minučių — laiko paketų yra parduotuvėje.',
+    lastCallShop: 'Atidaryti parduotuvę',
+    lastCallDismiss: 'Tęsti žaidimą',
+    lastCallDismissHint: 'Pasibaigus laikui stotis vis tiek užsirakins.',
+
+    /* ---------------------------------------------------------------- *
      * „Mano sesija“ — skydelis už HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'Mano sesija',
