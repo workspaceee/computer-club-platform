@@ -42,12 +42,30 @@ interface HudPlateProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   icon?: React.ReactNode
   tone?: Tone
   /**
-   * `sm` (default) drops the micro-label on narrow screens, because the bar has
-   * to fit three plates and an avatar at 360 px. `always` keeps it — for panels
-   * where the label is the only thing naming the number.
+   * From which width the micro-label is *printed*. It is always spoken.
+   *
+   * `sm` (default) drops it on narrow screens, because the bar has to fit three
+   * plates and an avatar at 360 px. `xl` is for plates mounted in the launcher's
+   * top bar, where the label competes with a six-section rail and the whole
+   * right-hand block on a 1216 px kiosk — and the labels are the widest part of
+   * the plate, since "IMBA monetos" is twice the width of the `1,250` it names
+   * (C2.4). `always` keeps it — for panels where the label is the only thing
+   * naming the number and there is room to say it.
    */
-  labelAt?: 'sm' | 'always'
+  labelAt?: keyof typeof LABEL_AT
 }
+
+/**
+ * Printed and spoken are two halves of one switch: at every width exactly one of
+ * them is in the tree, so the reading is never nameless and never announced
+ * twice. Pairing them in a table is what keeps that true — the two classes were
+ * written out at the call site once and drifted by a breakpoint.
+ */
+const LABEL_AT = {
+  sm: { print: 'hidden sm:block', speak: 'sm:hidden' },
+  xl: { print: 'hidden xl:block', speak: 'xl:hidden' },
+  always: { print: '', speak: 'hidden' },
+} as const
 
 /**
  * Bar-mounted status plate (C2.1).
@@ -94,24 +112,18 @@ export function HudPlate({
         </span>
       )}
       <div className="flex flex-col leading-none">
-        <span
-          className={cn(
-            'label-mono text-[8px]',
-            t.label,
-            labelAt === 'sm' && 'hidden sm:block',
-          )}
-        >
+        <span className={cn('label-mono text-[8px]', t.label, LABEL_AT[labelAt].print)}>
           {label}
         </span>
-        {/* Dropping the micro-label at 360 px is a *visual* economy, and until now
-            it took the reading's name with it: `hidden` leaves the accessibility
-            tree too, so on a phone the top bar announced a bare `01:23:00` with
-            nothing saying it was time left, from a pass. The label comes back as a
-            spoken copy at exactly the widths where the printed one is gone — one
-            of the two is always hidden, so nothing is announced twice.
-            `normal-case`, because the printed label is tracked caps and a reader
-            handed "ОСТАЛОСЬ" may spell it out letter by letter. */}
-        {labelAt === 'sm' && <span className="sr-only normal-case sm:hidden">{label}</span>}
+        {/* Dropping the micro-label to save width is a *visual* economy, and until
+            now it took the reading's name with it: `hidden` leaves the
+            accessibility tree too, so on a phone the top bar announced a bare
+            `01:23:00` with nothing saying it was time left, from a pass. The label
+            comes back as a spoken copy at exactly the widths where the printed one
+            is gone — one of the two is always hidden, so nothing is announced
+            twice. `normal-case`, because the printed label is tracked caps and a
+            reader handed "ОСТАЛОСЬ" may spell it out letter by letter. */}
+        <span className={cn('sr-only normal-case', LABEL_AT[labelAt].speak)}>{label}</span>
         {/* A `div`, not a `span`: the readings that matter here are primitives
             (`Countdown` renders a block), and a span wrapping a div is invalid
             markup that React will happily ship and the browser will re-parse. */}
