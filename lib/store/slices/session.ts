@@ -148,6 +148,7 @@ export interface SessionSlice {
   noteTimeWarning: (minutes: number[]) => void
   /** End the pulse. The warning is over; the colour on the digits carries on. */
   clearWarningPulse: () => void
+}
 
 /** Seconds on the clock right now, derived — down for prepaid, up for postpaid. */
 function derive(s: {

@@ -37,6 +37,7 @@ import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
+import { TimeWarnings } from '@/components/launcher/time-warnings'
 import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
 import { SessionManager } from '@/components/session-manager'
 import { SfxArmBridge } from '@/components/sfx-arm-bridge'
@@ -181,6 +182,13 @@ export function GlobalOverlays() {
       <SessionDetailModal />
       <SettingsModal />
       <SessionManager />
+      {/* Running out of time, announced (C2.6). Next to `SessionManager` because
+          it watches the same single clock and, like the expiry takeover, has to
+          be able to cover the launcher rather than live inside it — a watcher
+          mounted per screen would remount on every section change and re-arm
+          marks the visit has already been told about. Renders nothing until a
+          prepaid remainder crosses one. */}
+      <TimeWarnings />
       <Toaster />
     </>
   )
