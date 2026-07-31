@@ -38,6 +38,7 @@ import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { TimeWarnings } from '@/components/launcher/time-warnings'
+import { SessionPauseOverlay } from '@/components/launcher/session-pause-overlay'
 import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
 import { SessionManager } from '@/components/session-manager'
 import { SfxArmBridge } from '@/components/sfx-arm-bridge'
@@ -189,6 +190,12 @@ export function GlobalOverlays() {
           marks the visit has already been told about. Renders nothing until a
           prepaid remainder crosses one. */}
       <TimeWarnings />
+      {/* Paused by an admin (C2.7). Mounted here, above the launcher rather than
+          inside it, for the reason that makes the feature work at all: the shell
+          stays put, so a pause is a scrim over a live launcher instead of a
+          navigation, and lifting it hands back the exact screen — open cart,
+          typed search, scroll position — the player was on. */}
+      <SessionPauseOverlay />
       <Toaster />
     </>
   )

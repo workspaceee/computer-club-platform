@@ -510,6 +510,33 @@ export const en = {
     lastCallDismissHint: 'The station still locks when the time runs out.',
 
     /* ---------------------------------------------------------------- *
+     * Paused by an admin (C2.7)
+     *
+     * Not a lock screen and not an error: the visit is still on this machine,
+     * the launcher is still behind the scrim, and the only thing that changed is
+     * that the clock stopped. So the copy answers the three questions a player
+     * stares at this overlay with — why, is this costing me, what do I do — and
+     * nothing else. The reason is named out loud because "paused" with no cause
+     * reads as a malfunction the player has to solve themselves.
+     * ---------------------------------------------------------------- */
+    pauseTitle: 'Session paused',
+    /** The load-bearing sentence: a stopped clock is not a spent one. */
+    pauseBody: 'The clock is stopped — these minutes are not charged to you.',
+    pauseReasonLabel: 'Reason',
+    pauseReasonStaff: 'An admin paused your session.',
+    pauseReasonBreak: 'Your session is on a break.',
+    pauseReasonPaymentRequired: 'Payment is needed at the counter before the clock restarts.',
+    pauseReasonMaintenance: 'Maintenance on this station.',
+    /** Stands in for a reason this build has no sentence for. */
+    pauseReasonUnknown: 'The club paused this station.',
+    pauseRemaining: 'Time held for you',
+    /** Nothing here dismisses the overlay, and pretending otherwise is worse. */
+    pauseWaitHint:
+      'Nothing is lost. Your games and windows stay exactly as they are — the launcher comes back the moment an admin lifts the pause.',
+    pauseCallAdmin: 'Call the admin',
+    pauseResumedToast: 'Pause lifted — back in the game.',
+
+    /* ---------------------------------------------------------------- *
      * "My session" — the panel behind the HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'My session',
