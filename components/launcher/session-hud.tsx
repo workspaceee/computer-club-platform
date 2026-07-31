@@ -77,6 +77,12 @@ export function SessionHud() {
         className="rounded-md transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
       >
         <HudPlate
+          // The label of this plate is the longest in the bar — "TIME LEFT ·
+          // WALLET" against an `01:23:58` — so it is printed only from `xl`,
+          // where the six-section rail no longer competes for the row. It is
+          // spoken at every width, and the spoken sentence below is what carries
+          // the source when the printed label is gone (C2.4).
+          labelAt="xl"
           tone={timeTone}
           icon={<icons.timer size={14} />}
           // The label has to say which way the number moves: a guest reading

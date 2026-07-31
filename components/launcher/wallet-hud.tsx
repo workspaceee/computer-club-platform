@@ -49,6 +49,12 @@ function GuestTabPlate() {
 
   return (
     <HudPlate
+      // From `xl`, not `sm`: at 1216 px the bar carries a six-section rail and
+      // the whole right-hand block, and the micro-labels are the widest part of
+      // a plate — "OPEN TAB" is wider than the €17.40 it names. Dropping them
+      // below `xl` is what keeps the avatar menu on screen on the kiosk; the
+      // label is still spoken at every width (C2.4).
+      labelAt="xl"
       icon={<icons.bill size={14} />}
       label={t('guest.tab')}
       value={<Money value={tabTotal} fromCents size="sm" />}
@@ -92,6 +98,7 @@ function MemberWalletPlates() {
           className="hidden md:block"
         >
           <HudPlate
+            labelAt="xl"
             icon={<icons.wallet size={14} />}
             label={t('wallet.balance')}
             value={<Money value={wallet.data.moneyCents} fromCents size="sm" />}
@@ -110,6 +117,9 @@ function MemberWalletPlates() {
           className="hidden md:block"
         >
           <HudPlate
+            // Same width rule as the plate it replaces: a failed read must not
+            // occupy more of the bar than a successful one.
+            labelAt="xl"
             icon={<icons.wallet size={14} />}
             label={t('wallet.balance')}
             // An em dash rather than €0.00: the balance is unknown, and a zero
@@ -135,6 +145,7 @@ function MemberWalletPlates() {
         label={t('wallet.openCoins', { amount: formatCoins(coins) })}
       >
         <HudPlate
+          labelAt="xl"
           tone="coin"
           icon={<icons.coins size={14} />}
           label={t('wallet.coinBalance')}
