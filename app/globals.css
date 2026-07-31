@@ -166,6 +166,25 @@
   --scrim: 0.7;
   --pill: 0.3;
   --pill-deep: 0.55;
+
+  /* ---- Frame inset, bottom edge (C2.9) ----
+     The debt taken on by `viewportFit: 'cover'` in layout.tsx. With `cover` the
+     document owns the full display, which is what a kiosk wants — but it also
+     means the bottom edge of the viewport is *behind* the iPhone home indicator
+     on the surface the Companion PWA runs on. Anything fixed to that edge has to
+     buy back the gap itself.
+
+     A token rather than `env()` spelled out per file, for two reasons: `env()`
+     inside an arbitrary Tailwind value is easy to get wrong once and impossible
+     to grep for, and the fallback belongs in exactly one place — every browser
+     that does not know the keyword must read `0px`, not an invalid length that
+     collapses the whole `calc()`.
+
+     Only the two bottom-fixed layers consume it (the launcher's mobile bar and
+     the toast column), plus the main region's reserved space so content still
+     scrolls clear of the bar. Nothing else in the product is bottom-fixed; if
+     something becomes so, it adds this and does not invent its own. */
+  --frame-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @layer base {
