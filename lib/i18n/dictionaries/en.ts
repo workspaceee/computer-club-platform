@@ -537,6 +537,32 @@ export const en = {
     pauseResumedToast: 'Pause lifted — back in the game.',
 
     /* ---------------------------------------------------------------- *
+     * Moved to another PC (C2.8)
+     *
+     * The one fact the player has to walk away with is *where*, so the seat
+     * label and the zone are the loudest thing on the overlay and everything
+     * else is reassurance around them. The seat is club-authored data (`PC-24`)
+     * and the zone is a club-authored name (`VIP`), so both travel through the
+     * sentence as variables and are never translated.
+     * ---------------------------------------------------------------- */
+    movedTitle: 'Session moved',
+    /** With the zone, which is the version the player almost always gets. */
+    movedBody: 'Your session has been moved to {seat}, {zone} zone.',
+    /** A seat whose zone this build could not name — the seat alone still works. */
+    movedBodyNoZone: 'Your session has been moved to {seat}.',
+    movedSeatLabel: 'New station',
+    movedZoneLabel: 'Zone',
+    /** The deadline as a fact, not a threat. Staff step in after it, not the app. */
+    // plural: one | other
+    movedDeadline:
+      'Please move within {n} minute — your time is held until you get there.|Please move within {n} minutes — your time is held until you get there.',
+    /** What is *not* lost, because that is the fear this overlay creates. */
+    movedHint:
+      'Nothing is charged for the walk and nothing is lost: your remaining time, your tab and your account move with you. Sign in again at the new station.',
+    /** Acknowledgement, not a dismissal of the move itself. */
+    movedAck: 'Got it',
+
+    /* ---------------------------------------------------------------- *
      * "My session" — the panel behind the HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'My session',
