@@ -97,8 +97,13 @@ export function IconAction({
       </span>
       {text && (
         // Hidden text rather than a second element: the button's name already
-        // says it, so below `md` the label is a visual economy and nothing else.
-        <span aria-hidden className="hidden text-sm font-semibold md:inline">
+        // says it, so below `xl` the label is a visual economy and nothing else.
+        // `xl` and not `md` because the bar it lives in has to fit a 1216 px
+        // kiosk: the printed word is the widest optional thing in the right
+        // block, and it is worth less than the avatar menu it was pushing off
+        // the screen (C2.4). The glyph is a life-ring, which is the one chrome
+        // icon a player already knows by shape.
+        <span aria-hidden className="hidden text-sm font-semibold xl:inline">
           {text}
         </span>
       )}

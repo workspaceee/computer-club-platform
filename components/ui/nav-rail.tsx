@@ -110,7 +110,12 @@ export function NavRail<T extends string>({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
               isPill
                 ? 'flex-1 flex-col gap-1 rounded-md py-2.5 text-[10px] font-semibold'
-                : 'gap-2 rounded-sm px-3.5 py-2',
+                : // Tighter slots below `xl` for the same reason the section
+                  // digits stop printing there: six words plus the top bar's
+                  // right-hand block do not fit a 1216 px kiosk, and a rail that
+                  // is merely *squeezed* by flexbox overlaps the readings beside
+                  // it instead of shortening (C2.4).
+                  'gap-2 rounded-sm px-2.5 py-2 xl:px-3.5',
               active
                 ? isPill
                   ? 'text-primary'
@@ -146,7 +151,15 @@ export function NavRail<T extends string>({
             ) : (
               <>
                 {index && (
-                  <span className="label-mono text-[9px] text-primary/70 tabular-nums">
+                  // Printed from `xl` only, announced always. The six digits cost
+                  // ~180 px of a 1216 px kiosk bar — the exact amount by which the
+                  // launcher's top bar overflowed and pushed the avatar menu off
+                  // the screen (C2.4). What they are is a *hint* at the keyboard
+                  // shortcut; the shortcut itself lives in `aria-keyshortcuts`
+                  // and `use-nav-shortcuts`, so nothing stops working when the
+                  // hint goes — the section keeps its word, which is the part a
+                  // player navigates by.
+                  <span className="label-mono hidden text-[9px] text-primary/70 tabular-nums xl:inline">
                     {index}
                   </span>
                 )}

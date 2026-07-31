@@ -44,11 +44,19 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
     // including the outage banner that explains a frozen seat (F6.4).
     <header
       className={cn(
-        'glass sticky top-0 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-8',
+        'glass sticky top-0 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-6 xl:px-8',
         overlayZ.frame,
       )}
     >
-      <div className="flex items-center gap-8">
+      {/* `min-w-0` and the narrower gap below `xl` are the two halves of one rule
+          found by the C2.4 check: at 1216 px — the width of the kiosk this thing
+          runs on — the row measured 1376 px, so the page grew a horizontal
+          scrollbar and the *avatar menu* sat off the right edge. That is not a
+          cosmetic overflow: the menu is the only route out of a visit (lock, log
+          out), and it was unreachable without scrolling a bar that is supposed to
+          be fixed chrome. The left group is the half that yields, because the
+          right one is all readings and doors. */}
+      <div className="flex min-w-0 items-center gap-4 xl:gap-8">
         <button
           onClick={() => setView('home')}
           aria-label="IMBA home"
@@ -71,7 +79,7 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           three doors — inbox, basket, help — and the identity that owns them.
           Readings before actions, because a player checks the clock and the
           balance far more often than they press anything up here. */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <SessionHud />
         <WalletHud surface={surface} />
         <NotificationBell />
