@@ -9,6 +9,7 @@ import { Countdown } from '@/components/ui/countdown'
 import { Field } from '@/components/ui/field'
 import { HudChip } from '@/components/ui/hud-chip'
 import { HudPlate } from '@/components/ui/hud-plate'
+import { IconAction } from '@/components/ui/icon-action'
 import { Money } from '@/components/ui/money'
 import { NavRail, type NavRailItem } from '@/components/ui/nav-rail'
 import { Panel } from '@/components/ui/panel'
@@ -443,6 +444,42 @@ export function KitData() {
             labelAt="always"
             value={<Countdown seconds={47 * 60} size="sm" mode="elapsed" />}
           />
+        </Row>
+      </Spec>
+
+      {/* The other half of the right-hand block: the plates above are readings,
+          these are doors. Here because the three call sites in the bar (bell,
+          basket, help) each show one state, and the states that matter — an
+          overflowing count, an open panel, the label a narrow bar drops — are
+          reachable in the launcher only by having mail, a full basket and a
+          viewport at the same time. */}
+      <Spec
+        id="C2.4"
+        name="IconAction"
+        note="icon-only bar door with an optional count — the badge is decoration, the count is in the name"
+      >
+        <Row label="counts (none / 2 primary = basket / 3 danger = the club talking / overflow 9+)">
+          <IconAction icon={<icons.support size={17} />} label="Help" />
+          <IconAction icon={<icons.cart size={17} />} label="Cart, 2 items" count={2} />
+          <IconAction
+            icon={<icons.notifications size={17} />}
+            label="Notifications, 3 unread messages"
+            count={3}
+            badgeTone="danger"
+          />
+          <IconAction
+            icon={<icons.notifications size={17} />}
+            label="Notifications, 24 unread messages"
+            count={24}
+            badgeTone="danger"
+            overflowLabel="9+"
+          />
+        </Row>
+        <Row label="resting vs open panel, and the printed label (prints from xl, name unaffected)">
+          <IconAction icon={<icons.cart size={17} />} label="Cart, empty" />
+          <IconAction icon={<icons.cart size={17} />} label="Cart, empty" active />
+          <IconAction icon={<icons.support size={17} />} label="Open Help" text="Help" />
+          <IconAction icon={<icons.support size={17} />} label="Open Help" text="Help" active />
         </Row>
       </Spec>
 

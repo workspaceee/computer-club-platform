@@ -27,7 +27,7 @@
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconAction } from '@/components/ui/icon-action'
