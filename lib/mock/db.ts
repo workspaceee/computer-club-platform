@@ -1658,6 +1658,13 @@ const helpThreads: HelpThread[] = [
   },
 ]
 
+/**
+ * The inbox spans three days on purpose (C2.5): grouping by day is only visible
+ * when there is more than one day, and the two actionable cards — the party
+ * invite still asking and the delivered order still unrated — are what the panel
+ * has to render buttons for. `n-8` is the same invite already answered, so the
+ * answered shape is on screen beside the unanswered one.
+ */
 const notifications: Notification[] = [
   {
     id: 'n-1',
@@ -1668,6 +1675,18 @@ const notifications: Notification[] = [
     body: 'About 1 hour 24 minutes left in your session.',
     createdAt: atMinutes(-2),
     readAt: null,
+    action: null,
+  },
+  {
+    id: 'n-6',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'ClutchQueen invited you to “Friday Five Stack”.',
+    createdAt: atMinutes(-4),
+    readAt: null,
+    action: { kind: 'party-invite', refId: 'party-1', outcome: null, rating: null },
   },
   {
     id: 'n-2',
@@ -1678,6 +1697,7 @@ const notifications: Notification[] = [
     body: 'French Fries — ready in about 6 minutes.',
     createdAt: atMinutes(-7),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-3',
@@ -1688,6 +1708,7 @@ const notifications: Notification[] = [
     body: 'CS2 Weekly Cup starts in 45 minutes. Confirm your spot.',
     createdAt: atMinutes(-10),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-4',
@@ -1698,6 +1719,18 @@ const notifications: Notification[] = [
     body: 'All coffee is 50% off until 21:00.',
     createdAt: atMinutes(-55),
     readAt: atMinutes(-50),
+    action: null,
+  },
+  {
+    id: 'n-7',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Energy Drink, Chicken Wrap — how was it?',
+    createdAt: atHours(-2),
+    readAt: null,
+    action: { kind: 'rate-order', refId: 'ord-3', outcome: null, rating: null },
   },
   {
     id: 'n-5',
@@ -1708,6 +1741,29 @@ const notifications: Notification[] = [
     body: 'Main Hall seats will restart at 04:00 for updates.',
     createdAt: atHours(-3),
     readAt: atHours(-3),
+    action: null,
+  },
+  {
+    id: 'n-8',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'FragMachine invited you to “Ranked Grind”.',
+    createdAt: atDays(-1),
+    readAt: atDays(-1),
+    action: { kind: 'party-invite', refId: 'party-1', outcome: 'declined', rating: null },
+  },
+  {
+    id: 'n-9',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Cheeseburger — thanks for the 5 stars.',
+    createdAt: atDays(-2),
+    readAt: atDays(-2),
+    action: { kind: 'rate-order', refId: 'ord-1', outcome: 'rated', rating: 5 },
   },
 ]
 

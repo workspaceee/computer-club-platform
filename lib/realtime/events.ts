@@ -466,7 +466,10 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'tournament.call': ['tournaments'],
   'booking.reminder': ['booking'],
   'friend.request': ['social'],
-  'party.invite': ['social'],
+  // Also `support`: since C2.5 an invite is answerable *inside* the inbox, so a
+  // push that refreshed only the social screen would leave the card that asks
+  // the question — and the badge counting it — a revalidation behind.
+  'party.invite': ['social', 'support'],
   // Nothing to refresh: the station has no data for this player yet, and the
   // sign-in that follows the ticket exchange loads the first screen anyway.
   'login.qr.confirmed': [],

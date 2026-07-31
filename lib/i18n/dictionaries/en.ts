@@ -707,6 +707,37 @@ export const en = {
     unread: 'Unread',
     empty: 'Nothing here yet',
     emptyBody: 'Club news, order updates and time warnings arrive here.',
+    /**
+     * Day headings (C2.5). "Today" and "Yesterday" are words, not dates: that is
+     * how a player reads a two-hour-old message. Anything older is printed by
+     * `formatFullDate`, which is locale-aware — a date assembled from strings
+     * here would put the month first in Lithuanian.
+     */
+    today: 'Today',
+    yesterday: 'Yesterday',
+    /** The group's spoken name, so a reader hears which day it entered. */
+    dayGroup: 'Notifications, {day}',
+    /**
+     * In-card actions. The two invite answers, then the lines that replace them
+     * once the server has recorded one: a card still offering "Accept" after the
+     * invite was accepted is lying about state.
+     */
+    acceptInvite: 'Accept invite',
+    declineInvite: 'Decline',
+    inviteAccepted: 'Invite accepted',
+    inviteDeclined: 'Invite declined',
+    joinedToast: 'You joined the party.',
+    declinedToast: 'Invite declined.',
+    /** The stars' group label — five bare stars ask nothing on their own. */
+    rateOrder: 'Rate order',
+    // plural: one | other
+    rateStar: '{n} star|{n} stars',
+    rated: 'Rated {n}/5',
+    ratedToast: 'Thanks for rating your order.',
+    /** The answer failed, so the card says so instead of pretending it took. */
+    actionFailed: 'That did not go through. Try again.',
+    /** Someone else answered first — a reopened panel, not a new decision. */
+    actionStale: 'This one was already answered.',
   },
 
   booking: {

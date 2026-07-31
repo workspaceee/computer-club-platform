@@ -674,6 +674,8 @@ export function broadcast(
     body,
     createdAt: db.now,
     readAt: null,
+    // An announcement is news, not a question: nothing to accept or rate (C2.5).
+    action: null,
   }
   db.notifications.push(notification)
   commit()
