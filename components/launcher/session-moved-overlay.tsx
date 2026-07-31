@@ -32,9 +32,10 @@
  *     player has to get up and carry it out — so the honest affordance is
  *     "Got it", which acknowledges the address and hands back the launcher
  *     (still running, still counting) for the seconds it takes to close a game
- *     and pick up a drink. The instruction is not lost when it is dismissed: the
- *     seat and zone are also the "My session" panel's job, and the club knows
- *     where the player is expected.
+ *     and pick up a drink. The instruction is not lost when it is dismissed:
+ *     acknowledging leaves a toast with no auto-dismiss carrying the seat and the
+ *     deadline, the seat and zone are also the "My session" panel's job, and the
+ *     club knows where the player is expected either way.
  *
  * The zone arrives as an id, so the name is resolved from the catalogue rather
  * than printed raw: "зона VIP" is the half of the address a player can actually
@@ -55,10 +56,12 @@ import { db } from '@/lib/mock/db'
 import { fetchZones } from '@/lib/mock/api'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import type { SessionMovedEvent } from '@/lib/realtime/events'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function SessionMovedOverlay() {
   const { t, tp } = useT()
+  const toast = useStore((s) => s.toast)
 
   /**
    * The move on screen, or `null` for "nothing to walk to". One piece of state
@@ -83,9 +86,38 @@ export function SessionMovedOverlay() {
   const zones = useApi('club.zones', fetchZones, { revalidateIfStale: false })
   const zoneName = move ? zones.data?.find((zone) => zone.id === move.toZoneId)?.name : undefined
 
-  const acknowledge = useCallback(() => setMove(null), [])
-
+  /**
+   * The deadline in whole minutes, floored at one: `Math.round` alone turns the
+   * last 29 seconds into "move within 0 minutes", which reads as "too late"
+   * rather than "hurry". Computed before `acknowledge` because the toast needs
+   * the same number the overlay showed — being told 5 minutes and then reminded
+   * of 4 would look like the clock moved while the player was reading.
+   */
   const minutes = move ? Math.max(1, Math.round(move.moveWithinSeconds / 60)) : 0
+
+  /**
+   * Dismissal, and the one thing this overlay leaves behind.
+   *
+   * "Got it" is not "never mind": the player still has to stand up and find the
+   * seat, and the address they just read is about to be covered by the launcher
+   * they asked for. So the acknowledgement hands the instruction to the toast
+   * queue with `duration: 0` — it stays until the player dismisses it, exactly
+   * like the tournament call, because both are things the club is waiting for
+   * someone to actually do. This is why the generic `session.moved` toast was
+   * removed from `realtime/copy.ts`: raising it here instead means the reminder
+   * appears *after* the address has been read rather than underneath the overlay
+   * stating it, and never on the destination station, whose copy of this frame
+   * belongs to `ActiveElsewhere`.
+   */
+  const acknowledge = useCallback(() => {
+    if (move) {
+      toast('warning', t('realtime.sessionMovedBody', { n: minutes }), {
+        title: t('realtime.sessionMoved', { seat: move.toMachineLabel ?? move.toMachineId }),
+        duration: 0,
+      })
+    }
+    setMove(null)
+  }, [move, minutes, t, toast])
 
   return (
     // `modal`, not `blocking`: this station still works, and the player may well
