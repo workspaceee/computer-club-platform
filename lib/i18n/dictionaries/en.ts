@@ -463,6 +463,53 @@ export const en = {
     warningLowTime: 'Less than {n} min of session time left.',
 
     /* ---------------------------------------------------------------- *
+     * Running out of time (C2.6)
+     *
+     * Four toasts and one takeover. The toasts state the *number* and one thing
+     * to do about it; the takeover, at 60 seconds, states the number and offers
+     * the three ways a visit can actually end — buy more, ask a human, or stop
+     * on your own terms. Nothing here says "hurry": a player one minute from
+     * losing an unsaved match needs the fact and the exits, not urgency.
+     * ---------------------------------------------------------------- */
+    /**
+     * The 15- and 10-minute marks. Plural on the minutes because Russian and
+     * Lithuanian inflect them, and the number is the whole message.
+     */
+    // plural: one | other
+    warnTitle: '{n} minute left|{n} minutes left',
+    /** What to do about it, without deciding for the player. */
+    warnBody: 'Extend from your session panel, or wrap up when you are ready.',
+    /** The 5-minute mark: the same fact, and the one action worth taking now. */
+    warnBodyUrgent: 'Extend now to keep your seat, or save your progress.',
+    /** The 1-minute mark, spoken as a toast for a screen reader before the takeover. */
+    warnFinal: 'One minute left on this station.',
+    /** Opens "My session" straight from the toast — the panel is where extending lives. */
+    warnAction: 'Extend',
+    /**
+     * The takeover heading. Deliberately not "Time is up": it is not, and a
+     * player who reads it as the end will stop playing 60 seconds early.
+     */
+    lastCallTitle: 'One minute left',
+    lastCallBody:
+      'Your session ends in under a minute. Add time to carry on, call an admin if something is wrong, or save your game and hand the station back.',
+    /** The live digits inside the takeover, labelled. */
+    lastCallClock: 'Ending in',
+    /** Three exits, in the order a player is most likely to want them. */
+    lastCallExtend: 'Extend',
+    lastCallAdmin: 'Call the admin',
+    lastCallSaveExit: 'Save and exit',
+    /** Extending is only honest when there is something banked to extend from. */
+    lastCallExtendHint: 'No pass minutes banked — the shop has time passes.',
+    lastCallShop: 'Open shop',
+    /**
+     * Dismissal, and what it does *not* do. The takeover can be put away — a
+     * player mid-round must be able to see their game — but the clock does not
+     * care, so the button says so rather than promising a reprieve.
+     */
+    lastCallDismiss: 'Keep playing',
+    lastCallDismissHint: 'The station still locks when the time runs out.',
+
+    /* ---------------------------------------------------------------- *
      * "My session" — the panel behind the HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'My session',

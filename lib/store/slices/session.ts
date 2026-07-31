@@ -89,6 +89,27 @@ export interface SessionSlice {
   sessionSeconds: Seconds
 
   /**
+   * Minute marks already announced this visit (C2.6) — 15 / 10 / 5 / 1.
+   *
+   * State, not a ref inside the warning component, for two reasons. The clock is
+   * re-*derived* rather than counted (F6.3), so a threshold can be crossed while
+   * the tab is backgrounded or the machine asleep: the announcement has to be
+   * decided from "has this mark been spoken", never from "did we see it tick past".
+   * And the mark has to survive the component unmounting on a screen change — a
+   * player who locks and unlocks the station must not be told the same thing twice.
+   */
+  warnedMinutes: number[]
+  /**
+   * When the last warning landed, or `null` while nothing is being announced.
+   *
+   * The HUD reads this to pulse (C2.6). It is a *timestamp* rather than a boolean
+   * so two warnings in a row restart the animation instead of leaving a flag that
+   * was already true — a 10-minute mark arriving during the 15-minute pulse would
+   * otherwise pass unseen.
+   */
+  warningPulseAt: number | null
+
+  /**
    * Fresh visit on the given billing model.
    *
    * `source` is optional because this is the *offline* opening path: when the
@@ -115,7 +136,18 @@ export interface SessionSlice {
   expireSession: () => void
   /** Acknowledge the expiry screen and hand the station back to the club. */
   clearExpired: () => void
-}
+
+  /**
+   * Record that these minute marks have been announced, and start the HUD pulse.
+   *
+   * Takes a *list* because a station that was asleep can come back with several
+   * marks already behind it: warning about 15 minutes on a seat that now has 4
+   * left would be a lie, so the crossed marks are all retired in one write and
+   * only the most urgent of them is spoken.
+   */
+  noteTimeWarning: (minutes: number[]) => void
+  /** End the pulse. The warning is over; the colour on the digits carries on. */
+  clearWarningPulse: () => void
 
 /** Seconds on the clock right now, derived — down for prepaid, up for postpaid. */
 function derive(s: {
@@ -218,6 +250,8 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   timerRunning: false,
   sessionExpired: false,
   sessionSeconds: SESSION_LENGTH,
+  warnedMinutes: [],
+  warningPulseAt: null,
 
   startSession: (mode, source) => {
     // A prepaid visit opens with the hours it bought; a postpaid one opens at
@@ -232,6 +266,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       sessionSeconds: banked,
       timerRunning: true,
       sessionExpired: false,
+      // A fresh visit has heard nothing yet, and the marks of the previous one
+      // are none of its business (C2.6).
+      warnedMinutes: [],
+      warningPulseAt: null,
       ...anchor(mode, banked),
     })
   },
@@ -274,6 +312,8 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       expiresAt: null,
       runningSince: null,
       serverTime: null,
+      warnedMinutes: [],
+      warningPulseAt: null,
     }),
 
   syncClock: () => {
@@ -332,6 +372,14 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       sessionSeconds: banked,
       timerRunning: running,
       sessionExpired: snapshot.state === 'ended',
+      // Time moved, so the warnings have to move with it (C2.6). A mark is kept
+      // *spoken* only while the seat is still below it; anything the new
+      // remainder has climbed back above is re-armed, so a player who extends at
+      // 4 minutes is warned again at 15 and at 5 rather than sliding into the
+      // next deadline in silence. Filtering rather than clearing is what keeps
+      // the opposite bug out: an admin correction that *removes* time must not
+      // replay the 15-minute toast the player already saw.
+      warnedMinutes: get().warnedMinutes.filter((minute) => banked <= minute * 60),
     })
   },
 
@@ -343,4 +391,12 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     set({ sessionExpired: false })
     get().logout()
   },
+
+  noteTimeWarning: (minutes) =>
+    set((s) => ({
+      warnedMinutes: [...new Set([...s.warnedMinutes, ...minutes])],
+      warningPulseAt: Date.now(),
+    })),
+
+  clearWarningPulse: () => set({ warningPulseAt: null }),
 })

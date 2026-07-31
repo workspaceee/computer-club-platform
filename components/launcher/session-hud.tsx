@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Countdown, countdownLevel } from '@/components/ui/countdown'
 import { HudPlate } from '@/components/ui/hud-plate'
 import { icons } from '@/lib/icons'
@@ -7,6 +8,14 @@ import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import type { TimeSource } from '@/lib/types/session'
+import { cn } from '@/lib/utils'
+
+/**
+ * How long the plate answers a warning for — three beats of `hud-alert-pulse`
+ * (1.1 s each in `globals.css`) plus a little slack, so the flag outlives the
+ * animation rather than cutting it off mid-ring.
+ */
+const HUD_PULSE_MS = 3 * 1100 + 200
 
 /**
  * The pocket the running minutes come out of, named (C2.2).
@@ -45,6 +54,24 @@ export function SessionHud() {
   const timeSource = useStore((s) => s.timeSource)
   const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
 
+  // The plate answers a warning by pulsing (C2.6). The key is the *timestamp* the
+  // warning landed on, which is what makes a second mark restart the animation:
+  // React tears the node down and builds it again, so a CSS animation with a
+  // finite iteration count runs from zero. A class toggled on the same element
+  // would do nothing the second time, because it was already on.
+  const warningPulseAt = useStore((s) => s.warningPulseAt)
+  const clearWarningPulse = useStore((s) => s.clearWarningPulse)
+
+  // Three beats of `hud-alert-pulse`, then the flag is dropped. Cleared on a timer
+  // rather than on `animationend` because the animation does not exist at all when
+  // motion is damped — the event would never fire and the store would hold a stale
+  // "a warning is showing" forever.
+  useEffect(() => {
+    if (warningPulseAt === null) return
+    const timer = setTimeout(clearWarningPulse, HUD_PULSE_MS)
+    return () => clearTimeout(timer)
+  }, [warningPulseAt, clearWarningPulse])
+
   // Postpaid: `seconds` is time *used*, and it climbs into the open tab.
   const countsUp = billingMode === 'postpaid'
 
@@ -77,6 +104,18 @@ export function SessionHud() {
         className="rounded-md transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
       >
         <HudPlate
+          // Remounted on every warning (C2.6) so the finite pulse runs again.
+          key={warningPulseAt ?? 'idle'}
+          // `text-warning` / `text-danger` is only here to feed the ring its
+          // `currentColor`: the plate's own tone already paints its edge, label
+          // and icon, and each of those sets its own colour, so nothing inherits
+          // this. It means one keyframe serves both marks instead of two rules
+          // that could drift apart from the thresholds they belong to.
+          className={cn(
+            warningPulseAt !== null && 'hud-alert-pulse',
+            warningPulseAt !== null &&
+              (timeTone === 'warning' ? 'text-warning' : 'text-danger'),
+          )}
           // The label of this plate is the longest in the bar — "TIME LEFT ·
           // WALLET" against an `01:23:58` — so it is printed only from `xl`,
           // where the six-section rail no longer competes for the row. It is

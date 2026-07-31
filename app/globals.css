@@ -904,6 +904,32 @@
   animation: urgency-pulse 1.4s ease-in-out infinite;
 }
 
+/* The HUD plate answering a time warning (C2.6).
+   Distinct from `urgency-pulse` above, and the difference is what each one
+   means. `urgency-pulse` is a *state*: it runs for the whole danger band on the
+   digits, because under five minutes is continuously true. This is an *event* —
+   a mark was just crossed — so it runs a fixed three beats and stops, on the
+   plate's own halo rather than on the digits, and it borrows `currentColor` so
+   the amber of the 15-minute mark and the red of the 5-minute one need no second
+   rule. A ring that never stopped would be indistinguishable from the state
+   pulse it sits two centimetres away from, and by minute four the player would
+   have stopped seeing either. */
+@keyframes hud-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(from currentColor r g b / 0);
+  }
+  35% {
+    box-shadow: 0 0 0 4px rgb(from currentColor r g b / 0.28);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(from currentColor r g b / 0);
+  }
+}
+.hud-alert-pulse {
+  animation: hud-alert-pulse 1.1s ease-out 3;
+}
+
 /* Idle-screen wake hint ("Move mouse to unlock").
    It competes with fullscreen banner art, so it can't rely on the old
    opacity flicker down to 0.45 — that made the one instruction on the
@@ -978,7 +1004,8 @@
 :root[data-reduce-motion='true'] .wake-hint,
 :root[data-reduce-motion='true'] .wake-hint-copy,
 :root[data-reduce-motion='true'] .wake-hint-scan,
-:root[data-reduce-motion='true'] .urgency-pulse {
+:root[data-reduce-motion='true'] .urgency-pulse,
+:root[data-reduce-motion='true'] .hud-alert-pulse {
   animation: none !important;
 }
 
@@ -1018,7 +1045,8 @@
   .wake-hint,
   .wake-hint-copy,
   .wake-hint-scan,
-  .urgency-pulse {
+  .urgency-pulse,
+  .hud-alert-pulse {
     animation: none !important;
   }
 }
