@@ -51,7 +51,9 @@ const ORDER_KEY = {
  * The line for one frame, or `null` when the event is handled visually elsewhere.
  *
  * Deliberately silent for: `session.paused` / `session.resumed` / `session.ended`
- * (the lock screen and the summary say it far louder), `broadcast` (the shell
+ * (the C2.7 pause overlay and the summary say it far louder — and the overlay
+ * raises the "pause lifted" line itself, so a toast from here would double it),
+ * `broadcast` (the shell
  * decides toast vs modal from `presentation`), and `time.warning` (the countdown
  * turns red and the session HUD owns that story).
  */
