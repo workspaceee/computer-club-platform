@@ -613,6 +613,48 @@ export const en = {
     callAdmin: 'Call the admin',
     callAdminSent: 'The admin has been called — someone is on the way to your seat.',
     callAdminAgain: 'The admin already has your call.',
+
+    /* ---------------------------------------------------------------- *
+     * The club's day ending (C2.11)
+     *
+     * A different clock from C2.6 above, and the copy has to keep them apart:
+     * "your paid time is ending" can be answered by extending, "the club is
+     * closing" cannot. So nothing in this block offers more minutes, and every
+     * line is written against the one misreading that would cost a player a
+     * match — that closing time cuts the session off. It does not: the game is
+     * never interrupted (MVP §0.2), the minutes are already paid for, and it is
+     * an admin who turns the station off in person.
+     * ---------------------------------------------------------------- */
+    /** The 60 / 30 / 10-minute marks. Plural because RU and LT inflect minutes. */
+    // plural: one | other
+    closingTitle: 'The club closes in {n} minute|The club closes in {n} minutes',
+    /** The 60- and 30-minute marks: a fact, and no demand attached to it. */
+    closingBody:
+      'Your time keeps running — closing does not cut a session off. The shop and the bar stop serving.',
+    /** The 10-minute mark: the same fact plus the one thing worth starting now. */
+    closingBodyUrgent: 'Time to save your game and pack up. Your unused minutes keep for next time.',
+    /** The overlay after closing. Not "Time is up" — the player's time is not. */
+    closedTitle: 'The club is closed',
+    closedBody:
+      'You can finish what you are playing — the clock keeps running and nothing is cut off. Buying time and ordering at the bar are shut until we open again.',
+    /** Proof of the sentence above: the same digits as the HUD, still moving. */
+    closedClockLabel: 'Your time is still running',
+    closedOpensLabel: 'Open again',
+    /** A schedule this build cannot name the next opening from. */
+    closedOpensUnknown: 'Ask at the counter',
+    /** A member's own way out: the remainder is banked, the station locks. */
+    closedSaveExit: 'Save and exit',
+    closedSaveExitHint: 'Your remaining minutes are banked and wait for your next visit.',
+    /** A walk-in has a tab, not a balance, so the counter is the honest exit. */
+    closedGuestHint: 'Settle your tab at the counter when you finish.',
+    closedCallAdmin: 'Call the admin',
+    /**
+     * Dismissal, and the fact it must not be read as. The launcher does not shut
+     * the station down; a human does, and saying so is what keeps a dismissed
+     * overlay from reading as permission to stay all night.
+     */
+    closedDismiss: 'Keep playing',
+    closedDismissHint: 'An admin will come round to close the station down in person.',
   },
 
   games: {
@@ -674,6 +716,27 @@ export const en = {
     openCartEmpty: 'Cart, empty',
     // plural: one | other
     openCart: 'Cart, {n} item|Cart, {n} items',
+
+    /* ---------------------------------------------------------------- *
+     * Closing hours in the shop (C2.11)
+     *
+     * Two different statements, and mixing them up would be the bug:
+     *
+     *   closed*   the club is shut, so nothing can be bought or brought to a
+     *             station. A refusal, and it names when that ends.
+     *   closing*  the pass is longer than what is left of today. **Not** a
+     *             refusal — the player may legitimately buy minutes that will
+     *             tick on their next visit, so this is a note on the card, not a
+     *             disabled button.
+     * ---------------------------------------------------------------- */
+    closedTitle: 'The club is closed',
+    closedBody: 'Buying and bar orders open again at {time}.',
+    /** Same refusal, for a schedule with no next opening to print. */
+    closedBodyNoTime: 'Buying and bar orders open again when the club does.',
+    /** On the checkout button, where a full sentence does not fit. */
+    closedCheckoutHint: 'Checkout opens again with the club.',
+    /** On a time-pass card that outlasts today. `{n}` is the part that spills. */
+    closingPassNote: 'Longer than we are open today — {n} min of it keeps for your next visit.',
   },
 
   wallet: {
