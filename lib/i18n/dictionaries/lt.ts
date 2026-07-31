@@ -401,6 +401,21 @@ export const lt: Dictionary = {
     pauseResumedToast: 'Pauzė nuimta — grįžtame į žaidimą.',
 
     /* ---------------------------------------------------------------- *
+     * Sesijos perkėlimas į kitą kompiuterį (C2.8)
+     * ---------------------------------------------------------------- */
+    movedTitle: 'Sesija perkelta',
+    movedBody: 'Jūsų sesija perkelta į {seat}, {zone} zona.',
+    movedBodyNoZone: 'Jūsų sesija perkelta į {seat}.',
+    movedSeatLabel: 'Nauja stotis',
+    movedZoneLabel: 'Zona',
+    // plural: one | few | other
+    movedDeadline:
+      'Persikelkite per {n} minutę — laikas saugomas, kol nueisite.|Persikelkite per {n} minutes — laikas saugomas, kol nueisite.|Persikelkite per {n} minučių — laikas saugomas, kol nueisite.',
+    movedHint:
+      'Už perėjimą nieko neskaičiuojame ir niekas neprarandama: likęs laikas, sąskaita ir paskyra keliauja su jumis. Prie naujos stoties prisijunkite iš naujo.',
+    movedAck: 'Supratau',
+
+    /* ---------------------------------------------------------------- *
      * „Mano sesija“ — skydelis už HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'Mano sesija',
