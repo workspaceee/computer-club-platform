@@ -384,6 +384,23 @@ export const lt: Dictionary = {
     lastCallDismissHint: 'Pasibaigus laikui stotis vis tiek užsirakins.',
 
     /* ---------------------------------------------------------------- *
+     * Administratoriaus pauzė (C2.7)
+     * ---------------------------------------------------------------- */
+    pauseTitle: 'Sesija pristabdyta',
+    pauseBody: 'Laikmatis sustabdytas — šios minutės jums neskaičiuojamos.',
+    pauseReasonLabel: 'Priežastis',
+    pauseReasonStaff: 'Administratorius pristabdė jūsų sesiją.',
+    pauseReasonBreak: 'Jūsų sesijoje pertrauka.',
+    pauseReasonPaymentRequired: 'Prieš laikmačio paleidimą reikia apmokėti prie baro.',
+    pauseReasonMaintenance: 'Šios stoties techninė priežiūra.',
+    pauseReasonUnknown: 'Klubas pristabdė šią stotį.',
+    pauseRemaining: 'Laikas išsaugotas',
+    pauseWaitHint:
+      'Niekas neprarasta. Žaidimai ir langai lieka tokie, kokie buvo — leidyklė grįš vos administratoriui nuėmus pauzę.',
+    pauseCallAdmin: 'Pašaukti administratorių',
+    pauseResumedToast: 'Pauzė nuimta — grįžtame į žaidimą.',
+
+    /* ---------------------------------------------------------------- *
      * „Mano sesija“ — skydelis už HUD (C2.3)
      * ---------------------------------------------------------------- */
     mine: 'Mano sesija',
