@@ -17,25 +17,31 @@
  *     announces nothing, and once it overflows to "9+" it is not even the number
  *     any more. `inbox.openUnread` carries the real count as words; the disc is
  *     `aria-hidden` decoration on top of it.
- *  3. **Reading is a write, so it goes through the server.** Clicking a row
- *     marks it read via `markNotificationRead` and then revalidates — there is no
- *     client-side `readAt` to drift out of step with the badge.
+ *  3. **Reading is a write, so it goes through the server.** Opening the panel
+ *     marks what is on screen read via `markNotificationRead` and revalidates the
+ *     badge — there is no client-side `readAt` to drift out of step with it.
  *
- * C2.5 grows this panel with per-day grouping and in-card actions ("Accept
- * invite", "Rate order"). What it inherits from here is the read model: a flat,
- * newest-first list, unread marked, and one "mark all" write.
+ * C2.5 added the day grouping and the in-card actions, both of which live in
+ * `notification-card.tsx`: this file still owns only *when the club is read* —
+ * the badge query, the panel query, the layer, and the two writes. The read model
+ * it hands down is unchanged: a flat, newest-first list, grouped on the client.
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
+import {
+  NotificationCard,
+  groupByDay,
+  useDayLabel,
+} from '@/components/launcher/notification-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { IconAction } from '@/components/ui/icon-action'
 import { Skeleton } from '@/components/skeleton'
 import { useApi } from '@/hooks/use-api'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useT } from '@/lib/i18n/provider'
-import { icons, type LucideIcon } from '@/lib/icons'
+import { icons } from '@/lib/icons'
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -43,20 +49,6 @@ import {
   markNotificationRead,
 } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
-import type { Notification, NotificationLevel } from '@/lib/types/notification'
-import { cn } from '@/lib/utils'
-
-/**
- * Level → the icon and the colour that carry it. A table keyed off the server's
- * closed type, like the HUD's `SOURCE_LABEL`: a new `NotificationLevel` stops the
- * build here instead of rendering an unstyled row nobody notices.
- */
-const LEVEL: Record<NotificationLevel, { icon: LucideIcon; tone: string }> = {
-  info: { icon: icons.info, tone: 'text-text-medium' },
-  success: { icon: icons.success, tone: 'text-success' },
-  warning: { icon: icons.warning, tone: 'text-warning' },
-  critical: { icon: icons.error, tone: 'text-danger' },
-}
 
 /** Highest number the disc prints before it becomes `inbox.overflow` ("9+"). */
 const BADGE_MAX = 9
@@ -67,6 +59,7 @@ export function NotificationBell() {
   const open = useStore((s) => s.notificationsOpen)
   const setOpen = useStore((s) => s.setNotificationsOpen)
   const panelId = useId()
+  const dayLabel = useDayLabel()
 
   // Always fetched: the badge is the whole point of the control, and a bell that
   // only learns about unread mail once you open it has nothing to say in the bar.
@@ -89,17 +82,43 @@ export function NotificationBell() {
     lockScroll: false,
   })
 
-  async function readOne(notification: Notification) {
-    if (notification.readAt !== null) return
-    try {
-      await markNotificationRead(notification.id)
-    } catch {
-      // A failed read is not worth a toast: the row stays unread and the next
-      // revalidation tells the truth either way.
-    }
+  function refresh() {
     void inbox.mutate()
     void unread.mutate()
   }
+
+  /**
+   * Everything the player has now seen is read (C2.5).
+   *
+   * C2.4 marked a message read when the *row* was clicked, which worked only
+   * because the row was itself a button. Cards now hold their own buttons, and
+   * clicking "Accept invite" must not also be the gesture that clears an
+   * unrelated warning above it. Opening the panel is the honest signal: these
+   * messages were on screen and the player was looking at them.
+   *
+   * The writes are fired once per open — `markedFor` remembers which fetch was
+   * already cleared, so a revalidation caused by the writes themselves (or by a
+   * push arriving while the panel is up) does not start the loop again. The
+   * badge is refreshed after; the list is not, because rows going from bold to
+   * plain under the reader's eyes is worse than a panel that settles on close.
+   */
+  const markedFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!open) {
+      markedFor.current = null
+      return
+    }
+    const list = inbox.data
+    if (!list) return
+    const unreadIds = list.filter((n) => n.readAt === null).map((n) => n.id)
+    const stamp = unreadIds.join(',')
+    if (unreadIds.length === 0 || markedFor.current === stamp) return
+    markedFor.current = stamp
+    void Promise.allSettled(unreadIds.map((id) => markNotificationRead(id)))
+      // A failed read is not worth a toast: the card stays unread and the next
+      // open tells the truth either way.
+      .then(() => void unread.mutate())
+  }, [open, inbox.data, unread])
 
   async function readAll() {
     try {
@@ -192,16 +211,28 @@ export function NotificationBell() {
                 errorBare
               >
                 {(list) => (
-                  <ul className="flex flex-col gap-1">
-                    {list.map((notification) => (
-                      <li key={notification.id}>
-                        <NotificationRow
-                          notification={notification}
-                          onRead={() => void readOne(notification)}
-                        />
-                      </li>
+                  <div className="flex flex-col gap-2">
+                    {groupByDay(list).map((group) => (
+                      // One `section` per day, named by its heading, so a reader
+                      // moving by landmark hears "Notifications, Yesterday"
+                      // instead of walking one flat list of forty rows.
+                      <section key={group.key} aria-label={t('inbox.dayGroup', { day: dayLabel(group) })}>
+                        <h3 className="label-mono sticky top-0 z-10 bg-surface-1/95 px-3 py-1.5 text-[9px] text-text-low backdrop-blur">
+                          {dayLabel(group)}
+                        </h3>
+                        <ul className="flex flex-col gap-1">
+                          {group.items.map((notification) => (
+                            <li key={notification.id}>
+                              <NotificationCard
+                                notification={notification}
+                                onAnswered={refresh}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </DataBoundary>
             </div>
@@ -209,57 +240,5 @@ export function NotificationBell() {
         )}
       </AnimatePresence>
     </div>
-  )
-}
-
-function NotificationRow({
-  notification,
-  onRead,
-}: {
-  notification: Notification
-  onRead: () => void
-}) {
-  const { t, formatDateTime } = useT()
-  const level = LEVEL[notification.level]
-  const isUnread = notification.readAt === null
-
-  return (
-    // A `button` even though the row has no destination yet (C2.5 gives the cards
-    // their actions): marking a message read *is* an action, and it has to be
-    // reachable from the keyboard. A read row is inert, so it is not a button.
-    <button
-      type="button"
-      onClick={onRead}
-      disabled={!isUnread}
-      className={cn(
-        'flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
-        isUnread ? 'bg-white/[0.04] hover:bg-white/[0.07]' : 'opacity-70',
-      )}
-    >
-      <span aria-hidden className={cn('mt-0.5 shrink-0', level.tone)}>
-        <level.icon size={16} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate font-display text-sm font-bold text-text-high">
-            {notification.title}
-          </span>
-          {isUnread && (
-            // Spoken, not coloured: the dot is `aria-hidden`, so "Unread" is what
-            // reaches a reader — the state is never carried by colour alone.
-            <>
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-primary" />
-              <span className="sr-only">{t('inbox.unread')}</span>
-            </>
-          )}
-        </span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-text-low">
-          {notification.body}
-        </span>
-        <span className="label-mono mt-1 block text-[9px] text-text-low">
-          {formatDateTime(new Date(notification.createdAt))}
-        </span>
-      </span>
-    </button>
   )
 }

@@ -557,6 +557,24 @@ export const lt: Dictionary = {
     unread: 'Neperskaityta',
     empty: 'Čia nieko nėra',
     emptyBody: 'Klubo naujienos, užsakymų atnaujinimai ir laiko įspėjimai atsiranda čia.',
+    // Dienų antraštės (C2.5): „šiandien“ ir „vakar“ — žodžiais, senesnės dienos —
+    // per formatFullDate, nes datos dalių tvarką sprendžia lokalė.
+    today: 'Šiandien',
+    yesterday: 'Vakar',
+    dayGroup: 'Pranešimai, {day}',
+    acceptInvite: 'Priimti pakvietimą',
+    declineInvite: 'Atmesti',
+    inviteAccepted: 'Pakvietimas priimtas',
+    inviteDeclined: 'Pakvietimas atmestas',
+    joinedToast: 'Prisijungėte prie komandos.',
+    declinedToast: 'Pakvietimas atmestas.',
+    rateOrder: 'Įvertinti užsakymą',
+    // formos: viena | kelios | kita
+    rateStar: '{n} žvaigždė|{n} žvaigždės|{n} žvaigždžių',
+    rated: 'Įvertinta {n}/5',
+    ratedToast: 'Dėkojame už įvertinimą.',
+    actionFailed: 'Nepavyko. Bandykite dar kartą.',
+    actionStale: 'Į tai jau atsakyta.',
   },
 
   booking: {
