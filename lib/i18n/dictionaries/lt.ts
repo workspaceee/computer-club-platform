@@ -353,11 +353,16 @@ export const lt: Dictionary = {
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',
-    lockConfirmTitle: 'Užrakinti šį kompiuterį?',
+    // C2.10 — „stotis“, ne „kompiuteris“. Penkios eilutės aplink šią vietą yra
+    // vienas srautas: meniu punktas (`lockStation`), klausimas, pranešimas ir
+    // ekranas, į kurį jis nuveda (`lockedTitle`). Antraštė ir pranešimas sakė
+    // „kompiuteris“, o mygtukas tame pačiame dialoge — „Užrakinti stotį“: vienas
+    // dialogas tą patį dalyką vadino dviem žodžiais.
+    lockConfirmTitle: 'Užrakinti šią stotį?',
     lockConfirmBody: 'Sesija bus pristabdyta. Prisijunk vėl ir tęsk su likusiu laiku.',
-    lockedToast: 'Kompiuteris užrakintas. Sesija pristabdyta.',
+    lockedToast: 'Stotis užrakinta. Sesija pristabdyta.',
     logoutConfirmTitle: 'Atsijungti?',
-    logoutConfirmBody: 'Sesija bus baigta, kompiuteris grįš į užrakto ekraną.',
+    logoutConfirmBody: 'Sesija bus baigta, stotis grįš į užrakto ekraną.',
     lockedTitle: 'Stotis užrakinta',
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
