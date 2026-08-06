@@ -68,14 +68,31 @@ const UNKNOWN: ClubHours = {
  * `?club=close10` works at four in the morning as well as at nine in the evening.
  * A schedule with no closing in it cannot be previewed at all — there is nothing
  * to stand ten minutes before — so the real clock is returned untouched.
+ *
+ * `open` is the one branch that moves nothing when the club is *already* trading:
+ * the state under review is the real one, and shifting the clock to preview it
+ * would only make the reading less true. When the club is shut it lands
+ * **mid-window** rather than a minute after opening — a minute in is still within
+ * the 60-minute mark of a short window, and a reviewer who asked for an open club
+ * should not be handed a closing warning to go with it.
  */
 function overriddenNow(openHours: OpenHours, override: ClubHoursOverride): number {
   const nowMs = Date.now()
   let probe = clubHoursStatus(openHours, nowMs)
+  // Already trading and that is the state asked for: the real clock is the most
+  // honest answer available, so it is left alone.
+  if (probe.open && override.kind === 'open') return nowMs
+  // `probedAt` is the instant `probe` describes — carried rather than re-derived
+  // from `minutesUntilClose`, which is rounded to whole minutes.
+  let probedAt = nowMs
   if (!probe.open && probe.opensAtMs !== null) {
-    probe = clubHoursStatus(openHours, probe.opensAtMs + MS_PER_MINUTE)
+    probedAt = probe.opensAtMs + MS_PER_MINUTE
+    probe = clubHoursStatus(openHours, probedAt)
   }
+  // Nothing closes: `closeIn` and `closed` have no mark to stand near, and `open`
+  // has nothing to move towards — a club that never shuts is already open.
   if (probe.closesAtMs === null) return nowMs
+  if (override.kind === 'open') return Math.round((probedAt + probe.closesAtMs) / 2)
   return override.kind === 'closed'
     ? probe.closesAtMs + MS_PER_MINUTE
     : probe.closesAtMs - override.minutes * MS_PER_MINUTE
