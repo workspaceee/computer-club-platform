@@ -696,7 +696,18 @@ export function broadcast(
  * Loyalty, events, social
  * ------------------------------------------------------------------ */
 
-/** Completes the first open quest and pays it out. */
+/**
+ * Finishes the first open quest — and deliberately does **not** pay it.
+ *
+ * It used to credit the coins here as well, which put two payouts on one reward:
+ * the sim paid on completion and `claimQuest()` paid again when the player pressed
+ * the button C3.4 put on the home card. Completion is the club noticing the
+ * objective was met; collecting is the player's move, and the wallet is only
+ * touched by the endpoint that the player triggers.
+ *
+ * `coins` in the payload stays honest under that reading — the contract calls it
+ * the balance after the event, and after this event the balance has not moved.
+ */
 export function completeQuest(questId?: ID): RealtimeEnvelope<'quest.completed'> | null {
   const quest = questId
     ? db.quests.find((q) => q.id === questId)
@@ -707,7 +718,6 @@ export function completeQuest(questId?: ID): RealtimeEnvelope<'quest.completed'>
   quest.completedAt = db.now
 
   const player = getPlayer(db.currentUserId)
-  if (player) player.wallet.coins += quest.rewardCoins
   commit()
 
   return mockBus.publish(

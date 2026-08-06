@@ -228,6 +228,31 @@ export function nextOpeningMs(openHours: OpenHours, nowMs: number = Date.now()):
 }
 
 /**
+ * The opening that started the club day `nowMs` falls in (C3.4).
+ *
+ * The mirror of `nextOpeningMs()`, and the other half of what a daily set needs:
+ * "when does the current day roll over" is answered by the next opening, and
+ * "which day am I looking at" by this one. A daily quest settled *before* this
+ * instant belongs to a club day that has already ended, which is the only test
+ * the reset needs — no calendar arithmetic, no midnight, no timezone of its own.
+ *
+ * Merged spans are what make it a one-liner: at most one span can contain `nowMs`,
+ * and the ones before it are ordered, so the last start at or before now is the
+ * door the current day opened through — the current span's start while the club is
+ * trading, and the previous day's while it is shut. Both are the right answer for
+ * "the set on screen was issued then".
+ *
+ * `null` only when nothing has opened inside the horizon — a schedule with no
+ * windows at all. A club that never closes still has a door it opened through, so
+ * it gets an instant here even though `nextOpeningMs()` has nothing to promise.
+ */
+export function lastOpeningMs(openHours: OpenHours, nowMs: number = Date.now()): number | null {
+  const { spans } = timeline(openHours, nowMs)
+  const past = spans.filter((span) => span.startMs <= nowMs)
+  return past.length === 0 ? null : past[past.length - 1].startMs
+}
+
+/**
  * Does buying `durationMinutes` of time run past closing (C2.11)?
  *
  * The purchase is still allowed — the player may legitimately want minutes that
