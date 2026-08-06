@@ -35,6 +35,17 @@ export const DEV_SHORTCUTS = process.env.NODE_ENV !== 'production'
  *   `/?club=close30`   thirty
  *   `/?club=close10`   ten
  *   `/?club=closed`    one minute after closing — the "Club closed" screen
+ *   `/?club=open`      mid-window, when the club is plainly trading
+ *
+ * `open` is the counterpart the first four were missing, and it exists for the
+ * same reason they do: the mock week trades `12:00 → 02:00`, so for eleven hours
+ * of every day a reviewer opening the prototype is standing in a **shut** club.
+ * Every money surface is then correctly refusing — the shop's "Add", the cart's
+ * checkout, the extend chips on the session card — and there is no way to tell a
+ * working gate from a broken button. The alternative anyone reaches for is
+ * editing the schedule in `lib/mock/db.ts` and remembering to put it back (C2.11
+ * did exactly that, and had to record it as a debt); this makes that edit
+ * unnecessary, and unlike the edit it cannot be forgotten in the committed file.
  *
  * A query parameter rather than a control in the UI, for two reasons: the mock db
  * lives in the tab's module instance (see `/dev/bus`), so a switch that survives
@@ -47,12 +58,15 @@ export type ClubHoursOverride =
   | { kind: 'closeIn'; minutes: number }
   /** Put "now" just past closing. */
   | { kind: 'closed' }
+  /** Put "now" inside the next open window, clear of the closing marks. */
+  | { kind: 'open' }
 
 const OVERRIDES: Record<string, ClubHoursOverride> = {
   close60: { kind: 'closeIn', minutes: 60 },
   close30: { kind: 'closeIn', minutes: 30 },
   close10: { kind: 'closeIn', minutes: 10 },
   closed: { kind: 'closed' },
+  open: { kind: 'open' },
 }
 
 /**
