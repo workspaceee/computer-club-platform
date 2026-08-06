@@ -229,6 +229,83 @@ function nextFault(endpoint: string): ApiErrorCode | null {
 }
 
 /* ------------------------------------------------------------------ *
+ * Money while the link is down (C2.12)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The writes that must not be attempted without a link to the club server.
+ *
+ * Every one of them either moves money or moves a deadline — the two things whose
+ * outcome the player cannot verify for themselves. A charge that leaves the
+ * station and is never confirmed is the worst failure this product has: the money
+ * may or may not be gone, and nothing on screen can honestly say which.
+ *
+ * The buttons for these are already disabled by `useSalesGate()`, so reaching this
+ * list means something got past the UI — a click that beat a re-render, a dialog
+ * that was already open, a keyboard `Enter` on a form. That is exactly why the
+ * guard is *here*, at the one choke point every write goes through, rather than
+ * trusted to six `disabled` props.
+ *
+ * What is deliberately **absent** matters as much as what is present:
+ * `catalog.launchGame` and `support.callStaff` are not in it. A player with a dead
+ * link must still be able to start a game and reach a human — those are the two
+ * things an outage must never take away, and both are safe to retry or to honour
+ * late.
+ */
+const OFFLINE_BLOCKED: ReadonlySet<string> = new Set([
+  // The till.
+  'shop.checkoutCart',
+  'shop.createOrder',
+  'shop.purchasePass',
+  'shop.settleTab',
+  'shop.topUpWallet',
+  // The clock. Banked minutes are still the club's to grant, and a deadline the
+  // server never acknowledged is a minute the player would wrongly believe in.
+  'session.extendSession',
+  // Loyalty spends a balance the server owns, same as a card would.
+  'loyalty.redeemReward',
+  'loyalty.unlockPaidTrack',
+])
+
+/**
+ * Whether the link is down, as far as the transport is concerned.
+ *
+ * **Pushed in by the UI, never read from the bus here.** `lib/realtime/mock-bus.ts`
+ * imports `serverTime()` from this file, so importing the bus back would be a
+ * cycle. The direction is a feature rather than a workaround: the flag that gets
+ * pushed is the *delayed* one the offline banner renders
+ * (`OFFLINE_BANNER_DELAY_MS`), so the transport refuses a purchase during exactly
+ * the window the player can see a banner explaining why — and a 300 ms blink of
+ * packet loss never kills a checkout that would have gone through.
+ */
+let linkOffline = false
+
+/** Called by the realtime provider whenever the banner's `offline` flag changes. */
+export function setTransportOffline(offline: boolean): void {
+  linkOffline = offline
+}
+
+/**
+ * Told when a purchase was refused before it left the station.
+ *
+ * A callback rather than a `toast()` call, because rule 2 of this file holds: the
+ * mock API never produces prose. The UI registers a reporter that already knows
+ * the language, so the sentence the player reads still comes from the dictionaries
+ * (`realtime.salesRefused` — the one that says *nothing was charged*).
+ */
+type RefusalReporter = (endpoint: string) => void
+
+let reportRefusal: RefusalReporter | null = null
+
+/** Registers the reporter. Returns the unsubscribe, for React cleanup. */
+export function onPurchaseRefused(reporter: RefusalReporter): () => void {
+  reportRefusal = reporter
+  return () => {
+    if (reportRefusal === reporter) reportRefusal = null
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Transport
  * ------------------------------------------------------------------ */
 
@@ -272,6 +349,25 @@ export async function query<T>(endpoint: string, read: () => T): Promise<T> {
  * the closest a mock can get to a transactional endpoint.
  */
 export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
+  /**
+   * Refused **before the round trip**, and before `write()` (C2.12).
+   *
+   * Order is the whole point. Rejecting up front means the store is never touched,
+   * so there is no partial charge to unwind and no window in which the wallet has
+   * been debited but the order has not been created — the client can promise
+   * "nothing was charged" and be telling the truth. Doing this after the `sleep`
+   * would also make the player watch a 600 ms spinner before being told the thing
+   * was never going to happen.
+   *
+   * Non-purchase writes are untouched: a heartbeat, a locale change or a call to
+   * staff still goes through and fails on its own terms if the link really is
+   * down.
+   */
+  if (linkOffline && OFFLINE_BLOCKED.has(endpoint)) {
+    reportRefusal?.(endpoint)
+    throw new ApiError('network')
+  }
+
   await sleep(latency())
   const fault = nextFault(endpoint)
   if (fault) throw new ApiError(fault)

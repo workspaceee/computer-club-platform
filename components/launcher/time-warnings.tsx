@@ -41,6 +41,7 @@ import { Countdown } from '@/components/ui/countdown'
 import { Overlay } from '@/components/ui/overlay'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useSfx } from '@/hooks/use-sfx'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
@@ -194,6 +195,23 @@ function LastCall({
   const [called, setCalled] = useState(false)
   const [banked, setBanked] = useState<number | null>(null)
 
+  /**
+   * Whether the deadline can be moved right now (C2.12).
+   *
+   * Extending is a *server* mutation even when it spends banked minutes rather
+   * than money — the deadline lives on the club's side, and a grant the server
+   * never acknowledged is a minute the player would believe they had. So it is
+   * gated with the rest of the till.
+   *
+   * The other two buttons are deliberately **not** gated, and this is the takeover
+   * where that matters most: a player one minute from the end, with a dead link,
+   * needs to be able to call a human and to bank what is left. Those are exactly
+   * the escape hatches an outage must not close — `callStaff` is a request the club
+   * can honour late, and "save and exit" is `holdSeat`, which reports off the local
+   * anchors and does not need the link to be up to be correct.
+   */
+  const sales = useSalesGate()
+
   // What can actually be extended from, asked once when the panel opens.
   //
   // Fetched here rather than taken from the wallet in the store for the same
@@ -323,20 +341,34 @@ function LastCall({
 
         <div className="flex flex-col gap-2">
           {steps.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-2">
-              {steps.map((minutes) => (
-                <Button
-                  key={minutes}
-                  variant="primary"
-                  size="md"
-                  loading={busy === 'extend'}
-                  disabled={busy !== null}
-                  onClick={() => void extend(minutes)}
-                  iconLeft={<icons.add aria-hidden />}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
+                {steps.map((minutes) => (
+                  <Button
+                    key={minutes}
+                    variant="primary"
+                    size="md"
+                    loading={busy === 'extend'}
+                    disabled={busy !== null || !sales.canSpend}
+                    onClick={() => void extend(minutes)}
+                    iconLeft={<icons.add aria-hidden />}
+                  >
+                    {`${t('session.lastCallExtend')} +${minutes}`}
+                  </Button>
+                ))}
+              </div>
+              {/* In the last minute a dead button with no caption is the cruellest
+                  version of this panel: the player reads it as "my time is gone".
+                  The line names the pause and, through `salesHint`, says it lifts
+                  by itself — while the two buttons below stay live. */}
+              {sales.reason === 'offline' && (
+                <p
+                  role="status"
+                  className="text-pretty text-center text-xs leading-relaxed text-warning"
                 >
-                  {`${t('session.lastCallExtend')} +${minutes}`}
-                </Button>
-              ))}
+                  {`${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}
+                </p>
+              )}
             </div>
           ) : (
             // Nothing banked, so the honest primary action is the shop. Rendered

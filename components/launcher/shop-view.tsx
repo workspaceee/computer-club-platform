@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
 import { useClubHours } from '@/hooks/use-club-hours'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { runsPastClosing } from '@/lib/club-hours'
 import { useT } from '@/lib/i18n/provider'
 import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
@@ -85,6 +86,22 @@ export function ShopView() {
    */
   const club = useClubHours()
 
+  /**
+   * Whether money may be spent at all (C2.12).
+   *
+   * The closed-club check used to be computed right here as `club.ready &&
+   * !club.open`; it now comes from the shared gate, which folds in the second
+   * reason a sale cannot happen — no link to the club server, so no payment can
+   * be confirmed. Both arrive as one `canSpend`, so the grid cannot end up
+   * honouring one refusal and ignoring the other.
+   *
+   * The *catalogue* is untouched by it. Prices, photos, tabs and the cart all keep
+   * working: an outage is not a reason to blank the shop, and a player who spends
+   * the wait deciding what to order is a player served the moment the link is
+   * back.
+   */
+  const sales = useSalesGate()
+
   const catalogue = useApi(['shop', tab], () => TAB_ENDPOINTS[tab]())
   const activeTab = TABS.find((t) => t.id === tab)!
 
@@ -125,7 +142,7 @@ export function ShopView() {
           without a time is the version a player has to go and ask about.
           `role="status"`: it is a condition of the screen they just opened, not
           an error they caused. */}
-      {club.ready && !club.open && (
+      {sales.reason === 'closed' && (
         <div
           role="status"
           className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/[0.08] px-4 py-3"
@@ -139,6 +156,36 @@ export function ShopView() {
               {club.opensAt
                 ? t('shop.closedBody', { time: formatTime(club.opensAt) })
                 : t('shop.closedBodyNoTime')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* The outage refusal (C2.12), in the same slot and the same shape as the
+          closing one — `reason` is exclusive, so the section never stacks two
+          banners saying the shop is shut for two different reasons.
+          
+          It carries the promise the top-of-screen strip cannot: the player is
+          being told they cannot buy, which is precisely the moment they start
+          wondering whether the minutes they already paid for are burning. The body
+          answers that before it is asked, and the hint says the buttons come back
+          on their own — the shell is already retrying, so "try again later" would
+          be asking for work nobody has to do. */}
+      {sales.reason === 'offline' && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/[0.08] px-4 py-3"
+        >
+          <icons.offline size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+          <div className="flex flex-col gap-0.5">
+            <p className="font-display text-sm font-bold uppercase text-text-high">
+              {t('realtime.salesTitle')}
+            </p>
+            <p className="text-pretty text-xs leading-relaxed text-text-medium">
+              {t('realtime.salesBody')}
+            </p>
+            <p className="text-pretty text-xs leading-relaxed text-text-low">
+              {t('realtime.salesHint')}
             </p>
           </div>
         </div>
@@ -200,7 +247,7 @@ export function ShopView() {
               <ProductCard
                 key={item.id}
                 item={item}
-                clubClosed={club.ready && !club.open}
+                canSpend={sales.canSpend}
                 minutesUntilClose={club.minutesUntilClose}
               />
             ))}
@@ -228,11 +275,16 @@ function Grid({
 
 function ProductCard({
   item,
-  clubClosed,
+  canSpend,
   minutesUntilClose,
 }: {
   item: ShopEntry
-  clubClosed: boolean
+  /**
+   * Whether "Add" may take money at all — from `useSalesGate()` in the section
+   * above, not re-derived here. Nine cards each asking the same question is nine
+   * chances for one of them to answer it differently.
+   */
+  canSpend: boolean
   /** `null` is "nothing closes", never "closing now" — see `lib/club-hours.ts`. */
   minutesUntilClose: number | null
 }) {
@@ -317,10 +369,11 @@ function ProductCard({
           )}
         </span>
         <button
-          // A closed club can neither charge for this nor bring it, so the button
-          // is off rather than raising an error the player cannot act on. The
-          // reason is stated once in the banner above, not repeated here.
-          disabled={soldOut || clubClosed}
+          // A club that is shut or unreachable can neither charge for this nor
+          // bring it, so the button is off rather than raising an error the player
+          // cannot act on. The reason is stated once in the banner above rather
+          // than repeated on nine disabled buttons.
+          disabled={soldOut || !canSpend}
           onClick={() => {
             addToCart(item)
             toast('success', `${item.name} added to cart`)

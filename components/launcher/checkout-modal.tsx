@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti'
 import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Modal } from '@/components/ui/modal'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { checkoutCart, toApiError } from '@/lib/mock/api'
@@ -31,6 +32,21 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
   const totalCents = cartTotalCents(cart)
 
+  /**
+   * The gate, read *live* rather than at open time (C2.12).
+   *
+   * This dialog is the one surface that can be sitting open, with a card number
+   * already typed into it, at the moment the link goes down: the drawer's button
+   * was legitimately enabled when it was pressed. So the refusal has to be able to
+   * arrive mid-form — the Pay button goes off under the player's hand, and `pay()`
+   * checks again before it posts, because a click can beat a re-render.
+   *
+   * The form is *not* torn down and the fields are not cleared. The link comes
+   * back in seconds and re-typing a card number is the rudest thing this dialog
+   * could do; the only thing that stops is the charge.
+   */
+  const sales = useSalesGate()
+
   const valid =
     onlyDigits(card).length === 16 &&
     expiry.length === 5 &&
@@ -53,6 +69,14 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
   const pay = async () => {
     if (!valid) return
+    // The click that beat the re-render. Refused here rather than allowed to
+    // reach the endpoint, and it says what the player needs to hear first —
+    // nothing was charged. The transport refuses it too (`lib/mock/api/client.ts`),
+    // so this is a courtesy with a better sentence, not the safety net.
+    if (!sales.canSpend) {
+      toast('error', t('realtime.salesRefused'))
+      return
+    }
     setStatus('processing')
     try {
       // The basket posts ids and quantities only — the server prices it, charges
@@ -185,7 +209,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
                 <button
                   onClick={pay}
-                  disabled={!valid || status === 'processing'}
+                  disabled={!valid || status === 'processing' || !sales.canSpend}
                   aria-busy={status === 'processing'}
                   className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -204,6 +228,21 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                     </>
                   )}
                 </button>
+                {/* Why the button is dead, said next to the button — a greyed-out
+                    "Pay €12.40" with a filled-in card form above it and no
+                    explanation is indistinguishable from a broken checkout.
+                    `role="status"`: it can appear while the player is looking at
+                    the form, so it has to announce itself. */}
+                {!sales.canSpend && (
+                  <p
+                    role="status"
+                    className="text-pretty text-center text-xs leading-relaxed text-warning"
+                  >
+                    {sales.reason === 'closed'
+                      ? t('shop.closedCheckoutHint')
+                      : `${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}
+                  </p>
+                )}
                 <p className="text-center text-xs text-text-low">
                   Mock payment — no real card is charged.
                 </p>
