@@ -1384,7 +1384,10 @@ const tournaments: Tournament[] = [
       { place: 3, label: '500 coins', coins: 500 },
     ],
     slots: 16,
-    slotsTaken: 13,
+    // 12, not 13: the demo member holds no entry here (see `tournamentEntries`), so
+    // the count must not include one. Four seats left is also what makes the home
+    // card's "Join" reachable rather than a "No slots left" badge (C3.8).
+    slotsTaken: 12,
     status: 'check-in',
   },
   {
@@ -1652,7 +1655,12 @@ const promos: Promo[] = [
 ]
 
 const tournamentEntries: TournamentEntry[] = [
-  { tournamentId: 't-cs2-weekly', userId: CURRENT_USER_ID, teamId: null, checkedIn: false, seed: 9 },
+  // The member is deliberately **not** entered in `t-cs2-weekly`, the bracket the
+  // home card is about (C3.8): that card exists for its "Join" button, and a seeded
+  // entry would have made the one action the task asks for unreachable in the demo.
+  // Joining lands straight in the check-in window (the bracket is already in it), so
+  // the full chain register → check in → checked in is one click apiece from the seed
+  // as shipped. `slotsTaken` on the tournament is 12 to match.
   { tournamentId: 't-cs2-weekly', userId: 'u-pro', teamId: null, checkedIn: true, seed: 1 },
   { tournamentId: 't-cs2-weekly', userId: 'u-noscope', teamId: null, checkedIn: true, seed: 4 },
   { tournamentId: 't-dota-swiss', userId: 'u-wolf', teamId: null, checkedIn: true, seed: 6 },
