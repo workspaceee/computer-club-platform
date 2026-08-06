@@ -203,6 +203,31 @@ export function clubHoursStatus(openHours: OpenHours, nowMs: number = Date.now()
 }
 
 /**
+ * When the club opens **next**, whether it is trading right now or not (C3.4).
+ *
+ * `clubHoursStatus()` answers "when do you open again" only while the doors are
+ * shut, because that is the question a closed club raises. The daily quest set
+ * asks a different one: it rolls over at the club's next opening, and a player
+ * looking at the card at nine in the evening — mid-window — still needs to be
+ * told when that is.
+ *
+ * One expression covers both cases, and that is the reason this lives here rather
+ * than as arithmetic in the quest endpoint: the spans are merged, so the one
+ * containing `nowMs` cannot also start after it. The first span that begins in
+ * the future is therefore the *next* opening while the club is open, and the
+ * imminent one while it is shut — where it agrees with `opensAtMs` exactly.
+ *
+ * `null` means no opening is in sight: either a schedule that never closes (one
+ * unbounded span, so nothing "opens" again) or a club with no windows left inside
+ * the horizon. Both are cases where a countdown would be invented rather than
+ * read, so the caller is told to say nothing.
+ */
+export function nextOpeningMs(openHours: OpenHours, nowMs: number = Date.now()): number | null {
+  const { spans } = timeline(openHours, nowMs)
+  return spans.find((span) => span.startMs > nowMs)?.startMs ?? null
+}
+
+/**
  * Does buying `durationMinutes` of time run past closing (C2.11)?
  *
  * The purchase is still allowed — the player may legitimately want minutes that
