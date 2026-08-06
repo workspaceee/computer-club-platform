@@ -986,6 +986,82 @@ export const en = {
     /** A club with no zones configured at all: the whole card has nothing to report. */
     clubNowEmpty: 'Nothing to report yet',
     clubNowEmptyBody: 'The club has not mapped its zones — ask the staff which seats are open.',
+
+    /**
+     * "The tournament" — the next bracket and the clock to its start (C3.8).
+     *
+     * One event, not a list: the card answers "is there something tonight and am I
+     * in it", and the whole schedule is its own screen. Tournament names, formats
+     * and prize lines are admin-authored and printed as the club wrote them (F2.2);
+     * everything here is the frame around them.
+     */
+    tournamentTitle: 'The tournament',
+    /** Says what the card is: the nearest one, not a schedule. */
+    tournamentSubtitle: 'The next bracket at the club — and the clock to it.',
+    /** Way to the full schedule, for everything this one event is not. */
+    tournamentAll: 'All tournaments',
+    tournamentAllLabel: 'Open the tournaments section',
+    /** Above the digits. The card's whole reason for existing is this number. */
+    tournamentStartsIn: 'Starts in',
+    /**
+     * The clock has run out but the bracket has not been started yet — a real
+     * minute in the life of an event, and not the same thing as "under way".
+     */
+    tournamentStartingNow: 'Starting now',
+    /** Wall-clock start, under the timer: a duration is not a plan, a time is. */
+    tournamentStartsAt: 'Starts at {time}',
+    /** Free seats in the bracket. plurals: one | other */
+    tournamentSlots: '{n} of {total} slot left|{n} of {total} slots left',
+    /** A full bracket. Words, not a `0` in a row of numbers. */
+    tournamentNoSlots: 'Bracket full',
+    /** What first place pays. The club's own wording for the prize (F2.2). */
+    tournamentPrize: 'First place',
+    /** Entry fee. Either currency may be the whole price, or both may be charged. */
+    tournamentEntry: 'Entry',
+    /** …and a bracket the club is not charging for. */
+    tournamentFree: 'Free entry',
+    /** Named format of the bracket, so the player knows what they are signing into. */
+    tournamentFormat: 'Format',
+    tournamentFormatSingleElim: 'Single elimination',
+    tournamentFormatDoubleElim: 'Double elimination',
+    tournamentFormatRoundRobin: 'Round robin',
+    tournamentFormatSwiss: 'Swiss',
+    /**
+     * The button. "Join", not "Register": the player is signing into tonight, and
+     * the fee beside it already says what it costs.
+     */
+    tournamentJoin: 'Join',
+    /** The name carries the event, since the visible label is one word. */
+    tournamentJoinLabel: 'Join {name}',
+    /** The receipt for one tap, with the fee already taken. */
+    tournamentJoinedToast: 'You are in: {name}',
+    /**
+     * Registered, and check-in has opened: the club is asking for a confirmation
+     * that the seat is warm. A different button, because it is a different promise.
+     */
+    tournamentCheckIn: 'Check in',
+    tournamentCheckInLabel: 'Check in for {name}',
+    tournamentCheckedInToast: 'Checked in — {name}',
+    /** Confirmed and waiting. Nothing to press, and the row says so. */
+    tournamentCheckedIn: 'Checked in',
+    /** In, but check-in has not opened yet — the club will call. */
+    tournamentRegistered: 'You are in',
+    /**
+     * A bracket with no seat left for this player. Stated as a badge rather than a
+     * dead button: there is nothing to try.
+     */
+    tournamentFull: 'No slots left',
+    /**
+     * The entry fee is more than the wallet holds — money, coins, or both. The
+     * server answers this, so the sentence and the disabled button always agree.
+     */
+    tournamentCantAfford: 'Not enough on your balance for the entry fee.',
+    /** Under the button while the club is shut or unreachable (C2.11, C2.12). */
+    tournamentClosedHint: 'Sign-ups open again when the club opens.',
+    /** Nothing scheduled that has not already started. */
+    tournamentEmpty: 'No bracket scheduled yet',
+    tournamentEmptyBody:
+      'The club announces new tournaments every week — the staff will know what is next.',
   },
 
   games: {
