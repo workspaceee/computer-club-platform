@@ -29,8 +29,14 @@ const STORAGE_KEY = 'imba.mock.state'
  * `3` adds `transferRequests` (C1.12). A v2 snapshot has no such field, and
  * restoring it would leave the slice at whatever the last run had put in memory
  * — a pending transfer surviving a reload it was never written into.
+ *
+ * `4` reseeds `tournaments` and `tournamentEntries` for the home card (C3.8):
+ * the nearest bracket now starts inside the demo's own evening and its taken
+ * seats were re-counted against the entry list. A v3 snapshot would restore the
+ * old rows over both, so the card would either count down to a start that has
+ * already passed or contradict its own "slots left".
  */
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from
