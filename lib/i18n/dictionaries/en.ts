@@ -730,6 +730,31 @@ export const en = {
     playedMinutesAgo: 'Played {n} minute ago|Played {n} minutes ago',
     playedHoursAgo: 'Played {n} hour ago|Played {n} hours ago',
     playedDaysAgo: 'Played {n} day ago|Played {n} days ago',
+
+    /**
+     * "My session" — the HUD plate opened out, on the home screen (C3.3).
+     *
+     * The same subject as the panel behind the plate (`session.mine`) at a third
+     * size, so the card links to that panel rather than restating any of it.
+     */
+    sessionTitle: 'My session',
+    /** The link to the panel, where the seat, the zone and every grant live. */
+    sessionDetails: 'Details',
+    /** Name of the spent-time bar. It appears nowhere else. */
+    sessionSpentLabel: 'Time spent',
+    /**
+     * Caption over that bar; both values arrive already formatted as clock faces.
+     *
+     * The denominator is played-plus-remaining — the arc of *this visit*, not the
+     * block it was sold as. Extending makes the visit longer, and a fixed two
+     * hours would let the bar read past 100 %.
+     */
+    sessionSpentOf: '{spent} of {total}',
+    /**
+     * A locked station: the digits above are true and misleading at once, because
+     * nothing is being spent while they sit there.
+     */
+    sessionPaused: 'Clock paused',
   },
 
   games: {

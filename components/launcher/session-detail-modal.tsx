@@ -35,14 +35,14 @@ import { Modal } from '@/components/ui/modal'
 import { Money } from '@/components/ui/money'
 import { Skeleton } from '@/components/skeleton'
 import { useApi } from '@/hooks/use-api'
+import { useExtendTime } from '@/hooks/use-extend-time'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
-import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
+import { SOURCE_LABEL, SPENDING_BODY } from '@/lib/session-labels'
 import {
   callStaff,
-  extendSession,
   fetchSessionDetail,
   toApiError,
   type SessionDetail,
@@ -55,41 +55,12 @@ import { formatDateTime, formatTimeOfDay, secondsToMinutes } from '@/lib/time'
 import type { TimeSource } from '@/lib/types/session'
 import { cn } from '@/lib/utils'
 
-/**
- * What the source *costs*, in a sentence. Keyed off the closed server type like
- * `SESSION_LABEL` in the HUD, so adding a `TimeSource` stops the build here
- * rather than rendering a blank paragraph under a heading that promised one.
- */
-const SPENDING_BODY: Record<TimeSource, TKey> = {
-  pass: 'session.spendingPass',
-  wallet: 'session.spendingWallet',
-  staff: 'session.spendingStaff',
-  postpaid: 'session.spendingPostpaid',
-}
-
-const SOURCE_LABEL: Record<TimeSource, TKey> = {
-  pass: 'session.sourcePass',
-  wallet: 'session.sourceWallet',
-  staff: 'session.sourceStaff',
-  postpaid: 'session.sourcePostpaid',
-}
-
 /** Which act a history row records — the line, not the pocket. */
 const GRANT_LABEL: Record<SessionGrantSource, TKey> = {
   extend: 'session.historyExtend',
   staff: 'session.historyStaff',
   correction: 'session.historyCorrection',
 }
-
-/**
- * Minute steps the extend offers.
- *
- * Fixed rather than free entry: the club sells time in blocks, and a text field
- * would let a player ask for 7 minutes and be refused by a validation error that
- * explains nothing. Each chip is filtered against what is actually banked below,
- * so nothing on screen can fail for lack of minutes.
- */
-const EXTEND_STEPS = [15, 30, 60] as const
 
 export function SessionDetailModal() {
   const open = useStore((s) => s.sessionPanelOpen)
@@ -282,52 +253,27 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
   const { t } = useT()
 
   const toast = useStore((s) => s.toast)
-  const setView = useStore((s) => s.setView)
-  const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
-  const applySnapshot = useStore((s) => s.applySnapshot)
 
-  const [extending, setExtending] = useState<number | null>(null)
   const [calling, setCalling] = useState(false)
   const [called, setCalled] = useState(false)
 
   /**
-   * Extending needs the club (C2.12) — calling it does not.
+   * The extend sequence lives in `useExtendTime()` (C3.3), not here.
    *
-   * Same split as the last-minute takeover, for the same reason: the deadline is
-   * the server's to move, so an extend it cannot acknowledge must not be offered.
-   * "Call the admin" stays live through an outage on purpose; it is a request the
-   * club can pick up late, and taking it away is taking away the one thing left
-   * that reaches a human.
+   * It used to be written out in this footer, which was correct while the footer
+   * was the only place a player could add minutes. The home card can now grant
+   * time too, and two copies of the one act that moves a **deadline** would drift
+   * exactly where it costs minutes — which steps are offered, whether an offline
+   * club may be asked, and how the granted snapshot reaches the clock. The hook
+   * carries the offline gate with it (C2.12): the deadline is the server's to
+   * move, so an extend it cannot acknowledge must not be offered.
+   *
+   * "Call the admin" stays local, and stays live through an outage on purpose: it
+   * is a request the club can pick up late, and taking it away is taking away the
+   * one thing left that reaches a human.
    */
-  const sales = useSalesGate()
-
-  const { minutesBanked } = detail
-  const postpaid = detail.snapshot.billingMode === 'postpaid'
-
-  const steps = useMemo(
-    () => EXTEND_STEPS.filter((minutes) => minutes <= minutesBanked),
-    [minutesBanked],
-  )
-
-  const extend = useCallback(
-    async (minutes: number) => {
-      setExtending(minutes)
-      try {
-        // The response is a snapshot, so the deadline moves through the one write
-        // path the clock has (`applySnapshot`) — there is no counter to patch and
-        // no way for the grant to be lost or applied twice.
-        const next = await extendSession(minutes)
-        applySnapshot(next)
-        onRefresh()
-        toast('success', t('session.extendedToast', { n: minutes }))
-      } catch (error) {
-        toast('error', t(`errors.${toApiError(error).code}` as TKey))
-      } finally {
-        setExtending(null)
-      }
-    },
-    [applySnapshot, onRefresh, t, toast],
-  )
+  const extendCtl = useExtendTime(detail, onRefresh)
+  const { sales, steps, postpaid, minutesBanked } = extendCtl
 
   const call = useCallback(async () => {
     setCalling(true)
@@ -341,11 +287,6 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
       setCalling(false)
     }
   }, [t, toast])
-
-  const buyTime = useCallback(() => {
-    setSessionPanelOpen(false)
-    setView('shop')
-  }, [setSessionPanelOpen, setView])
 
   return (
     // `w-full`: the modal's footer is a `justify-end` row, and this is a column
@@ -371,9 +312,9 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
                 key={minutes}
                 variant="secondary"
                 size="sm"
-                loading={extending === minutes}
-                disabled={extending !== null || !sales.canSpend}
-                onClick={() => void extend(minutes)}
+                loading={extendCtl.extending === minutes}
+                disabled={extendCtl.busy || !sales.canSpend}
+                onClick={() => void extendCtl.extend(minutes)}
                 iconLeft={<icons.add aria-hidden />}
               >
                 {t('session.extendBy', { n: minutes })}
@@ -399,7 +340,7 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
           <Button
             variant="primary"
             size="sm"
-            onClick={buyTime}
+            onClick={extendCtl.buyTime}
             iconLeft={<icons.shop aria-hidden />}
             className="self-start"
           >

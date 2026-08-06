@@ -4,10 +4,9 @@ import { useEffect } from 'react'
 import { Countdown, countdownLevel } from '@/components/ui/countdown'
 import { HudPlate } from '@/components/ui/hud-plate'
 import { icons } from '@/lib/icons'
+import { SOURCE_LABEL } from '@/lib/session-labels'
 import { useStore } from '@/lib/store'
 import { useT } from '@/lib/i18n/provider'
-import type { TKey } from '@/lib/i18n/types'
-import type { TimeSource } from '@/lib/types/session'
 import { cn } from '@/lib/utils'
 
 /**
@@ -16,21 +15,6 @@ import { cn } from '@/lib/utils'
  * animation rather than cutting it off mid-ring.
  */
 const HUD_PULSE_MS = 3 * 1100 + 200
-
-/**
- * The pocket the running minutes come out of, named (C2.2).
- *
- * A table rather than a conditional, because the set is closed by the server type:
- * add a source to `TimeSource` and this stops compiling until the label exists in
- * every language, which is the only place the omission could otherwise surface —
- * as a blank micro-label in the top bar.
- */
-const SOURCE_LABEL: Record<TimeSource, TKey> = {
-  pass: 'session.sourcePass',
-  wallet: 'session.sourceWallet',
-  staff: 'session.sourceStaff',
-  postpaid: 'session.sourcePostpaid',
-}
 
 /**
  * The seat reading of the top bar (C2.1): what is left of the visit, and which
