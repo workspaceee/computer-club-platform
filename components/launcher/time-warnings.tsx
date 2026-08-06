@@ -35,18 +35,18 @@
  *     interaction cannot.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
 import { Overlay } from '@/components/ui/overlay'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
-import { useSalesGate } from '@/hooks/use-sales-gate'
+import { useExtendTime } from '@/hooks/use-extend-time'
 import { useSfx } from '@/hooks/use-sfx'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
-import { callStaff, extendSession, fetchSessionDetail, toApiError } from '@/lib/mock/api'
+import { callStaff, fetchSessionDetail, toApiError, type SessionDetail } from '@/lib/mock/api'
 import { holdSeat } from '@/lib/seat'
 import { unreportedSeconds, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -65,9 +65,6 @@ const MARKS = [
   { minutes: 5, urgent: true },
   { minutes: 1, urgent: true, final: true },
 ] as const
-
-/** Minutes an extend can be offered in — the same blocks the session panel sells. */
-const EXTEND_STEPS = [15, 30, 60] as const
 
 /**
  * Which marks the remainder has fallen below and nobody has spoken for.
@@ -187,58 +184,71 @@ function LastCall({
   const { t } = useT()
 
   const toast = useStore((s) => s.toast)
-  const applySnapshot = useStore((s) => s.applySnapshot)
   const setView = useStore((s) => s.setView)
   const lockPc = useStore((s) => s.lockPc)
 
-  const [busy, setBusy] = useState<'extend' | 'admin' | 'exit' | null>(null)
+  const [busy, setBusy] = useState<'admin' | 'exit' | null>(null)
   const [called, setCalled] = useState(false)
-  const [banked, setBanked] = useState<number | null>(null)
+  const [detail, setDetail] = useState<SessionDetail | null>(null)
+  // Distinct from `detail === null`: the fetch failing also leaves no payload,
+  // and "answered" is what the shop button waits on.
+  const [answered, setAnswered] = useState(false)
 
   /**
-   * Whether the deadline can be moved right now (C2.12).
+   * The payload the extend is built from, asked once when the takeover opens.
    *
-   * Extending is a *server* mutation even when it spends banked minutes rather
-   * than money — the deadline lives on the club's side, and a grant the server
-   * never acknowledged is a minute the player would believe they had. So it is
-   * gated with the rest of the till.
+   * Imperative rather than `useApi`, unlike the card and the panel: this layer
+   * appears at a *clock tick*, not from a click, and it must not adopt a cache
+   * entry that has been sitting there since the visit began — the banked total is
+   * the one number in it that a grant made a minute ago has already changed.
    *
-   * The other two buttons are deliberately **not** gated, and this is the takeover
-   * where that matters most: a player one minute from the end, with a dead link,
-   * needs to be able to call a human and to bank what is left. Those are exactly
-   * the escape hatches an outage must not close — `callStaff` is a request the club
-   * can honour late, and "save and exit" is `holdSeat`, which reports off the local
-   * anchors and does not need the link to be up to be correct.
+   * A failure resolves as `answered` with no payload, which the hook reads as
+   * zero banked minutes and the panel renders as the shop. In the last minute a
+   * spinner that never resolves is the worst of the three outcomes.
    */
-  const sales = useSalesGate()
-
-  // What can actually be extended from, asked once when the panel opens.
-  //
-  // Fetched here rather than taken from the wallet in the store for the same
-  // reason the session panel does it: offering an extend the endpoint then
-  // refuses with `insufficientFunds` is worse than sending the player to the
-  // shop. `null` until the answer lands, so the button says nothing it cannot
-  // keep — and a failure is *also* `0`, because in the last minute a spinner
-  // that never resolves is the worst of the three outcomes.
   useEffect(() => {
     if (!open) return
     let live = true
+    setAnswered(false)
     fetchSessionDetail()
-      .then((detail) => {
-        if (live) setBanked(detail.minutesBanked)
+      .then((d) => {
+        if (live) {
+          setDetail(d)
+          setAnswered(true)
+        }
       })
       .catch(() => {
-        if (live) setBanked(0)
+        if (live) setAnswered(true)
       })
     return () => {
       live = false
     }
   }, [open])
 
-  const steps = useMemo(
-    () => (banked === null ? [] : EXTEND_STEPS.filter((minutes) => minutes <= banked)),
-    [banked],
-  )
+  /**
+   * The same extend the home card and the session panel offer (C3.3).
+   *
+   * This takeover used to own a third copy of the sequence — its own steps table,
+   * its own `extendSession` call, its own sales gate. Three copies of the act that
+   * moves a deadline is how the last minute ends up offering a step the panel
+   * would have refused, so it is one hook with three mounts.
+   *
+   * No `onGranted`: there is nothing here to refresh. A successful grant lifts the
+   * remainder back over 60 s, and the effect in `TimeWarnings` closes this panel
+   * on that change — re-reading a payload for a layer that is going away would
+   * only put a request on the wire during the busiest second of the visit.
+   *
+   * `sales` comes back through it (C2.12): extending is a *server* mutation even
+   * when it spends banked minutes rather than money, so it is gated with the rest
+   * of the till. The other two buttons are deliberately **not** gated, and this is
+   * the takeover where that matters most — a player one minute from the end, with
+   * a dead link, needs to be able to call a human and to bank what is left.
+   */
+  const extendCtl = useExtendTime(detail)
+  const sales = extendCtl.sales
+  // The three actions share one inert state, so granting time cannot be raced by
+  // "save and exit" — but each keeps its own spinner.
+  const anyBusy = busy !== null || extendCtl.busy
 
   const panelRef = useDismissableLayer({
     open,
@@ -247,24 +257,6 @@ function LastCall({
     // swallows the key the whole shell has taught is a takeover the player fights.
     closeOnEscape: true,
   })
-
-  const extend = useCallback(
-    async (minutes: number) => {
-      setBusy('extend')
-      try {
-        // The one write path the clock has — the deadline moves, nothing is
-        // patched. The remainder climbing back over 60 s is what closes this
-        // panel, through the effect in `TimeWarnings` rather than from here.
-        applySnapshot(await extendSession(minutes))
-        toast('success', t('session.extendedToast', { n: minutes }))
-      } catch (error) {
-        toast('error', t(`errors.${toApiError(error).code}` as TKey))
-      } finally {
-        setBusy(null)
-      }
-    },
-    [applySnapshot, t, toast],
-  )
 
   const call = useCallback(async () => {
     setBusy('admin')
@@ -340,17 +332,17 @@ function LastCall({
         </div>
 
         <div className="flex flex-col gap-2">
-          {steps.length > 0 ? (
+          {extendCtl.steps.length > 0 ? (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap justify-center gap-2">
-                {steps.map((minutes) => (
+                {extendCtl.steps.map((minutes) => (
                   <Button
                     key={minutes}
                     variant="primary"
                     size="md"
-                    loading={busy === 'extend'}
-                    disabled={busy !== null || !sales.canSpend}
-                    onClick={() => void extend(minutes)}
+                    loading={extendCtl.extending === minutes}
+                    disabled={anyBusy || !sales.canSpend}
+                    onClick={() => void extendCtl.extend(minutes)}
                     iconLeft={<icons.add aria-hidden />}
                   >
                     {`${t('session.lastCallExtend')} +${minutes}`}
@@ -359,8 +351,17 @@ function LastCall({
               </div>
               {/* In the last minute a dead button with no caption is the cruellest
                   version of this panel: the player reads it as "my time is gone".
-                  The line names the pause and, through `salesHint`, says it lifts
-                  by itself — while the two buttons below stay live. */}
+                  Both pauses are captioned for that reason — `reason` is exclusive,
+                  so exactly one line appears — and each says the state lifts by
+                  itself, while the two buttons below stay live. */}
+              {sales.reason === 'closed' && (
+                <p
+                  role="status"
+                  className="text-pretty text-center text-xs leading-relaxed text-warning"
+                >
+                  {t('session.extendClosedHint')}
+                </p>
+              )}
               {sales.reason === 'offline' && (
                 <p
                   role="status"
@@ -374,7 +375,7 @@ function LastCall({
             // Nothing banked, so the honest primary action is the shop. Rendered
             // only once the fetch has answered — an "Open shop" flashed at a
             // player who *does* have pass minutes sends them to buy what they own.
-            banked !== null && (
+            answered && (
               <div className="flex flex-col items-center gap-2">
                 <p className="text-pretty text-center text-xs leading-relaxed text-text-medium">
                   {t('session.lastCallExtendHint')}
@@ -382,7 +383,7 @@ function LastCall({
                 <Button
                   variant="primary"
                   size="md"
-                  disabled={busy !== null}
+                  disabled={anyBusy}
                   onClick={shop}
                   iconLeft={<icons.shop aria-hidden />}
                 >
@@ -398,7 +399,7 @@ function LastCall({
               size="md"
               voice="plain"
               loading={busy === 'admin'}
-              disabled={called || busy !== null}
+              disabled={called || anyBusy}
               onClick={() => void call()}
               iconLeft={<icons.support aria-hidden />}
             >
@@ -409,7 +410,7 @@ function LastCall({
               size="md"
               voice="plain"
               loading={busy === 'exit'}
-              disabled={busy !== null}
+              disabled={anyBusy}
               onClick={saveAndExit}
               iconLeft={<icons.lock aria-hidden />}
             >

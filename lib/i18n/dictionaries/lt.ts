@@ -449,6 +449,10 @@ export const lt: Dictionary = {
     banked: 'pase turite {n} min',
     extendBy: '+{n} min',
     extendedToast: 'Sesija pratęsta {n} min.',
+    // Eilutė po neaktyviu pratęsimu, kai klubas uždarytas (C2.11, C2.12). Svarbu
+    // pasakyti, kad minutės niekur nedingo: neveikiantis „+15 min“ skaitomas kaip
+    // „paso nebėra“.
+    extendClosedHint: 'Sukauptos minutės lieka — laiko pirkimas atsidaro kartu su klubu.',
     buyTime: 'Pirkti laiko',
     buyTimeHint: 'Pase minučių nėra. Laiko pasai — parduotuvėje.',
     postpaidNoExtend:
@@ -511,6 +515,23 @@ export const lt: Dictionary = {
       'Žaista prieš {n} minutę|Žaista prieš {n} minutes|Žaista prieš {n} minučių',
     playedHoursAgo: 'Žaista prieš {n} valandą|Žaista prieš {n} valandas|Žaista prieš {n} valandų',
     playedDaysAgo: 'Žaista prieš {n} dieną|Žaista prieš {n} dienas|Žaista prieš {n} dienų',
+
+    // „Mano sesija“ — HUD plokštelė, išskleista pradžios ekrane (C3.3). Ta pati
+    // tema kaip panelėje už plokštelės (`session.mine`), tik trečiu dydžiu:
+    // kortelė veda į tą panelę, o ne perrašo jos turinį.
+    sessionTitle: 'Mano sesija',
+    // Nuoroda į panelę, kurioje laukia vieta, zona ir kiekvienas pridėtas laikas.
+    sessionDetails: 'Detalės',
+    // Išnaudoto laiko juostos pavadinimas. Kitur jis nenaudojamas.
+    sessionSpentLabel: 'Išnaudota laiko',
+    // Užrašas virš juostos; abi reikšmės jau suformatuotos kaip laikrodis.
+    // Vardiklis — išnaudota plius likutis, t. y. *šio* apsilankymo trukmė, o ne
+    // parduotas blokas: pratęsimas vizitą pailgina, o fiksuotos dvi valandos
+    // leistų juostai pereiti 100 %.
+    sessionSpentOf: '{spent} iš {total}',
+    // Užrakinta stotis: skaičiai viršuje vienu metu ir tikri, ir klaidinantys —
+    // stovėdami jie nieko neišnaudoja.
+    sessionPaused: 'Laikrodis pristabdytas',
   },
 
   games: {
