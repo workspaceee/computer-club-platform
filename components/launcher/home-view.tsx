@@ -5,8 +5,11 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
+import { ContinueRow } from '@/components/launcher/continue-row'
+import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
+import { SessionCard } from '@/components/launcher/session-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
@@ -15,7 +18,6 @@ import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
-import { formatDurationParts } from '@/lib/time'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -52,6 +54,23 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
 
   return (
     <div className="flex flex-col gap-10">
+      {/* The greeting owns the page heading (C3.1). It used to be an ad-hoc
+          "Welcome back // NAME" eyebrow inside the hero, which greeted the player
+          without telling them anything — no level, no streak, no elapsed time —
+          and would have left the surface welcoming twice once a real greeting
+          existed. */}
+      <HomeGreeting />
+      {/* The visit, at the size it can be acted on (C3.3). Above "Continue" and
+          the hero because it is the frame everything else on this screen happens
+          inside: how much of the evening is left, how much is already gone, and
+          the button that buys more. It took the "Time balance" tile's reading with
+          it — see `QuickStats` below. */}
+      <SessionCard />
+      {/* Above the hero, and that is the whole point (C3.2): a player who left a
+          match five minutes ago should meet the way back into it before they meet
+          the club's curated recommendations. It renders nothing on the guest
+          surface — the history is keyed to an account, and a walk-in has none. */}
+      <ContinueRow />
       <HeroCarousel />
       <QuickStats showLoyalty={!isGuest} />
       {/* The strip decides for itself what a guest may see: it asks the server as
@@ -69,8 +88,6 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
 
 function HeroCarousel() {
   const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const user = useStore((s) => s.user)
-  const guest = useStore((s) => s.guest)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
   // Auto-advance is suspended while the keyboard is inside the hero (F6.7).
@@ -109,10 +126,9 @@ function HeroCarousel() {
   if (!game) {
     return (
       <section>
-        <div className="mb-4 flex flex-col gap-2">
-          <Skeleton className="h-3 w-32" radius="sm" />
-          <Skeleton className="h-10 w-72" radius="sm" />
-        </div>
+        {/* The heading skeleton went with the heading: the greeting above renders
+            from the store and is never in a loading state, so a placeholder here
+            would reserve space for text that has already arrived. */}
         {featured.error ? (
           <ApiErrorState state={featured} className="h-72 md:h-96" />
         ) : featured.isLoading ? (
@@ -131,23 +147,9 @@ function HeroCarousel() {
 
   return (
     <section>
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          {/* A guest has no profile to welcome "back", so the shell greets the
-              tab label instead of an empty name (F6.2). */}
-          <p className="label-mono mb-1 text-[10px] text-text-low">
-            {user ? 'Welcome back //' : guest ? `${t('guest.badge')} //` : 'Welcome'}{' '}
-            <span className="text-primary">{user?.nickname ?? guest?.label}</span>
-          </p>
-          <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
-            Ready to <span className="text-primary text-glow">dominate</span>
-          </h1>
-        </div>
-        <span className="label-mono hidden rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-[10px] text-primary sm:inline">
-          Top 5 Live
-        </span>
-      </div>
-
+      {/* No header block. The greeting above the carousel is the page heading now,
+          and "Top 5 Live" labelled nothing — the row is curated featured games,
+          not a live top five, so the chip went with the duplicate welcome. */}
       <div
         onFocusCapture={() => setHeld(true)}
         onBlurCapture={(e) => {
@@ -208,16 +210,22 @@ function HeroCarousel() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Vertically centred from `sm` up, pinned to the top corners below it
+            (C2.9). The copy column is bottom-anchored and its height is fixed by
+            the type, so as the frame narrows the column climbs: measured at
+            320 px the left arrow (314–356) sat straight across the category chip
+            (301–326) and the first line of the game name (338–398). At the top
+            edge there is nothing but veil at any width. */}
         <button
           onClick={() => go(index - 1)}
-          className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute left-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:left-4 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="Previous game"
         >
           <icons.back size={20} />
         </button>
         <button
           onClick={() => go(index + 1)}
-          className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute right-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:right-4 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="Next game"
         >
           <icons.forward size={20} />
@@ -248,15 +256,7 @@ function HeroCarousel() {
 }
 
 function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
-  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  // The tile reads the same derived clock as the top bar (F6.3). It used to
-  // render a hardcoded `2h 00m` from the store, which meant the number never
-  // moved — and a walk-in guest was shown a prepaid balance the club had not
-  // sold them.
-  const seconds = useStore((s) => s.sessionSeconds)
-  const postpaid = useStore((s) => s.billingMode) === 'postpaid'
-  const { hours, minutes } = formatDurationParts(seconds)
   // Same SWR key as the prize ladder below, so the row is fetched once.
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
   const ladder = prizes.data ?? []
@@ -264,35 +264,28 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
 
   // A guest has no coin balance and no ladder progress, so those tiles are
   // dropped instead of showing zeros the player can never move.
-  const stats: { icon: LucideIcon; value: string; label: string }[] = [
-    ...(showLoyalty
-      ? [{ icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' }]
-      : []),
-    {
-      icon: icons.timer,
-      value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
-      // Postpaid time is not a balance: it is time already used and billed, so
-      // the tile has to be labelled as such.
-      label: postpaid ? t('session.sessionTime') : t('session.timeBalance'),
-    },
-    ...(showLoyalty
-      ? [
-          {
-            icon: icons.rewards,
-            value: `${prizesUnlocked}/${ladder.length}`,
-            label: 'Prizes unlocked',
-          },
-        ]
-      : []),
-  ]
+  //
+  // The time tile that used to sit between them is gone (C3.3): `SessionCard`
+  // above states the same remainder with the arc of the visit behind it and a
+  // grant button on it, and a tile repeating the number — with no bar, no source
+  // and nothing to press — would have put one reading on the screen twice.
+  const stats: { icon: LucideIcon; value: string; label: string }[] = showLoyalty
+    ? [
+        { icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' },
+        {
+          icon: icons.rewards,
+          value: `${prizesUnlocked}/${ladder.length}`,
+          label: 'Prizes unlocked',
+        },
+      ]
+    : []
+
+  // Which leaves a walk-in with nothing in this row at all — so the row itself
+  // goes, rather than reserving vertical space for an empty grid.
+  if (stats.length === 0) return null
 
   return (
-    <section
-      className={cn(
-        'grid grid-cols-1 gap-4',
-        showLoyalty ? 'sm:grid-cols-3' : 'sm:max-w-sm',
-      )}
-    >
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {stats.map((s, i) => (
         <motion.div
           key={s.label}

@@ -30,11 +30,13 @@ import {
   ApiError,
   endSession,
   fetchStationHolder,
+  heartbeat,
   openSession,
   pauseSession as pauseSessionOnServer,
   type StationHolder,
 } from '@/lib/mock/api'
 import type { ID } from '@/lib/types/common'
+import type { SessionSnapshot } from '@/lib/types/session'
 
 /**
  * Who just authenticated at the keyboard. Exactly one field is set — a member
@@ -47,12 +49,42 @@ export interface Arrival {
 }
 
 /**
- * The answer to "may I sit down". `granted: false` carries the occupant so the
- * screen can name them; `holder: null` means the seat is refused *and* the
- * re-read of who holds it also failed, which is the one case with nothing
- * human to say.
+ * The answer to "may I sit down".
+ *
+ * `granted: false` carries the occupant so the screen can name them;
+ * `holder: null` means the seat is refused *and* the re-read of who holds it
+ * also failed, which is the one case with nothing human to say.
+ *
+ * `granted: true` carries the **row that was claimed**, and that is not a
+ * courtesy either (C1.10). `openSession` either opens a visit or *adopts* the
+ * paused one already on this seat, and only it knows which — so the snapshot is
+ * the one number that says how much time the arrival is actually walking into.
+ * The client store cannot answer that: it banked its own remainder before the
+ * pause and, on a reloaded or reset station, banks a full two hours nobody
+ * bought. `snapshot: null` is the honest gap — a claim granted because the
+ * request *failed* (see below) has no row to report, and the caller falls back
+ * to whatever the store already believes rather than to a fabricated clock.
  */
-export type SeatClaim = { granted: true } | { granted: false; holder: StationHolder | null }
+export type SeatClaim =
+  | { granted: true; snapshot: SessionSnapshot | null }
+  | { granted: false; holder: StationHolder | null }
+  /**
+   * Refused for the opposite reason (C1.12): this chair is fine, *you* are
+   * already playing on another one.
+   *
+   * A separate branch and not a `holder` with a different name, because the two
+   * refusals have opposite repairs and the screen has to choose between them. A
+   * stranger's visit can only be ended by the admin's key, so C1.7 offers a
+   * re-check and nothing else; your own visit elsewhere is yours to move, so this
+   * one offers a transfer. Collapsing them would put "ask the shift admin for the
+   * key" over a session the player owns.
+   *
+   * `machineLabel` is the seat as the club writes it (`PC #05`) — the one string
+   * the player will read out loud, either to walk back to it or to name it at the
+   * counter. `sessionId` is what the transfer request is made against, so an
+   * approval cannot move some other visit.
+   */
+  | { granted: false; activeElsewhere: true; machineLabel: string; sessionId: ID }
 
 /**
  * Claim the chair for an arrival that already passed the lock screen's check.
@@ -73,17 +105,37 @@ export type SeatClaim = { granted: true } | { granted: false; holder: StationHol
  */
 export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
   try {
-    await openSession({
+    const snapshot = await openSession({
       userId: arrival.userId,
       guestId: arrival.guestId,
       billingMode: arrival.userId ? 'prepaid' : 'postpaid',
     })
-    return { granted: true }
+    return { granted: true, snapshot }
   } catch (err) {
     if (err instanceof ApiError && err.code === 'conflict') {
       return { granted: false, holder: await fetchStationHolder().catch(() => null) }
     }
-    return { granted: true }
+    /**
+     * One PC, one session (C1.12). The seat is not re-read here — it is not the
+     * seat that refused, and asking who holds *this* chair would answer a
+     * question nobody asked. The refusal already named the machine the visit is
+     * on, so the panel is built from the error's own payload.
+     *
+     * A payload that somehow arrived without the seat falls through to the
+     * generous branch below rather than opening a panel with a blank machine
+     * name: "your session is active on ——" tells the player nothing and takes
+     * away the form they could have used.
+     */
+    if (err instanceof ApiError && err.code === 'activeElsewhere') {
+      const label = err.data?.machineLabel
+      const sessionId = err.data?.sessionId
+      if (typeof label === 'string' && typeof sessionId === 'string') {
+        return { granted: false, activeElsewhere: true, machineLabel: label, sessionId }
+      }
+    }
+    // Granted without a row: there is nothing to adopt the clock from, so the
+    // caller keeps the one it has instead of inventing one.
+    return { granted: true, snapshot: null }
   }
 }
 
@@ -93,8 +145,19 @@ export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
  * This is what makes a paused hold visible to the *next* person: the holder
  * endpoint reports `paused`, and the panel prints it, because a paused visit is
  * exactly the case where the machine looks free and is not.
+ *
+ * `usedSeconds` is the visit's spent time as the shell has been counting it, and
+ * it is reported **before** the pause because the paused screen of C1.10 states
+ * the remainder as a fact of the club ("42:17 left"): a row that was opened two
+ * hours ago and never heard from again still believes nothing was used, so
+ * without this the lock screen would promise back every minute the player had
+ * already played. It goes through the heartbeat rather than a "set the clock"
+ * call on purpose — the client reports *elapsed* and the server does the
+ * accounting (F3.7), which is the same contract the 10 s heartbeat of `C2` will
+ * use once it runs; this is the one report in its place until then.
  */
-export async function holdSeat(): Promise<void> {
+export async function holdSeat(usedSeconds = 0): Promise<void> {
+  if (usedSeconds > 0) await heartbeat(usedSeconds).catch(() => {})
   await pauseSessionOnServer().catch(() => {})
 }
 

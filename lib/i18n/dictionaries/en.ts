@@ -38,6 +38,19 @@ export const en = {
     offline: 'Offline',
     comingSoon: 'Coming soon',
     nothingHere: 'Nothing here yet',
+    // `DateField` (C1.11). The segment placeholders are written in the local
+    // order, so they are translated rather than shared: RU writes ДД.ММ.ГГГГ.
+    dateDay: 'DD',
+    dateMonth: 'MM',
+    dateYear: 'YYYY',
+    datePicker: 'Calendar',
+    /** The header pages months, years or decades, so the arrows say direction. */
+    datePrev: 'Earlier',
+    dateNext: 'Later',
+    /** Footer line while nothing is chosen — it names the step, not the state. */
+    datePickDay: 'Pick a day',
+    datePickYear: 'Start with the year',
+    dateClear: 'Clear',
     // plurals: one | other
     minutes: '{n} minute|{n} minutes',
     hours: '{n} hour|{n} hours',
@@ -68,6 +81,16 @@ export const en = {
     mainLandmark: 'Section content',
     skipToContent: 'Skip to content',
     accountMenu: 'Account menu, {name}',
+    /**
+     * The avatar trigger's name, with the level in it (C2.4).
+     *
+     * The chip on the avatar is a *badge* — decorative by definition — so the
+     * number has to reach a screen reader through the button's own name or not
+     * at all. Level is not a second HUD reading and gets no plate of its own:
+     * it changes a few times a season, and a capsule in the bar competes with
+     * the two numbers that change every minute.
+     */
+    accountMenuLevel: 'Account menu, {name}, level {level}',
     openSection: 'Open {section}',
     pendingTitle: 'This section is not live yet',
     pendingBody: 'It ships with task {task} of stage 1. Empty beats fake numbers.',
@@ -98,10 +121,17 @@ export const en = {
     minChars: 'Min 6 characters',
     unlock: 'Unlock Station',
     createAccount: 'Create Account',
-    orContinue: 'or continue with',
     qrLogin: 'QR Login',
+    /**
+     * Dev-only label (C1.9): the demo account is a review shortcut, so it is
+     * only rendered behind `DEV_SHORTCUTS`. The string stays translated because
+     * the *tile* is the same tertiary control as `qrLogin` next to it, and a
+     * half-English row would look like a missing key rather than a fenced-off
+     * one. Its neighbour "Admin" is gone entirely — the admin panel is a
+     * separate application, and a tile whose only job was to say so was a door
+     * painted on a wall.
+     */
     demo: 'Demo',
-    admin: 'Admin',
     encrypted: 'Encrypted session',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
@@ -111,7 +141,6 @@ export const en = {
     welcomeBackToast: 'Welcome back, {name}!',
     accountCreated: 'Account created! Signing you in...',
     enteringDemo: 'Entering demo mode',
-    adminSeparateApp: 'Admin Panel is a separate app (out of scope for this prototype).',
     // Station panel (C1.6). The seat's own readout: identity and availability
     // from the club, live readings from the station agent.
     stationPanel: 'Station status',
@@ -163,6 +192,92 @@ export const en = {
     seatTakenStillHeld: 'The station is still held by {name}.',
     /** The hold is gone, so the arrival that was held back goes straight in. */
     seatTakenFreedToast: 'The station is free — signing you in.',
+    /**
+     * One PC, one session (C1.12).
+     *
+     * The mirror image of `seatTaken`, and it must not read like it: nothing is
+     * occupied here and nobody is in the way — the account is simply already
+     * playing across the room. So the headline is about the *session*, not the
+     * station, and the repair is offered instead of withheld: this visit belongs
+     * to the person reading the card, so they may ask for it to be moved.
+     *
+     * Why an ask and not a button that moves it. The other seat still has their
+     * bag on it and possibly a friend in the chair, so the write that ends a visit
+     * somewhere else in the club belongs to the admin on shift — the same reason
+     * `seatTaken` has no "end their session".
+     */
+    activeElsewhere: 'Session active',
+    activeElsewhereHi: 'elsewhere',
+    activeElsewhereBody:
+      'Your session is running on {machine}. Move it to this station, or go back to that one.',
+    /** The seat the visit is on, stated as a fact inside the card. */
+    activeElsewhereSeat: 'Playing on {machine}',
+    transferHere: 'Move it here',
+    /** Asked, not done: the admin on shift is the one who releases the old seat. */
+    transferPending: 'Waiting for the shift admin to approve the move…',
+    transferPendingNote:
+      'Collect your things from {machine} — the station is released as soon as the move is approved.',
+    transferRequestedToast: 'The shift admin has been asked to move your session.',
+    transferDoneToast: 'Session moved — welcome to this station.',
+    /** The visit ended, or was picked up somewhere else, while the ask waited. */
+    transferGone: 'That session is no longer there to move.',
+    /**
+     * MOCK ONLY — there is no admin app, so the way to answer the ask is named
+     * rather than hidden, exactly like the QR dialog's "play the phone" button.
+     * Never translated: it never reaches a player.
+     */
+    transferDemoTitle: 'No admin app yet',
+    transferDemoNote:
+      'The prototype has no admin screen, so approve the move from here. The frame travels the real bus and this card picks it up through its normal subscription.',
+    transferDemoApprove: 'Approve as admin',
+    /**
+     * Two launcher windows on one PC (C1.12).
+     *
+     * Not an error and not a refusal of anything the player asked for: the club is
+     * fine, the seat is theirs, there is simply already a launcher open on this
+     * machine. So the copy states which window is real and how to get back to it,
+     * and promises the takeover — because the second window *does* come alive on
+     * its own once the first is gone, and a screen that did not say so would look
+     * stuck.
+     */
+    duplicateWindow: 'Launcher already',
+    duplicateWindowHi: 'open',
+    duplicateWindowBody:
+      'This launcher is already running in another window on this PC. Switch to that window — or close it, and this one takes over by itself.',
+    duplicateWindowWaiting: 'Waiting for the other window to close…',
+    /**
+     * The paused visit on this seat is *yours* — the fast way back (C1.10).
+     *
+     * Not a login, and it must not read like one: nobody signed out, the clock is
+     * simply stopped and the paid time is still on this machine. So the headline
+     * names the state of the *visit*, and the subline states the remainder as a
+     * fact of the club — that number is the reason to type four digits instead of
+     * an email and a password.
+     */
+    sessionPaused: 'Session on',
+    sessionPausedHi: 'pause',
+    sessionPausedSub: '{name}, {time} left on this station. Enter your PIN to pick it up.',
+    /**
+     * Same headline, budget spent. The instruction has to go: the keypad is gone
+     * with it, and a card that still says "enter your PIN" over a row of nothing
+     * reads as a broken screen rather than a closed door. The visit is still
+     * stated — it did not go anywhere — and *what to do instead* is said once,
+     * below, by `pinLocked` and the button under it.
+     */
+    sessionPausedSubLocked: '{name}, {time} is still on this station.',
+    pin: 'Player PIN',
+    pinUnlock: 'Unlock with PIN',
+    /** The budget belongs to the club, so the screen counts it out loud. */
+    // plural: one | other
+    pinAttemptsLeft: '{n} try left|{n} tries left',
+    // plural: one | other
+    pinWrong: 'Wrong PIN — {n} try left|Wrong PIN — {n} tries left',
+    /** This door closed, the account did not: the password one is still open. */
+    pinLocked: 'Too many wrong PINs. Sign in with your password to pick up the session.',
+    pinIncomplete: 'Enter all {n} digits',
+    pinUsePassword: 'Use password instead',
+    /** The visit ended or was picked up elsewhere while this screen was open. */
+    pinVisitGone: 'That paused session is no longer here.',
     // Password recovery — email OTP (C1.3).
     forgotPassword: 'Forgot password?',
     recover: 'Reset',
@@ -219,6 +334,35 @@ export const en = {
     // own subline: nothing exists to recover, the account is being *created*.
     signupCodeSub: 'Enter the {n}-digit code sent to {email} to finish signing up.',
     accountCreatedToast: 'Welcome to the club, {name}!',
+    // Date of birth (C1.11). Asked for on the details step because two features
+    // read it — the PIN rule two screens later and the birthday bonus — and the
+    // hint says so: a form that asks for a birthday without a reason reads as
+    // data collection for its own sake.
+    birthday: 'Date of birth',
+    birthdayHint: 'For your club birthday bonus — and your PIN may not repeat it',
+    birthdayInvalid: 'That is not a real date',
+    /** The rule is the club's, so the screen states the number instead of "too young". */
+    birthdayTooYoung: 'Club accounts start at {n} — come with an adult and ask at the counter',
+    // The PIN step of signup (C1.11). Its own headline pair: the email is proven
+    // by now and the account is one tap away, so the card is no longer about mail.
+    pinStep: 'Choose your',
+    pinStepHi: 'PIN',
+    /**
+     * Says *where the PIN is used* before asking for it. Four digits look like a
+     * formality until the player learns they are what stands between a paused
+     * visit and the next person in the chair.
+     */
+    pinStepSub: 'Four digits that pick your visit back up at any station in the club.',
+    choosePin: 'New PIN',
+    repeatPin: 'Repeat PIN',
+    /** Each refusal names one rule, because each has a different repair. */
+    pinTooShort: 'Enter all {n} digits',
+    pinAllSame: 'Four of the same digit is not a PIN — mix them up',
+    pinIsBirthday: 'Your birthday is the first thing anyone would try',
+    pinMismatch: 'The two PINs do not match',
+    /** The one rule the player has to keep after leaving: nobody can look it up. */
+    pinNote:
+      'You will be asked for it when a visit is paused and when the station locks itself. The club cannot look it up — only reset it.',
     // QR sign-in — the station shows a code, the phone confirms it (C1.5).
     qrSub: 'No camera? Type the station code into the app instead.',
     qrStationCode: 'Station code',
@@ -280,6 +424,22 @@ export const en = {
     title: 'Session',
     timeLeft: 'Time left',
     sessionTime: 'Session time',
+    /**
+     * Where the minutes on the clock came from (C2.2).
+     *
+     * One word each, because they ride in the top bar's micro-label next to the
+     * digits — and because the player only needs the *difference*: pass minutes
+     * are already paid for, wallet minutes keep spending money, granted minutes
+     * were a favour that will not renew, and a PostPaid seat is not counting down
+     * at all. `sourceStaff` says "Granted" rather than "Admin": what matters is
+     * that the time was given, not which key opened the drawer.
+     */
+    sourcePass: 'Pass',
+    sourceWallet: 'Wallet',
+    sourceStaff: 'Granted',
+    sourcePostpaid: 'PostPaid',
+    /** Screen-reader phrasing — the visual plate says it with layout instead. */
+    timeSource: 'Time source: {source}',
     timeBalance: 'Time balance',
     running: 'Running',
     paused: 'Paused',
@@ -301,6 +461,314 @@ export const en = {
     // plural: one | other
     minutesLeft: '{n} minute left|{n} minutes left',
     warningLowTime: 'Less than {n} min of session time left.',
+
+    /* ---------------------------------------------------------------- *
+     * Running out of time (C2.6)
+     *
+     * Four toasts and one takeover. The toasts state the *number* and one thing
+     * to do about it; the takeover, at 60 seconds, states the number and offers
+     * the three ways a visit can actually end — buy more, ask a human, or stop
+     * on your own terms. Nothing here says "hurry": a player one minute from
+     * losing an unsaved match needs the fact and the exits, not urgency.
+     * ---------------------------------------------------------------- */
+    /**
+     * The 15- and 10-minute marks. Plural on the minutes because Russian and
+     * Lithuanian inflect them, and the number is the whole message.
+     */
+    // plural: one | other
+    warnTitle: '{n} minute left|{n} minutes left',
+    /** What to do about it, without deciding for the player. */
+    warnBody: 'Extend from your session panel, or wrap up when you are ready.',
+    /** The 5-minute mark: the same fact, and the one action worth taking now. */
+    warnBodyUrgent: 'Extend now to keep your seat, or save your progress.',
+    /** The 1-minute mark, spoken as a toast for a screen reader before the takeover. */
+    warnFinal: 'One minute left on this station.',
+    /** Opens "My session" straight from the toast — the panel is where extending lives. */
+    warnAction: 'Extend',
+    /**
+     * The takeover heading. Deliberately not "Time is up": it is not, and a
+     * player who reads it as the end will stop playing 60 seconds early.
+     */
+    lastCallTitle: 'One minute left',
+    lastCallBody:
+      'Your session ends in under a minute. Add time to carry on, call an admin if something is wrong, or save your game and hand the station back.',
+    /** The live digits inside the takeover, labelled. */
+    lastCallClock: 'Ending in',
+    /** Three exits, in the order a player is most likely to want them. */
+    lastCallExtend: 'Extend',
+    lastCallAdmin: 'Call the admin',
+    lastCallSaveExit: 'Save and exit',
+    /** Extending is only honest when there is something banked to extend from. */
+    lastCallExtendHint: 'No pass minutes banked — the shop has time passes.',
+    lastCallShop: 'Open shop',
+    /**
+     * Dismissal, and what it does *not* do. The takeover can be put away — a
+     * player mid-round must be able to see their game — but the clock does not
+     * care, so the button says so rather than promising a reprieve.
+     */
+    lastCallDismiss: 'Keep playing',
+    lastCallDismissHint: 'The station still locks when the time runs out.',
+
+    /* ---------------------------------------------------------------- *
+     * Paused by an admin (C2.7)
+     *
+     * Not a lock screen and not an error: the visit is still on this machine,
+     * the launcher is still behind the scrim, and the only thing that changed is
+     * that the clock stopped. So the copy answers the three questions a player
+     * stares at this overlay with — why, is this costing me, what do I do — and
+     * nothing else. The reason is named out loud because "paused" with no cause
+     * reads as a malfunction the player has to solve themselves.
+     * ---------------------------------------------------------------- */
+    pauseTitle: 'Session paused',
+    /** The load-bearing sentence: a stopped clock is not a spent one. */
+    pauseBody: 'The clock is stopped — these minutes are not charged to you.',
+    pauseReasonLabel: 'Reason',
+    pauseReasonStaff: 'An admin paused your session.',
+    pauseReasonBreak: 'Your session is on a break.',
+    pauseReasonPaymentRequired: 'Payment is needed at the counter before the clock restarts.',
+    pauseReasonMaintenance: 'Maintenance on this station.',
+    /** Stands in for a reason this build has no sentence for. */
+    pauseReasonUnknown: 'The club paused this station.',
+    pauseRemaining: 'Time held for you',
+    /** Nothing here dismisses the overlay, and pretending otherwise is worse. */
+    pauseWaitHint:
+      'Nothing is lost. Your games and windows stay exactly as they are — the launcher comes back the moment an admin lifts the pause.',
+    pauseCallAdmin: 'Call the admin',
+    pauseResumedToast: 'Pause lifted — back in the game.',
+
+    /* ---------------------------------------------------------------- *
+     * Moved to another PC (C2.8)
+     *
+     * The one fact the player has to walk away with is *where*, so the seat
+     * label and the zone are the loudest thing on the overlay and everything
+     * else is reassurance around them. The seat is club-authored data (`PC-24`)
+     * and the zone is a club-authored name (`VIP`), so both travel through the
+     * sentence as variables and are never translated.
+     * ---------------------------------------------------------------- */
+    movedTitle: 'Session moved',
+    /** With the zone, which is the version the player almost always gets. */
+    movedBody: 'Your session has been moved to {seat}, {zone} zone.',
+    /** A seat whose zone this build could not name — the seat alone still works. */
+    movedBodyNoZone: 'Your session has been moved to {seat}.',
+    movedSeatLabel: 'New station',
+    movedZoneLabel: 'Zone',
+    /** The deadline as a fact, not a threat. Staff step in after it, not the app. */
+    // plural: one | other
+    movedDeadline:
+      'Please move within {n} minute — your time is held until you get there.|Please move within {n} minutes — your time is held until you get there.',
+    /** What is *not* lost, because that is the fear this overlay creates. */
+    movedHint:
+      'Nothing is charged for the walk and nothing is lost: your remaining time, your tab and your account move with you. Sign in again at the new station.',
+    /** Acknowledgement, not a dismissal of the move itself. */
+    movedAck: 'Got it',
+
+    /* ---------------------------------------------------------------- *
+     * "My session" — the panel behind the HUD (C2.3)
+     * ---------------------------------------------------------------- */
+    mine: 'My session',
+    /** Sits on the HUD trigger, so it says what opens rather than what it is. */
+    openMine: 'Session details',
+    seat: 'Station',
+    startedAt: 'Started',
+    playedSoFar: 'Played so far',
+    /**
+     * The heading over the source line. "What is being spent" and not "Time
+     * source" — the panel has room for the question the player is actually
+     * asking, and the four answers below are the *consequence*, not the label.
+     */
+    spending: 'What is being spent',
+    spendingPass: 'Minutes from a pass you already paid for. When they run out the clock simply stops — nothing further is charged.',
+    spendingWallet: 'Hours bought against your wallet. Extending spends money again.',
+    spendingStaff: 'Minutes an admin put on this seat. Nobody is paying for them, so they will not renew themselves — ask at the counter before they run out.',
+    spendingPostpaid: 'Every minute is billed onto your open tab and settled at the counter when you leave.',
+    /** The tab is a *reading* here, next to the time it is accruing from. */
+    onTabNow: 'On the tab now',
+    history: 'Time added',
+    historyEmpty: 'Nothing added yet',
+    historyEmptyBody: 'Every extension — yours or the admin\u2019s — is listed here with the minute it landed.',
+    /** One line per act, so a purchase never reads as a favour. */
+    historyExtend: 'You extended',
+    historyStaff: 'Admin added time',
+    historyCorrection: 'Admin correction',
+    /**
+     * Signed, and the sign is in the *copy* rather than computed at the point of
+     * use: a minus rendered by string concatenation on a negative number prints
+     * "+-30 min" the first time somebody forgets, and an admin correction is the
+     * one line in this list where the direction is the whole meaning.
+     *
+     * Not plural forms: the unit is an abbreviation in all three languages
+     * ("min" / "мин" / "min"), so there is nothing to inflect.
+     */
+    historyMinutes: '+{n} min',
+    historyMinutesNegative: '−{n} min',
+    /** Banked pass minutes an extend can draw from. */
+    banked: '{n} min banked on your pass',
+    extendBy: '+{n} min',
+    extendedToast: 'Session extended by {n} min.',
+    /**
+     * The line under a disabled extend while the club is shut (C2.11, C2.12).
+     *
+     * Three surfaces offer the extend and all three used to caption only the
+     * *offline* refusal, which left the closed club — the commoner of the two, and
+     * the one with a reopening time attached — as three dead buttons and no
+     * sentence. That is the exact failure `useSalesGate()` was written to stop:
+     * a greyed-out money button with nothing on screen saying why.
+     *
+     * Its own line rather than `shop.closedCheckoutHint`, which names checkout;
+     * the fact here is that the minutes stay banked, because a dead "+15 min" is
+     * read as "my pass is gone".
+     */
+    extendClosedHint: 'Your banked minutes keep — buying time opens again with the club.',
+    /** No banked minutes: the honest button is the shop, not a failing extend. */
+    buyTime: 'Buy time',
+    buyTimeHint: 'No pass minutes banked. Time passes are in the shop.',
+    /** A walk-in cannot extend — there is nothing to extend *to* (F6.3). */
+    postpaidNoExtend: 'A PostPaid seat has no time to extend: play as long as you like and settle the tab at the counter.',
+    callAdmin: 'Call the admin',
+    callAdminSent: 'The admin has been called — someone is on the way to your seat.',
+    callAdminAgain: 'The admin already has your call.',
+
+    /* ---------------------------------------------------------------- *
+     * The club's day ending (C2.11)
+     *
+     * A different clock from C2.6 above, and the copy has to keep them apart:
+     * "your paid time is ending" can be answered by extending, "the club is
+     * closing" cannot. So nothing in this block offers more minutes, and every
+     * line is written against the one misreading that would cost a player a
+     * match — that closing time cuts the session off. It does not: the game is
+     * never interrupted (MVP §0.2), the minutes are already paid for, and it is
+     * an admin who turns the station off in person.
+     * ---------------------------------------------------------------- */
+    /** The 60 / 30 / 10-minute marks. Plural because RU and LT inflect minutes. */
+    // plural: one | other
+    closingTitle: 'The club closes in {n} minute|The club closes in {n} minutes',
+    /** The 60- and 30-minute marks: a fact, and no demand attached to it. */
+    closingBody:
+      'Your time keeps running — closing does not cut a session off. The shop and the bar stop serving.',
+    /** The 10-minute mark: the same fact plus the one thing worth starting now. */
+    closingBodyUrgent: 'Time to save your game and pack up. Your unused minutes keep for next time.',
+    /** The overlay after closing. Not "Time is up" — the player's time is not. */
+    closedTitle: 'The club is closed',
+    closedBody:
+      'You can finish what you are playing — the clock keeps running and nothing is cut off. Buying time and ordering at the bar are shut until we open again.',
+    /** Proof of the sentence above: the same digits as the HUD, still moving. */
+    closedClockLabel: 'Your time is still running',
+    closedOpensLabel: 'Open again',
+    /** A schedule this build cannot name the next opening from. */
+    closedOpensUnknown: 'Ask at the counter',
+    /** A member's own way out: the remainder is banked, the station locks. */
+    closedSaveExit: 'Save and exit',
+    closedSaveExitHint: 'Your remaining minutes are banked and wait for your next visit.',
+    /** A walk-in has a tab, not a balance, so the counter is the honest exit. */
+    closedGuestHint: 'Settle your tab at the counter when you finish.',
+    closedCallAdmin: 'Call the admin',
+    /**
+     * Dismissal, and the fact it must not be read as. The launcher does not shut
+     * the station down; a human does, and saying so is what keeps a dismissed
+     * overlay from reading as permission to stay all night.
+     */
+    closedDismiss: 'Keep playing',
+    closedDismissHint: 'An admin will come round to close the station down in person.',
+  },
+
+  // The home surface (C3). The greeting lives here rather than in `session`
+  // because it is the one place that speaks to the *person* — every other
+  // namespace names a thing the club sells.
+  home: {
+    /**
+     * Time-of-day greeting (C3.1).
+     *
+     * Four bands and not one "Hello", because a club is busiest at the hours a
+     * generic greeting reads worst: someone sitting down at 02:00 is not being
+     * wished a good morning. The bands are copy, not logic — a language that
+     * splits the evening differently changes these strings, not the component.
+     */
+    greetMorning: 'Good morning, {name}',
+    greetAfternoon: 'Good afternoon, {name}',
+    greetEvening: 'Good evening, {name}',
+    greetNight: 'Still going, {name}',
+    /** Level as a rank, next to the name. */
+    level: 'Level {level}',
+    /** Screen-reader name for the XP bar — the bar itself is decoration. */
+    levelProgress: '{xp} of {max} XP towards level {next}',
+    levelProgressShort: '{xp} / {max} XP',
+    /** How long this visit has been running. `{duration}` is already formatted. */
+    playingFor: 'Playing for {duration}',
+    /**
+     * The first minute of a visit, which has no honest number yet.
+     *
+     * "Playing for 0 minutes" is the sentence this key exists to avoid: it reads
+     * as a broken counter on the one screen a player sees before anything else.
+     */
+    justArrived: 'Just sat down',
+    /** Visit streak. plurals: one | other */
+    streakDays: '{n} day in a row|{n} days in a row',
+    /** A streak that is not running — a first visit, or one that lapsed. */
+    streakStart: 'Streak starts today',
+    streakLabel: 'Visit streak',
+
+    /**
+     * "Continue" — the last three titles, one click each (C3.2).
+     *
+     * A verb, and deliberately not the library's own "Recently played" label: the
+     * row under the greeting is not a history list, it is the way back into the
+     * match the player walked away from, and the heading should say what clicking
+     * it does.
+     */
+    continueTitle: 'Continue',
+    /**
+     * Accessible name of the card.
+     *
+     * The whole tile is the button, so the verb never appears on screen — but a
+     * reader announcing only the game name would present an action as a label.
+     * `{when}` repeats whichever status the tile is showing, so what is announced
+     * and what is read are the same sentence.
+     */
+    continueLaunch: 'Launch {name} — {when}',
+    /** Already on this machine: the tile is inert, and says why. */
+    continueRunning: 'Running now',
+    continueLaunching: 'Starting…',
+    continueEmpty: 'No games yet',
+    continueEmptyBody:
+      'Start something from the library and it waits for you here — one click back in on every visit after this one.',
+    /**
+     * When the title was last started, as elapsed time.
+     *
+     * Elapsed rather than calendar-relative ("Yesterday"), because a single row
+     * reads as a distance: a match abandoned at 23:50 is "8 hours ago" the next
+     * morning, and that is the fact the player is deciding on.
+     *
+     * plurals: one | other
+     */
+    playedJustNow: 'Played just now',
+    playedMinutesAgo: 'Played {n} minute ago|Played {n} minutes ago',
+    playedHoursAgo: 'Played {n} hour ago|Played {n} hours ago',
+    playedDaysAgo: 'Played {n} day ago|Played {n} days ago',
+
+    /**
+     * "My session" — the HUD plate opened out, on the home screen (C3.3).
+     *
+     * The same subject as the panel behind the plate (`session.mine`) at a third
+     * size, so the card links to that panel rather than restating any of it.
+     */
+    sessionTitle: 'My session',
+    /** The link to the panel, where the seat, the zone and every grant live. */
+    sessionDetails: 'Details',
+    /** Name of the spent-time bar. It appears nowhere else. */
+    sessionSpentLabel: 'Time spent',
+    /**
+     * Caption over that bar; both values arrive already formatted as clock faces.
+     *
+     * The denominator is played-plus-remaining — the arc of *this visit*, not the
+     * block it was sold as. Extending makes the visit longer, and a fixed two
+     * hours would let the bar read past 100 %.
+     */
+    sessionSpentOf: '{spent} of {total}',
+    /**
+     * A locked station: the digits above are true and misleading at once, because
+     * nothing is being spent while they sit there.
+     */
+    sessionPaused: 'Clock paused',
   },
 
   games: {
@@ -324,6 +792,58 @@ export const en = {
     openLibrary: 'Open library',
     noAccounts: 'No accounts available',
     noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
+
+    /**
+     * The launch dialog's own name (C3.2).
+     *
+     * The visible title is painted into the cover art, so the dialog is named
+     * here instead — a reader must open with "Launch Civilization VII" and not
+     * with an unnamed dialog. `launchDialogPending` covers the frame before the
+     * game has arrived, which is short but not zero.
+     */
+    launchDialog: 'Launch {name}',
+    launchDialogPending: 'Launch game',
+
+    /**
+     * The agent's checklist, in order (see hooks/use-game-launch.ts).
+     *
+     * These three lines are the *only* thing on screen for the seconds a start
+     * takes, so they were the last place in the product that could afford a
+     * hardcoded English string (F2.4).
+     */
+    launchStepAccount: 'Preparing account…',
+    launchStepSession: 'Injecting session…',
+    launchStepStart: 'Starting game…',
+
+    /**
+     * Both outcomes of a start, raised as toasts by the hook — which is why they
+     * live in `games` and not in the dialog: quick launch from the "Continue"
+     * card produces the same two sentences without a dialog ever opening.
+     *
+     * The failure carries the API's code rather than its message: the wording is
+     * ours, the code is what an admin can act on (F2.2).
+     */
+    launchedToast: '{name} launched — minimizing the launcher',
+    launchFailed: 'Launch failed ({code})',
+
+    /**
+     * The house-account list (F3.4).
+     *
+     * A *choice offered* to the player, not a parameter the launch needs — the
+     * endpoint takes a game id and the server owns availability. That is exactly
+     * why one click from the "Continue" card is allowed to skip this list.
+     */
+    selectAccount: 'Select account',
+    accountLinked: 'Linked: {name}',
+    /**
+     * Written out next to every row, because the other half of this signal is a
+     * red or green disc — and a coloured dot announces nothing to a reader and
+     * nothing at all to a player who cannot tell the two hues apart (F6.6).
+     */
+    accountAvailable: 'Available',
+    accountInUse: 'In use',
+    rememberAccount: 'Remember my choice for this game',
+
     // F8.4 — the strip that *names* the silence. A launcher that simply stops
     // making sounds is indistinguishable from a broken one, and the player has
     // no way to learn the rule or to end the state.
@@ -353,12 +873,56 @@ export const en = {
     catGear: 'Gear',
     sectionEmpty: 'Nothing in this section',
     sectionEmptyBody: 'The club is restocking. Try another tab or ask at the counter.',
+    /**
+     * The cart button in the top bar (C2.4), in two shapes.
+     *
+     * The count is the reason to press it, so it lives *in* the accessible name
+     * rather than only in the badge: a red disc reading "2" announces nothing.
+     */
+    openCartEmpty: 'Cart, empty',
+    // plural: one | other
+    openCart: 'Cart, {n} item|Cart, {n} items',
+
+    /* ---------------------------------------------------------------- *
+     * Closing hours in the shop (C2.11)
+     *
+     * Two different statements, and mixing them up would be the bug:
+     *
+     *   closed*   the club is shut, so nothing can be bought or brought to a
+     *             station. A refusal, and it names when that ends.
+     *   closing*  the pass is longer than what is left of today. **Not** a
+     *             refusal — the player may legitimately buy minutes that will
+     *             tick on their next visit, so this is a note on the card, not a
+     *             disabled button.
+     * ---------------------------------------------------------------- */
+    closedTitle: 'The club is closed',
+    closedBody: 'Buying and bar orders open again at {time}.',
+    /** Same refusal, for a schedule with no next opening to print. */
+    closedBodyNoTime: 'Buying and bar orders open again when the club does.',
+    /** On the checkout button, where a full sentence does not fit. */
+    closedCheckoutHint: 'Checkout opens again with the club.',
+    /** On a time-pass card that outlasts today. `{n}` is the part that spills. */
+    closingPassNote: 'Longer than we are open today — {n} min of it keeps for your next visit.',
   },
 
   wallet: {
     title: 'Wallet',
     balance: 'Balance',
+    /** The balance plate's name in the bar, amount included (C2.4). */
+    openWallet: 'Wallet, balance {amount}',
     coinBalance: 'IMBA coins',
+    /**
+     * The coin plate's name in the bar (C2.4). Coins and euros are two pockets of
+     * one wallet, so both plates open the same section and both carry their
+     * reading in the name.
+     */
+    openCoins: 'Wallet, {amount} IMBA coins',
+    /**
+     * Printed in the balance plate when the read failed (C2.4). The plate stays
+     * in the row rather than vanishing: a missing plate reads as "no balance",
+     * which is a different and wrong statement.
+     */
+    balanceUnknown: 'Balance unavailable, tap to retry',
     topUp: 'Top up',
     history: 'History',
     deposit: 'Deposit',
@@ -439,6 +1003,70 @@ export const en = {
     reportIssue: 'Report an issue',
     issueSent: 'Thanks! Your report has been sent to the admin.',
     describeIssue: 'Describe the issue',
+  },
+
+  /**
+   * The bell in the top bar and the panel behind it (C2.4).
+   *
+   * Its own namespace rather than a corner of `help`: an inbox is what the club
+   * says to the player, help is what the player says to the club, and C2.5 grows
+   * this one with grouping and per-card actions.
+   */
+  inbox: {
+    title: 'Notifications',
+    /**
+     * The trigger's accessible name, in two shapes. The count is the whole
+     * reason to open the panel, so it belongs *in* the name rather than in a
+     * coloured dot beside it — a badge nobody can read announces nothing.
+     */
+    openNone: 'Notifications, nothing new',
+    // plural: one | other
+    openUnread: 'Notifications, {n} unread message|Notifications, {n} unread messages',
+    /**
+     * The panel's subtitle. Deliberately shorter than the trigger's name: it sits
+     * on one line beside "Mark all as read" in a 22 rem popover, and the noun it
+     * would repeat is already the panel's own title.
+     */
+    unreadCount: '{n} unread',
+    /** Printed in the badge once the count no longer fits two digits. */
+    overflow: '9+',
+    markAllRead: 'Mark all as read',
+    markedAllToast: 'Everything marked as read.',
+    allRead: 'All caught up',
+    unread: 'Unread',
+    empty: 'Nothing here yet',
+    emptyBody: 'Club news, order updates and time warnings arrive here.',
+    /**
+     * Day headings (C2.5). "Today" and "Yesterday" are words, not dates: that is
+     * how a player reads a two-hour-old message. Anything older is printed by
+     * `formatFullDate`, which is locale-aware — a date assembled from strings
+     * here would put the month first in Lithuanian.
+     */
+    today: 'Today',
+    yesterday: 'Yesterday',
+    /** The group's spoken name, so a reader hears which day it entered. */
+    dayGroup: 'Notifications, {day}',
+    /**
+     * In-card actions. The two invite answers, then the lines that replace them
+     * once the server has recorded one: a card still offering "Accept" after the
+     * invite was accepted is lying about state.
+     */
+    acceptInvite: 'Accept invite',
+    declineInvite: 'Decline',
+    inviteAccepted: 'Invite accepted',
+    inviteDeclined: 'Invite declined',
+    joinedToast: 'You joined the party.',
+    declinedToast: 'Invite declined.',
+    /** The stars' group label — five bare stars ask nothing on their own. */
+    rateOrder: 'Rate order',
+    // plural: one | other
+    rateStar: '{n} star|{n} stars',
+    rated: 'Rated {n}/5',
+    ratedToast: 'Thanks for rating your order.',
+    /** The answer failed, so the card says so instead of pretending it took. */
+    actionFailed: 'That did not go through. Try again.',
+    /** Someone else answered first — a reopened panel, not a new decision. */
+    actionStale: 'This one was already answered.',
   },
 
   booking: {
@@ -558,6 +1186,32 @@ export const en = {
     // plural: one | other
     pendingUpdates: '{n} update waiting|{n} updates waiting',
 
+    /* ---------------------------------------------------------------- *
+     * Money while the link is down (C2.12)
+     *
+     * Three shapes of one refusal, because it has to be stated wherever the
+     * player reaches for their money and a sentence that fits a section banner
+     * does not fit under a button:
+     *
+     *   salesTitle/salesBody  the banner in the shop — a refusal, and it repeats
+     *                         the promise that the clock is unaffected, because
+     *                         "you cannot buy" is exactly when a player starts
+     *                         wondering whether their minutes are burning.
+     *   salesHint             the line under a disabled Checkout / Extend.
+     *   salesRefused          the toast if a request is fired anyway (a click
+     *                         that beat the state, a form that was already open).
+     *                         It says *nothing was charged* — that is the only
+     *                         thing the player actually needs to know.
+     *
+     * Never "try again later": the shell retries the link by itself, and the
+     * buttons come back on their own the moment it is up.
+     * ---------------------------------------------------------------- */
+    salesTitle: 'Purchases are paused',
+    salesBody:
+      'The club server cannot confirm a payment right now. Your session is unaffected — the clock keeps running and your game is not interrupted.',
+    salesHint: 'Purchases resume by themselves once the link is back.',
+    salesRefused: 'No connection to the club server — nothing was charged.',
+
     timeAdded: '+{minutes} min added to your session',
     timeAddedByStaff: '+{minutes} min from the admin',
     sessionPaused: 'Session paused',
@@ -603,6 +1257,11 @@ export const en = {
     validation: 'Check the highlighted fields',
     timeout: 'The club server took too long to answer',
     sessionExpired: 'Your session has ended',
+    /**
+     * C1.12. The toast form, for the paths that have no card to open — the panel
+     * says it properly, with the seat named.
+     */
+    activeElsewhere: 'Your session is already running on another PC',
     insufficientFunds: 'Not enough money on your balance',
     insufficientCoins: 'Not enough coins',
     outOfStock: 'Out of stock right now',

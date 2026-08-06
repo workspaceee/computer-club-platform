@@ -25,6 +25,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Award,
+  Bell,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -157,6 +158,7 @@ export const icons = {
   volume: Volume2,
   controls: MousePointer2, // раздел «Управление», курсор, «подвигай мышью»
   empty: Inbox, // пусто по данным
+  notifications: Bell, // входящие клуба: колокольчик и панель уведомлений
   support: LifeBuoy, // помощь, поддержка
   home: Home,
   play: Play, // запустить игру

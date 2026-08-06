@@ -18,6 +18,10 @@
  *   modal     dialogs that own the screen.
  *   confirm   confirmations sit *above* the dialog that raised them, otherwise
  *             "are you sure?" would be hidden behind the thing it is asking about.
+ *   takeover  the last minute of the visit (C2.6). Above every dialog, because
+ *             at 60 seconds nothing the player was doing matters more than the
+ *             clock — but still under `toast`, so the outcome of pressing
+ *             "Extend" is readable on top of the screen that offered it.
  *   toast     feedback has to be readable **while a dialog is open** — a failed
  *             launch reports into a toast while the launch dialog is still up.
  *   blocking  the end of the visit. Nothing may cover it, and it covers
@@ -34,6 +38,7 @@ export const overlayZ = {
   drawer: 'z-[60]',
   modal: 'z-[70]',
   confirm: 'z-[80]',
+  takeover: 'z-[85]',
   toast: 'z-[90]',
   blocking: 'z-[100]',
 } as const

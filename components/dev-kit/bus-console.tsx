@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { useRealtimeStatus } from '@/components/realtime/realtime-provider'
 import { useRealtimeAny } from '@/hooks/use-realtime'
+import { setScrimPeek } from '@/lib/dev-flags'
 import * as admin from '@/lib/realtime/admin-sim'
 import { mockBus, type BusLogEntry } from '@/lib/realtime/mock-bus'
 import type { AnyRealtimeEvent, RealtimeStatus } from '@/lib/realtime/events'
@@ -54,9 +55,45 @@ const GROUPS: ActionGroup[] = [
       { label: '−10 min', run: () => admin.deductTime(10) },
       { label: 'Warn: 10 min left', run: () => admin.warnLowTime(10) },
       { label: 'Warn: 2 min left', run: () => admin.warnLowTime(2) },
-      { label: 'Pause seat', run: () => admin.pauseSession('staff') },
-      { label: 'Resume seat', run: () => admin.resumeSession(), tone: 'success' },
+      {
+        label: 'Pause seat',
+        run: () => {
+          setScrimPeek(false)
+          return admin.pauseSession('staff')
+        },
+      },
+      {
+        // The same pause, with the launcher left visible under it (C3.3). The
+        // pause overlay is deliberately undismissable (C2.7), so the session
+        // card's "clock is stopped" line — the only place in the product that
+        // says it in words — is otherwise behind a scrim while the state that
+        // produces it is in force. Review-only: it lifts the scrim and changes
+        // nothing about the pause.
+        label: 'Pause seat (no scrim)',
+        run: () => {
+          setScrimPeek(true)
+          return admin.pauseSession('staff')
+        },
+      },
+      {
+        label: 'Resume seat',
+        run: () => {
+          // Back to the product's behaviour, so the next pause covers the screen
+          // like a real one — a peek left armed would be a silent lie about which
+          // overlays this build shows.
+          setScrimPeek(false)
+          return admin.resumeSession()
+        },
+        tone: 'success',
+      },
       { label: 'Move to free seat', run: () => admin.moveSession() },
+      // The seed of C1.12, and the only button here that is not a staff action:
+      // it relocates the fixture's own live row to PC #05 and frees this chair,
+      // which is the state a second station would have left behind. Sign in on
+      // the lock screen afterwards and the refusal is `activeElsewhere` rather
+      // than "the seat is taken" — the transfer card carries its own
+      // "Approve as admin" next to the request it raised.
+      { label: 'Seed DemoPlayer on PC-05', run: () => admin.seatSessionElsewhere('pc-05') },
       { label: 'End session', run: () => admin.endSession('staff'), tone: 'danger' },
     ],
   },
