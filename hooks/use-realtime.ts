@@ -34,6 +34,7 @@ import {
   type RealtimeStatus,
 } from '@/lib/realtime/events'
 import { mockBus, type RealtimeIdentity } from '@/lib/realtime/mock-bus'
+import { DEV_SHORTCUTS, LINK_BLIP_MS, readLinkOverride } from '@/lib/dev-flags'
 import { db } from '@/lib/mock/db'
 
 /** The transport in use. Stage 4 points this at the SSE channel. */
@@ -147,6 +148,29 @@ export function useRealtimeChannel(): RealtimeChannelState {
       offEvents()
       offLog()
     }
+  }, [])
+
+  /**
+   * `?link=cut` / `?link=blip` — boot into an outage (`lib/dev-flags.ts`).
+   *
+   * Declared **above** the connect effect so it runs first: the link is already
+   * down when `open()` is called, so the very first handshake fails and the page
+   * comes up the way it would with the cable out, rather than connecting and
+   * losing it a frame later. `blip` puts it back after `LINK_BLIP_MS` and lets the
+   * existing backoff notice — no second reconnect path, so what a reviewer watches
+   * is the product's own recovery.
+   *
+   * Dropped from a production build with `DEV_SHORTCUTS`; the whole hook body below
+   * is untouched by it.
+   */
+  useEffect(() => {
+    if (!DEV_SHORTCUTS) return
+    const override = readLinkOverride()
+    if (!override) return
+    bus.setLinkUp(false)
+    if (override !== 'blip') return
+    const timer = setTimeout(() => bus.setLinkUp(true), LINK_BLIP_MS)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {

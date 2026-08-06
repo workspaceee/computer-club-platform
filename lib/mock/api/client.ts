@@ -11,6 +11,7 @@
 //     the dictionaries (`errors` namespace, F2.2). The API never returns prose.
 //  3. Responses are deep-cloned, so a component that mutates what it received
 //     cannot corrupt the store — exactly like a real JSON response.
+import { DEV_SHORTCUTS, readEndpointFault } from '@/lib/dev-flags'
 import { db } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 
@@ -45,6 +46,17 @@ export type ApiErrorCode =
   /** Too many requests in the cooldown window — the 60 s resend guard (C1.3). */
   | 'rateLimited'
   | 'sessionExpired'
+  /**
+   * One PC, one session (C1.12). The credentials were right and *this* chair is
+   * free — the account signing in is already playing somewhere else.
+   *
+   * Deliberately not `conflict`: `conflict` on this endpoint means "somebody else
+   * is sitting here", and the two refusals have opposite repairs. A stranger's
+   * visit can only be ended by the admin's key, while your own visit on another
+   * seat is yours to move — so the screen offers a transfer instead of sending
+   * you to the counter, and it can only tell them apart by the code.
+   */
+  | 'activeElsewhere'
   | 'insufficientFunds'
   | 'insufficientCoins'
   | 'outOfStock'
@@ -65,24 +77,49 @@ const STATUS: Record<ApiErrorCode, number> = {
   invalidCode: 401,
   rateLimited: 429,
   sessionExpired: 410,
+  activeElsewhere: 409,
   insufficientFunds: 402,
   insufficientCoins: 402,
   outOfStock: 409,
   creditLimit: 402,
 }
 
+/**
+ * Machine-readable detail attached to a refusal.
+ *
+ * Scalars only, and on purpose: this is the JSON body of an error response, so it
+ * has to survive `structuredClone` and a real `fetch` unchanged. It is *not* a
+ * place for prose — the sentence still comes from the dictionaries (rule 2
+ * above), and these are the ids and labels that get interpolated into it.
+ */
+export type ApiErrorData = Record<string, string | number | boolean | null>
+
 export class ApiError extends Error {
   readonly code: ApiErrorCode
   readonly status: number
   /** Field-level problems for `validation`, keyed by form field name. */
   readonly fields?: Record<string, ApiErrorCode>
+  /**
+   * What the screen needs in order to *name* the refusal (C1.12).
+   *
+   * A code alone cannot carry "your session is active on PC #05": the seat that
+   * holds it is known to the server and to nothing else, and a client that
+   * re-read the whole floor to find it would be guessing at the answer the
+   * refusal already had.
+   */
+  readonly data?: ApiErrorData
 
-  constructor(code: ApiErrorCode, fields?: Record<string, ApiErrorCode>) {
+  constructor(
+    code: ApiErrorCode,
+    fields?: Record<string, ApiErrorCode>,
+    data?: ApiErrorData,
+  ) {
     super(code)
     this.name = 'ApiError'
     this.code = code
     this.status = STATUS[code]
     this.fields = fields
+    this.data = data
   }
 }
 
@@ -179,6 +216,27 @@ export const mockFaults = {
   },
 }
 
+/**
+ * Arms `?fail=<endpoint>[:code]` before the page's first read (C3.3).
+ *
+ * Module scope rather than an effect: the first `query()` can be in flight before
+ * any component has mounted, and a fault that lands after it would leave the
+ * screen showing data on the very load that asked to see the failure. The client
+ * bundle evaluates this once, and the `window` guard keeps the server render out
+ * of it — the switch describes what *this tab* asked for, not what SSR produced.
+ *
+ * The code is validated against `STATUS`, the one list of codes that exists, so a
+ * typo falls back to `generic` instead of arming a fault whose `status` is
+ * `undefined`.
+ */
+if (DEV_SHORTCUTS && typeof window !== 'undefined') {
+  const armed = readEndpointFault()
+  if (armed) {
+    const code = armed.code && armed.code in STATUS ? (armed.code as ApiErrorCode) : 'generic'
+    faults.always.set(armed.endpoint, code)
+  }
+}
+
 /** Which fault, if any, applies to this call. Consumes one-shots. */
 function nextFault(endpoint: string): ApiErrorCode | null {
   const once = faults.once.get(endpoint)
@@ -190,6 +248,83 @@ function nextFault(endpoint: string): ApiErrorCode | null {
   if (always) return always
   if (faults.rate > 0 && Math.random() < faults.rate) return faults.rateCode
   return null
+}
+
+/* ------------------------------------------------------------------ *
+ * Money while the link is down (C2.12)
+ * ------------------------------------------------------------------ */
+
+/**
+ * The writes that must not be attempted without a link to the club server.
+ *
+ * Every one of them either moves money or moves a deadline — the two things whose
+ * outcome the player cannot verify for themselves. A charge that leaves the
+ * station and is never confirmed is the worst failure this product has: the money
+ * may or may not be gone, and nothing on screen can honestly say which.
+ *
+ * The buttons for these are already disabled by `useSalesGate()`, so reaching this
+ * list means something got past the UI — a click that beat a re-render, a dialog
+ * that was already open, a keyboard `Enter` on a form. That is exactly why the
+ * guard is *here*, at the one choke point every write goes through, rather than
+ * trusted to six `disabled` props.
+ *
+ * What is deliberately **absent** matters as much as what is present:
+ * `catalog.launchGame` and `support.callStaff` are not in it. A player with a dead
+ * link must still be able to start a game and reach a human — those are the two
+ * things an outage must never take away, and both are safe to retry or to honour
+ * late.
+ */
+const OFFLINE_BLOCKED: ReadonlySet<string> = new Set([
+  // The till.
+  'shop.checkoutCart',
+  'shop.createOrder',
+  'shop.purchasePass',
+  'shop.settleTab',
+  'shop.topUpWallet',
+  // The clock. Banked minutes are still the club's to grant, and a deadline the
+  // server never acknowledged is a minute the player would wrongly believe in.
+  'session.extendSession',
+  // Loyalty spends a balance the server owns, same as a card would.
+  'loyalty.redeemReward',
+  'loyalty.unlockPaidTrack',
+])
+
+/**
+ * Whether the link is down, as far as the transport is concerned.
+ *
+ * **Pushed in by the UI, never read from the bus here.** `lib/realtime/mock-bus.ts`
+ * imports `serverTime()` from this file, so importing the bus back would be a
+ * cycle. The direction is a feature rather than a workaround: the flag that gets
+ * pushed is the *delayed* one the offline banner renders
+ * (`OFFLINE_BANNER_DELAY_MS`), so the transport refuses a purchase during exactly
+ * the window the player can see a banner explaining why — and a 300 ms blink of
+ * packet loss never kills a checkout that would have gone through.
+ */
+let linkOffline = false
+
+/** Called by the realtime provider whenever the banner's `offline` flag changes. */
+export function setTransportOffline(offline: boolean): void {
+  linkOffline = offline
+}
+
+/**
+ * Told when a purchase was refused before it left the station.
+ *
+ * A callback rather than a `toast()` call, because rule 2 of this file holds: the
+ * mock API never produces prose. The UI registers a reporter that already knows
+ * the language, so the sentence the player reads still comes from the dictionaries
+ * (`realtime.salesRefused` — the one that says *nothing was charged*).
+ */
+type RefusalReporter = (endpoint: string) => void
+
+let reportRefusal: RefusalReporter | null = null
+
+/** Registers the reporter. Returns the unsubscribe, for React cleanup. */
+export function onPurchaseRefused(reporter: RefusalReporter): () => void {
+  reportRefusal = reporter
+  return () => {
+    if (reportRefusal === reporter) reportRefusal = null
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -236,6 +371,25 @@ export async function query<T>(endpoint: string, read: () => T): Promise<T> {
  * the closest a mock can get to a transactional endpoint.
  */
 export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
+  /**
+   * Refused **before the round trip**, and before `write()` (C2.12).
+   *
+   * Order is the whole point. Rejecting up front means the store is never touched,
+   * so there is no partial charge to unwind and no window in which the wallet has
+   * been debited but the order has not been created — the client can promise
+   * "nothing was charged" and be telling the truth. Doing this after the `sleep`
+   * would also make the player watch a 600 ms spinner before being told the thing
+   * was never going to happen.
+   *
+   * Non-purchase writes are untouched: a heartbeat, a locale change or a call to
+   * staff still goes through and fails on its own terms if the link really is
+   * down.
+   */
+  if (linkOffline && OFFLINE_BLOCKED.has(endpoint)) {
+    reportRefusal?.(endpoint)
+    throw new ApiError('network')
+  }
+
   await sleep(latency())
   const fault = nextFault(endpoint)
   if (fault) throw new ApiError(fault)
@@ -245,12 +399,33 @@ export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
 }
 
 /**
+ * Server clock, in ms. Anchored at the fixture instant `db.now` and **moving**
+ * from there at the rate of real time.
+ *
+ * The movement is the point. `db.now` is a frozen Sunday evening so the dataset
+ * is deterministic (`lib/mock/db.ts` rule 2), but a stamp that never advances is
+ * not a clock — and `remainingSeconds()` (F3.7) uses `serverTime` as the instant
+ * a snapshot was *produced*, subtracting how long the client has held it since.
+ * Handed the same frozen stamp on every response, that correction re-subtracts
+ * the whole visit: a member with 01:57 banked locked the station and came back to
+ * 01:54:03, having lost exactly the time they had played. Fixture windows
+ * (schedules, campaigns, tournament starts) still read `db.now` and stay put; only
+ * response stamps move, which is what a real server does.
+ */
+export function serverNowMs(): number {
+  return Date.parse(db.now) + (Date.now() - bootedAtMs)
+}
+
+/** Client instant the mock server "started", so its clock can run from `db.now`. */
+const bootedAtMs = Date.now()
+
+/**
  * Server clock. Endpoints must stamp responses with this rather than
- * `new Date()` at the call site, so `db.now` stays the single time source and
+ * `new Date()` at the call site, so the mock keeps one time source and
  * countdowns are derived from a server value (F3.7).
  */
 export function serverTime(): string {
-  return db.now
+  return new Date(serverNowMs()).toISOString()
 }
 
 /** Throws `notFound` when a lookup came back empty — keeps endpoints to one line. */

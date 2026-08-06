@@ -5,7 +5,14 @@
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
 import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer, getZone } from '@/lib/mock/db'
+import {
+  db,
+  getLiveSession,
+  getMachine,
+  getPlayer,
+  getZone,
+  getZoneOccupancy,
+} from '@/lib/mock/db'
 import type { BookingStatus } from '@/lib/types/booking'
 import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
 import type { ID, ISODateTime } from '@/lib/types/common'
@@ -15,6 +22,7 @@ import type {
   MachineStatus,
   Zone,
   ZoneClass,
+  ZoneOccupancy,
 } from '@/lib/types/machine'
 import type { SessionState } from '@/lib/types/session'
 import type { Club, ClubSettings } from '@/lib/types/settings'
@@ -110,11 +118,41 @@ export function fetchGameCategories(): Promise<{ category: GameCategory; count: 
   })
 }
 
-/** `GET /api/games/recent` — the member's continue-playing row. */
-export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Promise<Game[]> {
+/**
+ * One row of the "Continue" card (C3.2): a title the member has played, and when
+ * they last started it.
+ *
+ * The timestamp travels *with* the game rather than the row being a bare `Game`,
+ * because "last played" is the only thing that makes the card more than three
+ * more covers — it is what tells the player which of these three is the match
+ * they just stepped away from. Deriving it on the client would mean pulling the
+ * whole launch history onto the home surface and reducing it there, which is the
+ * same mistake `sortGames` exists to prevent one function above.
+ *
+ * A `Minutes` total is deliberately *not* here: the card has room for one fact,
+ * and the profile screen is where playtime per title belongs.
+ */
+export interface RecentGame {
+  game: Game
+  /** Start of the most recent launch of this title. */
+  lastPlayedAt: ISODateTime
+}
+
+/**
+ * `GET /api/games/recent` — the member's continue-playing row.
+ *
+ * Deduplicated by title, newest first: a player who restarted CS2 four times
+ * tonight has played *one* game, and a row that repeated it four times would
+ * bury the other two. `limit` is the caller's — the home card asks for three,
+ * and nothing about that number lives in this function.
+ */
+export function fetchRecentGames(
+  userId: ID = db.currentUserId,
+  limit = 6,
+): Promise<RecentGame[]> {
   return query('catalog.fetchRecentGames', () => {
     const seen = new Set<ID>()
-    const ordered: Game[] = []
+    const ordered: RecentGame[] = []
     const launches = db.gameLaunches
       .filter((l) => l.userId === userId)
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
@@ -124,7 +162,9 @@ export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Prom
       const game = db.games.find((g) => g.id === launch.gameId)
       if (!game) continue
       seen.add(launch.gameId)
-      ordered.push(game)
+      // Newest-first order means the first row seen for a title *is* its latest
+      // launch, so no per-title max has to be computed.
+      ordered.push({ game, lastPlayedAt: launch.startedAt })
       if (ordered.length === limit) break
     }
     return ordered
@@ -322,21 +362,15 @@ export interface StationHolder {
  *
  * A paused session counts, and that is the whole point: "Lock PC" keeps the
  * seat, so a paused visit is exactly the case where the machine looks free and
- * is not. `C1.10` will let *its own* player back in by PIN; until then, and for
- * everybody else, this endpoint is what stops a second visit from being opened
- * on top of the first.
+ * is not. Its own player walks back in by PIN (`fetchPausedVisit` /
+ * `unlockWithPin`, C1.10); for everybody else this endpoint is what stops a
+ * second visit from being opened on top of the first.
  */
 export function fetchStationHolder(
   machineId: ID = db.currentMachineId,
 ): Promise<StationHolder | null> {
   return query('catalog.fetchStationHolder', () => {
-    // Newest first: a seat should never have two live sessions, but if a fixture
-    // or a bad write ever produces one, the honest answer is the current
-    // occupant rather than whichever row happens to be first in the array.
-    const live = db.sessions
-      .filter((session) => session.machineId === machineId && session.state !== 'ended')
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
-
+    const live = getLiveSession(machineId)
     if (!live) return null
 
     const member = live.userId ? getPlayer(live.userId) : undefined
@@ -379,4 +413,18 @@ export function fetchOccupancy(zoneId?: ID): Promise<OccupancySummary> {
       loadPct: seats.length === 0 ? 0 : Math.round((occupied / seats.length) * 100),
     }
   })
+}
+
+/**
+ * `GET /api/club/occupancy/zones` — free seats **per zone** (C1.8).
+ *
+ * `fetchOccupancy` answers "how full is the club"; the idle screen has to answer
+ * "where can I sit", and those are different questions: a walk-in reading `12
+ * free` from the door still has to be told that eleven of them are in the Main
+ * Hall and the last one is a €5/h console seat. Counted here rather than by the
+ * screen for the usual reason — a client that counts seats itself is a client
+ * that will disagree with the counter's screen.
+ */
+export function fetchZoneOccupancy(): Promise<ZoneOccupancy[]> {
+  return query('catalog.fetchZoneOccupancy', () => getZoneOccupancy())
 }

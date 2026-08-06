@@ -42,7 +42,7 @@ import type { HelpThread, Notification } from '@/lib/types/notification'
 import type { Order } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
 import type { Promo, PromoAudience, PromoKind, PromoSurface } from '@/lib/types/promo'
-import type { Session } from '@/lib/types/session'
+import type { Session, TransferRequest } from '@/lib/types/session'
 import type { Club, ClubSettings, UserPreferences } from '@/lib/types/settings'
 import type { Friendship, FriendSummary, Party } from '@/lib/types/social'
 import type { Tab, Transaction } from '@/lib/types/tab'
@@ -121,6 +121,32 @@ const clubSettings: ClubSettings = {
   // itself is mocked until a real PSP is wired in Stage 4.
   cardPaymentsEnabled: true,
   warningThresholds: { notice: 30, warning: 10, critical: 3 },
+  /**
+   * A plausible club week (C2.11), written so every branch of
+   * `lib/club-hours.ts` is covered by data rather than by hope:
+   *
+   *   Mon–Thu  12:00 → 02:00  window across midnight (the common shape)
+   *   Fri      12:00 → 04:00  same, longer
+   *   Sat      00:00 → 00:00  round the clock (`from === to`)
+   *   Sun      12:00 → 23:00  ordinary same-day window
+   *
+   * No `null` day on purpose: a closed weekday would put the "Club closed"
+   * overlay over the whole demo for a day at a time. The branch is still
+   * reachable — `?club=closed` (see `lib/dev-flags.ts`) walks straight into it.
+   *
+   * Saturday shows why a 24-hour day is not the same as "never closes": Sunday
+   * opens at noon, so the club really does close at Saturday midnight, and
+   * `clubHoursStatus()` warns about it.
+   */
+  openHours: {
+    1: { from: '12:00', to: '02:00' },
+    2: { from: '12:00', to: '02:00' },
+    3: { from: '12:00', to: '02:00' },
+    4: { from: '12:00', to: '02:00' },
+    5: { from: '12:00', to: '04:00' },
+    6: { from: '00:00', to: '00:00' },
+    7: { from: '12:00', to: '23:00' },
+  },
   bookingGraceMinutes: 15,
 }
 
@@ -475,6 +501,13 @@ export interface PlayerStats {
   seasonHours: number
   seasonCoins: Coins
   achievementsUnlocked: number
+  /**
+   * Consecutive visit days, today included (C3.1). Optional because only the
+   * signed-in member's streak is ever rendered — the leaderboard ranks by season
+   * hours, so authoring twelve streaks nobody reads would be twelve numbers that
+   * can silently drift out of step with the sessions around them.
+   */
+  visitStreak?: number
 }
 
 /** A demo account bundled with everything the UI needs about it. */
@@ -527,7 +560,7 @@ const playersList: DemoPlayer[] = [
     12,
     6400,
     { moneyCents: 1750, coins: 1250 },
-    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11 },
+    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11, visitStreak: 4 },
     { machineId: CURRENT_MACHINE_ID, playingGameId: 'cs2' },
     { email: 'demo@imba.club' },
   ),
@@ -668,7 +701,17 @@ const sessions: Session[] = [
     userId: CURRENT_USER_ID,
     guestId: null,
     machineId: CURRENT_MACHINE_ID,
-    billingMode: 'postpaid',
+    // A member's visit is **prepaid** (MVP §3.2): the hours are bought at the
+    // counter and burn down, and `lib/seat.ts` opens every account visit that
+    // way. This row used to say `postpaid` while the comment below described a
+    // remainder, and C1.10 is where the contradiction became visible — the PIN
+    // unlock adopts server truth, so the launcher opened a *counting-up* tab for
+    // the same visit whose paused card had just stated "01:24 left".
+    billingMode: 'prepaid',
+    // The remainder is being drawn from the banked pass `pp-1` below, so the HUD
+    // says "TIME LEFT · PASS": nothing more will be charged when it runs out,
+    // there are simply no more minutes (C2.2).
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-96),
     endedAt: null,
@@ -685,6 +728,7 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-01',
     billingMode: 'prepaid',
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-210),
     endedAt: null,
@@ -700,6 +744,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-09',
     billingMode: 'postpaid',
+    // A postpaid seat has no granted minutes to have a pocket: the clock runs up
+    // into the open tab, which is what the source has to say out loud.
+    timeSource: 'postpaid',
     state: 'paused',
     startedAt: atMinutes(-60),
     endedAt: null,
@@ -715,6 +762,10 @@ const sessions: Session[] = [
     guestId: 'guest-1',
     machineId: 'pc-20',
     billingMode: 'prepaid',
+    // A walk-in with granted, counting-down time is the one shape that can only
+    // have come from the counter: the admin issued an hour on this seat (MVP S9),
+    // and a guest owns neither a pass nor a wallet to have paid for it.
+    timeSource: 'staff',
     state: 'active',
     startedAt: atMinutes(-35),
     endedAt: null,
@@ -730,6 +781,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-14',
     billingMode: 'prepaid',
+    // Yesterday's five hours were paid straight off the wallet, so the history
+    // row keeps a source the receipt of C2.3 can state.
+    timeSource: 'wallet',
     state: 'ended',
     startedAt: atDays(-1),
     endedAt: atHours(-19),
@@ -740,6 +794,16 @@ const sessions: Session[] = [
     closedBy: 'timeout',
   },
 ]
+
+/**
+ * Pending "move my session to this seat" asks (C1.12).
+ *
+ * Seeded empty, and it has to be: a request is a live negotiation between one
+ * player standing at one keyboard and the admin on shift, so a fixture row would
+ * be a transfer nobody asked for, waiting for an approval that would move a
+ * session out from under whoever is actually sitting there.
+ */
+const transferRequests: TransferRequest[] = []
 
 const CURRENT_TAB_ID: ID = 'tab-demo'
 
@@ -1180,6 +1244,14 @@ const activity: ActivityEvent[] = [
   { id: 'e6', type: 'achievement', label: 'Unlocked "Marathon"', time: '3 days ago' },
 ]
 
+/**
+ * Launch history. Feeds the "Continue" row (C3.2) and the playtime list on the
+ * profile, so the demo member needs more than one visit's worth: three distinct
+ * titles at three different distances (this visit / last night / three days ago)
+ * so every bucket of the "last played" label is reachable on screen, plus a
+ * repeat of one of them to prove the row deduplicates by title instead of
+ * printing the same cover twice.
+ */
 const gameLaunches: GameLaunch[] = [
   {
     id: 'gl-1',
@@ -1196,6 +1268,34 @@ const gameLaunches: GameLaunch[] = [
     sessionId: 'sess-demo-prev',
     startedAt: atDays(-1),
     endedAt: atHours(-20),
+  },
+  // Same title as `gl-2`, one visit earlier: the row must still list Valorant
+  // once, dated by this launch's *newer* sibling above.
+  {
+    id: 'gl-2b',
+    userId: CURRENT_USER_ID,
+    gameId: 'valorant',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-4),
+    endedAt: atDays(-4),
+  },
+  {
+    id: 'gl-2c',
+    userId: CURRENT_USER_ID,
+    gameId: 'bg3',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-3),
+    endedAt: atDays(-3),
+  },
+  // Fourth title on purpose: the card asks for three, so the seed has to be able
+  // to prove that the fourth is left off rather than that there is no fourth.
+  {
+    id: 'gl-2d',
+    userId: CURRENT_USER_ID,
+    gameId: 'forza',
+    sessionId: 'sess-demo-prev3',
+    startedAt: atDays(-6),
+    endedAt: atDays(-6),
   },
   {
     id: 'gl-3',
@@ -1627,6 +1727,13 @@ const helpThreads: HelpThread[] = [
   },
 ]
 
+/**
+ * The inbox spans three days on purpose (C2.5): grouping by day is only visible
+ * when there is more than one day, and the two actionable cards — the party
+ * invite still asking and the delivered order still unrated — are what the panel
+ * has to render buttons for. `n-8` is the same invite already answered, so the
+ * answered shape is on screen beside the unanswered one.
+ */
 const notifications: Notification[] = [
   {
     id: 'n-1',
@@ -1637,6 +1744,18 @@ const notifications: Notification[] = [
     body: 'About 1 hour 24 minutes left in your session.',
     createdAt: atMinutes(-2),
     readAt: null,
+    action: null,
+  },
+  {
+    id: 'n-6',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'ClutchQueen invited you to “Friday Five Stack”.',
+    createdAt: atMinutes(-4),
+    readAt: null,
+    action: { kind: 'party-invite', refId: 'party-1', outcome: null, rating: null },
   },
   {
     id: 'n-2',
@@ -1647,6 +1766,7 @@ const notifications: Notification[] = [
     body: 'French Fries — ready in about 6 minutes.',
     createdAt: atMinutes(-7),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-3',
@@ -1657,6 +1777,7 @@ const notifications: Notification[] = [
     body: 'CS2 Weekly Cup starts in 45 minutes. Confirm your spot.',
     createdAt: atMinutes(-10),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-4',
@@ -1667,6 +1788,18 @@ const notifications: Notification[] = [
     body: 'All coffee is 50% off until 21:00.',
     createdAt: atMinutes(-55),
     readAt: atMinutes(-50),
+    action: null,
+  },
+  {
+    id: 'n-7',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Energy Drink, Chicken Wrap — how was it?',
+    createdAt: atHours(-2),
+    readAt: null,
+    action: { kind: 'rate-order', refId: 'ord-3', outcome: null, rating: null },
   },
   {
     id: 'n-5',
@@ -1677,6 +1810,29 @@ const notifications: Notification[] = [
     body: 'Main Hall seats will restart at 04:00 for updates.',
     createdAt: atHours(-3),
     readAt: atHours(-3),
+    action: null,
+  },
+  {
+    id: 'n-8',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'FragMachine invited you to “Ranked Grind”.',
+    createdAt: atDays(-1),
+    readAt: atDays(-1),
+    action: { kind: 'party-invite', refId: 'party-1', outcome: 'declined', rating: null },
+  },
+  {
+    id: 'n-9',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Cheeseburger — thanks for the 5 stars.',
+    createdAt: atDays(-2),
+    readAt: atDays(-2),
+    action: { kind: 'rate-order', refId: 'ord-1', outcome: 'rated', rating: 5 },
   },
 ]
 
@@ -2013,6 +2169,7 @@ export const db = {
   userPreferences,
   sessions,
   currentSessionId: CURRENT_SESSION_ID,
+  transferRequests,
   tabs,
   machineSettings,
   orders,
@@ -2129,6 +2286,23 @@ export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
 
 export function getSession(sessionId: ID): Session | undefined {
   return db.sessions.find((s) => s.id === sessionId)
+}
+
+/**
+ * The visit currently holding a seat — active **or paused** — or `undefined`.
+ *
+ * Four endpoints ask this exact question (the holder read of C1.7, the seat
+ * claim in `openSession`, the paused-visit read and the PIN unlock of C1.10),
+ * and the two halves of the answer are easy to get subtly different: a paused
+ * row still holds the chair, and a seat that somehow carries two live rows must
+ * report the newest rather than whichever one the array happens to hold first.
+ * Written once here, so no endpoint can drift into its own definition of
+ * "occupied".
+ */
+export function getLiveSession(machineId: ID = db.currentMachineId): Session | undefined {
+  return db.sessions
+    .filter((s) => s.machineId === machineId && s.state !== 'ended')
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
 }
 
 export function getOpenTab(sessionId: ID): Tab | undefined {

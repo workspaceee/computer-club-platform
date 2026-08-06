@@ -13,7 +13,8 @@
 //
 // Nothing in the launcher UI may import this file: it is the *other* actor.
 import { approveQrChallenge } from '@/lib/mock/api/auth'
-import { newId, serverTime } from '@/lib/mock/api/client'
+import { newId, serverNowMs } from '@/lib/mock/api/client'
+import { approveTransfer } from '@/lib/mock/api/session'
 import { db, getMachine, getOpenTab, getPlayer, getSession } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 import { mockBus } from '@/lib/realtime/mock-bus'
@@ -57,19 +58,23 @@ function secondsLeft(session: Session): Seconds {
  */
 function snapshot(session: Session): SessionSnapshot {
   const left = secondsLeft(session)
+  // One instant for both stamps, for the reason spelled out in `lib/mock/api/session.ts`:
+  // the client recovers the promised span by subtracting them, so a pair taken from
+  // two different clocks silently moves a paid deadline.
+  const nowMs = serverNowMs()
   return {
     sessionId: session.id,
     state: session.state,
     billingMode: session.billingMode,
+    timeSource: session.timeSource,
     machineId: session.machineId,
     expiresAt:
-      session.state === 'active'
-        ? new Date(Date.parse(db.now) + left * 1000).toISOString()
-        : null,
+      session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
     secondsLeft: left,
+    secondsUsed: session.secondsUsed,
     debtSeconds: session.debtSeconds,
     tabTotalCents: getOpenTab(session.id)?.totalCents ?? 0,
-    serverTime: serverTime(),
+    serverTime: new Date(nowMs).toISOString(),
   }
 }
 
@@ -108,6 +113,26 @@ export function grantTime(
   session.secondsGranted += Math.round(minutes) * 60
   // A grant on a paused seat resumes it: staff just paid for more play.
   if (session.state === 'paused') session.state = 'active'
+
+  /**
+   * The grant rewrites the pocket, and only a *staff* grant does (C2.2).
+   *
+   * The reason is what the label promises when the clock next goes amber. Minutes
+   * an admin put on the seat as a favour or a compensation will not renew
+   * themselves — nobody's wallet or pass is behind them — so "TIME LEFT ·
+   * GRANTED" is a warning to go and ask, while `pass` and `wallet` tell the player
+   * they can extend on their own. The other reasons keep their own truth: a
+   * purchase or a redeemed pass came out of the member's pocket even when the
+   * counter is what typed it in, and calling that "from admin" would send a
+   * player who paid for their hours to the desk to beg for more.
+   *
+   * A postpaid seat is left alone entirely. A tab that starts naming a pocket has
+   * stopped being a tab, and the granted minutes there are the club's decision to
+   * stop billing this guest by the minute — that is `C2.7`'s story, not a label.
+   */
+  if (reason === 'staff' && session.billingMode !== 'postpaid') {
+    session.timeSource = 'staff'
+  }
 
   ledger({
     userId: db.currentUserId,
@@ -269,6 +294,86 @@ export function moveSession(toMachineId?: ID): RealtimeEnvelope<'session.moved'>
     },
     { scope: seatScope() },
   )
+}
+
+/**
+ * The shift admin answers "bring my session here" (C1.12).
+ *
+ * Different from `moveSession` above in the one way that matters: that one is
+ * staff *sending* the player somewhere ("go to B-05" — the seat is reserved and
+ * the row stays put until they arrive), while this one is the player already
+ * standing at the new keyboard and the admin releasing the old chair, so the row
+ * moves now and the target seat becomes occupied rather than reserved.
+ *
+ * The frame is addressed to the **target machine** and not to the account. The
+ * station that raised the request has nobody signed in yet — that is the whole
+ * point of the refusal it is recovering from — so a `userId` scope would be
+ * matched against whatever identity the client happened to open the channel
+ * with. The seat is the thing that is certain here.
+ *
+ * `null` when there was nothing live to approve, so a dev-panel button on a stale
+ * request says so instead of silently doing nothing.
+ */
+export function approveSessionTransfer(
+  requestId: ID,
+): RealtimeEnvelope<'session.moved'> | null {
+  const approved = approveTransfer(requestId)
+  if (!approved) return null
+  commit()
+
+  return mockBus.publish(
+    'session.moved',
+    {
+      sessionId: approved.session.id,
+      fromMachineId: approved.request.fromMachineId,
+      toMachineId: approved.request.toMachineId,
+      toMachineLabel: approved.toMachineLabel,
+      toZoneId: approved.toZoneId,
+      moveWithinSeconds: 300,
+    },
+    { scope: { machineId: approved.request.toMachineId, zoneId: approved.toZoneId } },
+  )
+}
+
+/**
+ * MOCK ONLY — puts the fixture's own visit on **another** seat, so the refusal
+ * of C1.12 can be reached by hand.
+ *
+ * Not an admin action and never will be: no member of staff "seeds" anything.
+ * It exists because the one state the transfer flow starts from — *your account
+ * is live on a PC you are not sitting at* — cannot be produced from a single
+ * client. The mock db lives in this tab, so there is no second station to walk
+ * away from; this button is that walk.
+ *
+ * It moves the row rather than opening a second one, which is the difference
+ * between seeding the story and breaking it: two live rows for one account is
+ * the exact thing `openSession` refuses, and a fixture that contains it would
+ * make every later check meaningless. The old chair is freed for the same
+ * reason — the arrival must be refused because the *account* is busy, not
+ * because the seat in front of them is (C1.7 already covers that one).
+ *
+ * Publishes nothing. A `session.moved` frame here would tell this client its
+ * visit had been relocated by staff, which is a different story with a
+ * different screen; the seed is meant to be *found* by the next sign-in.
+ */
+export function seatSessionElsewhere(toMachineId: ID = 'pc-05'): { machineLabel: string } | null {
+  const session = getSession(db.currentSessionId)
+  // Members only: `activeElsewhere` is keyed by account, and a walk-in has none.
+  if (!session || session.state === 'ended' || !session.userId) return null
+
+  const target = getMachine(toMachineId)
+  if (!target || target.id === session.machineId) return null
+
+  const from = getMachine(session.machineId)
+  if (from) from.status = 'free'
+  session.machineId = target.id
+  target.status = 'occupied'
+
+  const player = getPlayer(session.userId)
+  if (player) player.machineId = target.id
+
+  commit()
+  return { machineLabel: target.label }
 }
 
 /* ------------------------------------------------------------------ *
@@ -570,6 +675,8 @@ export function broadcast(
     body,
     createdAt: db.now,
     readAt: null,
+    // An announcement is news, not a question: nothing to accept or rate (C2.5).
+    action: null,
   }
   db.notifications.push(notification)
   commit()
@@ -589,7 +696,18 @@ export function broadcast(
  * Loyalty, events, social
  * ------------------------------------------------------------------ */
 
-/** Completes the first open quest and pays it out. */
+/**
+ * Finishes the first open quest — and deliberately does **not** pay it.
+ *
+ * It used to credit the coins here as well, which put two payouts on one reward:
+ * the sim paid on completion and `claimQuest()` paid again when the player pressed
+ * the button C3.4 put on the home card. Completion is the club noticing the
+ * objective was met; collecting is the player's move, and the wallet is only
+ * touched by the endpoint that the player triggers.
+ *
+ * `coins` in the payload stays honest under that reading — the contract calls it
+ * the balance after the event, and after this event the balance has not moved.
+ */
 export function completeQuest(questId?: ID): RealtimeEnvelope<'quest.completed'> | null {
   const quest = questId
     ? db.quests.find((q) => q.id === questId)
@@ -600,7 +718,6 @@ export function completeQuest(questId?: ID): RealtimeEnvelope<'quest.completed'>
   quest.completedAt = db.now
 
   const player = getPlayer(db.currentUserId)
-  if (player) player.wallet.coins += quest.rewardCoins
   commit()
 
   return mockBus.publish(

@@ -4,8 +4,24 @@ import { cn } from '@/lib/utils'
 interface ImbaLogoProps {
   size?: 'sm' | 'lg'
   showText?: boolean
+  /**
+   * From which width the lettering is *printed* (C2.9).
+   *
+   * `always` (default) is every branded surface — the lock screen, the attract
+   * loop, anything with room. `sm` is for the launcher's top bar: on a phone the
+   * wordmark is ~55 px of a row that also has to carry the session clock and the
+   * avatar menu, and the shield alone already says which club this is. Nothing is
+   * lost to a screen reader either way, because the bar wraps the mark in a
+   * button that carries its own name ("IMBA home").
+   */
+  textAt?: keyof typeof TEXT_AT
   className?: string
 }
+
+const TEXT_AT = {
+  always: '',
+  sm: 'hidden sm:block',
+} as const
 
 /**
  * Official IMBA Cyber Club identity.
@@ -21,7 +37,12 @@ interface ImbaLogoProps {
  * mark next to intact lettering (or vice versa) degrades honestly, and the topbar
  * around it never loses its height either way.
  */
-export function ImbaLogo({ size = 'sm', showText = true, className }: ImbaLogoProps) {
+export function ImbaLogo({
+  size = 'sm',
+  showText = true,
+  textAt = 'always',
+  className,
+}: ImbaLogoProps) {
   const h = size === 'lg' ? 96 : 36
   const markW = Math.round(h * (732 / 880))
   const wordH = Math.round(h * 0.66)
@@ -46,7 +67,10 @@ export function ImbaLogo({ size = 'sm', showText = true, className }: ImbaLogoPr
         />
       </div>
       {showText && (
-        <div className="relative shrink-0" style={{ width: wordW, height: wordH }}>
+        <div
+          className={cn('relative shrink-0', TEXT_AT[textAt])}
+          style={{ width: wordW, height: wordH }}
+        >
           <AssetImage
             src="/imba-wordmark.webp"
             alt="IMBA Cyber Club"
