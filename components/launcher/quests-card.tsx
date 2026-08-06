@@ -61,7 +61,7 @@ import {
   fetchDailyQuests,
   toApiError,
 } from '@/lib/mock/api'
-import { formatCoins, formatNumber } from '@/lib/money'
+import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
 import { SECONDS_PER_HOUR, SECONDS_PER_MINUTE, secondsUntil, serverNowMs } from '@/lib/time'
 import type { ID, ISODateTime } from '@/lib/types/common'
@@ -75,7 +75,10 @@ import { cn } from '@/lib/utils'
  * a card on the guest surface would show a walk-in the previous member's evening.
  */
 export function QuestsCard() {
-  const { t } = useT()
+  // XP is a plain count, so it is grouped by the *reader's* locale rather than by
+  // `formatCoins` — the coin formatter is the club's currency and carries its own
+  // rules; "1,200 XP" and "1 200 XP" are the same number in two languages.
+  const { t, formatNumber } = useT()
   const user = useStore((s) => s.user)
   const toast = useStore((s) => s.toast)
   const setCoins = useStore((s) => s.setCoins)
@@ -247,7 +250,7 @@ function QuestRow({
   blocked: boolean
   onClaim: () => void
 }) {
-  const { t } = useT()
+  const { t, formatNumber } = useT()
 
   const done = quest.progress >= quest.target
   const claimed = quest.claimedAt !== null

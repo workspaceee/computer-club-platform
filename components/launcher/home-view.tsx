@@ -9,6 +9,7 @@ import { ContinueRow } from '@/components/launcher/continue-row'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
+import { QuestsCard } from '@/components/launcher/quests-card'
 import { SessionCard } from '@/components/launcher/session-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -78,6 +79,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           an open-to-all one (parties, VIP) still does — which a blanket
           `!isGuest` gate here would have thrown away (F7.3). */}
       <PromoStrip surface={surface} />
+      {/* Dailies (C3.4). Under the promo strip and above the ladder, because the
+          order of the loyalty block is the order of effort: what the club asks for
+          today, then what the coins it pays buys. The card renders nothing for a
+          walk-in on its own — quest progress is keyed to an account — so the gate
+          here is the store's, not this surface's. */}
+      <QuestsCard />
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
         <Leaderboard />
@@ -314,7 +321,9 @@ function PrizeLadder() {
 
   return (
     <section>
-      <SectionHeader index="04">Prize Ladder</SectionHeader>
+      {/* 05, not 04: the dailies card above took that number when it landed
+          between the promo strip and this ladder (C3.4). */}
+      <SectionHeader index="05">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}
@@ -389,7 +398,7 @@ function Leaderboard() {
 
   return (
     <section>
-      <SectionHeader index="05">Leaderboard</SectionHeader>
+      <SectionHeader index="06">Leaderboard</SectionHeader>
       <div className="glass overflow-hidden rounded-xl">
         <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
           <span>#</span>

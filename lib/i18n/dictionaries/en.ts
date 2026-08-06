@@ -769,6 +769,49 @@ export const en = {
      * nothing is being spent while they sit there.
      */
     sessionPaused: 'Clock paused',
+
+    /**
+     * "Daily quests" — the one card on home that asks the player to *do* something
+     * (C3.4).
+     *
+     * The quest lines themselves are admin-authored and printed as the club wrote
+     * them, so everything here is the frame around them, which is ours (F2.2).
+     */
+    questsTitle: 'Daily quests',
+    /**
+     * What the rest of the day is still worth, across the whole active set —
+     * including a daily that did not make the three rows on screen.
+     *
+     * Both values arrive already formatted. It is the header's subtitle and not a
+     * row, because it is the one number no single quest can state.
+     */
+    questsPending: '{coins} coins and {xp} XP still unclaimed today',
+    /**
+     * The countdown to the club's next opening, not to midnight: a member playing
+     * at 03:00 is still inside the set they started the evening with.
+     *
+     * `{duration}` arrives as a phrase ("4 hours"), so the club's day may roll over
+     * at any hour without this sentence caring which.
+     */
+    questsResetIn: 'Resets in {duration}',
+    /** The last minute before the roll, where a countdown would read "0 minutes". */
+    questsResetNow: 'Resetting now',
+    /**
+     * Accessible name of a row's collect button.
+     *
+     * The visible word is "Claim", which is the right label on screen and three
+     * identical names in a list — so the reader is given the quest it pays for.
+     */
+    questClaim: 'Claim reward for: {title}',
+    /** The receipt for one claim. Both values are already formatted. */
+    questClaimedToast: 'Claimed {coins} coins and {xp} XP',
+    /**
+     * A club running no dailies at all. Not a failure and not the player's doing,
+     * so it says who it is waiting on.
+     */
+    questsEmpty: 'No quests today',
+    questsEmptyBody:
+      'The club has not set any dailies yet — new ones land with the next opening.',
   },
 
   games: {
