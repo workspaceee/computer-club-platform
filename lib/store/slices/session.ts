@@ -110,6 +110,22 @@ export interface SessionSlice {
   warningPulseAt: number | null
 
   /**
+   * Closing marks already announced this visit (C2.11) — 60 / 30 / 10 minutes
+   * before the club shuts.
+   *
+   * A **separate list** from `warnedMinutes`, not extra entries in it, because the
+   * two are measured against different clocks: `warnedMinutes` is a remainder the
+   * player can buy more of, this one is a wall nobody can move. Sharing one list
+   * would also make "60" ambiguous — a 60-minute session mark does not exist, but
+   * the next feature that adds one would silently mute the closing announcement.
+   *
+   * Per visit, like `warnedMinutes`, and for the same reason: the club's closing
+   * time does not change when a player locks the station and comes back, so they
+   * must not be told about it twice.
+   */
+  closingWarned: number[]
+
+  /**
    * Fresh visit on the given billing model.
    *
    * `source` is optional because this is the *offline* opening path: when the
@@ -148,6 +164,17 @@ export interface SessionSlice {
   noteTimeWarning: (minutes: number[]) => void
   /** End the pulse. The warning is over; the colour on the digits carries on. */
   clearWarningPulse: () => void
+
+  /**
+   * Record that these closing marks have been announced (C2.11).
+   *
+   * A list for the same reason `noteTimeWarning` takes one — a station that was
+   * asleep can wake with 60, 30 and 10 all behind it, and only the smallest of
+   * them is true. Unlike the session marks these are never re-armed: the club's
+   * closing time is not something a purchase can push back.
+   */
+  noteClosingWarning: (minutes: number[]) => void
+}
 
 /** Seconds on the clock right now, derived — down for prepaid, up for postpaid. */
 function derive(s: {
@@ -252,6 +279,7 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   sessionSeconds: SESSION_LENGTH,
   warnedMinutes: [],
   warningPulseAt: null,
+  closingWarned: [],
 
   startSession: (mode, source) => {
     // A prepaid visit opens with the hours it bought; a postpaid one opens at
@@ -267,9 +295,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       timerRunning: true,
       sessionExpired: false,
       // A fresh visit has heard nothing yet, and the marks of the previous one
-      // are none of its business (C2.6).
+      // are none of its business (C2.6, C2.11).
       warnedMinutes: [],
       warningPulseAt: null,
+      closingWarned: [],
       ...anchor(mode, banked),
     })
   },
@@ -314,6 +343,7 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       serverTime: null,
       warnedMinutes: [],
       warningPulseAt: null,
+      closingWarned: [],
     }),
 
   syncClock: () => {
@@ -399,4 +429,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     })),
 
   clearWarningPulse: () => set({ warningPulseAt: null }),
+
+  // No pulse on the time plate: the digits there are the *session's* remainder,
+  // and pulsing them for the club's closing would point the player at a number
+  // that is not the one changing (§4.2 — one runner per fact).
+  noteClosingWarning: (minutes) =>
+    set((s) => ({ closingWarned: [...new Set([...s.closingWarned, ...minutes])] })),
 })

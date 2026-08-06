@@ -44,7 +44,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
     // including the outage banner that explains a frozen seat (F6.4).
     <header
       className={cn(
-        'glass sticky top-0 flex h-16 items-center justify-between gap-4 rounded-none border-x-0 border-t-0 px-4 md:px-6 xl:px-8',
+        // Three paddings, not two: the kiosk rule from C2.4 (`px-6 xl:px-8`) held
+        // the bar together at 1216 px but said nothing about the phone the
+        // Companion PWA runs on, where the same `px-4` was 32 px the row could
+        // not spare (C2.9).
+        'glass sticky top-0 flex h-16 items-center justify-between gap-2 rounded-none border-x-0 border-t-0 px-3 sm:gap-4 sm:px-4 md:px-6 xl:px-8',
         overlayZ.frame,
       )}
     >
@@ -62,7 +66,11 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           aria-label="IMBA home"
           className="transition-transform hover:scale-[1.03]"
         >
-          <ImbaLogo size="sm" />
+          {/* Shield only below `sm` (C2.9): the lettering is the widest optional
+              thing on the left of a phone-width bar, and the mark alone still
+              names the club and still answers as "home" — which on that width is
+              a courtesy anyway, since the mobile bar carries the section. */}
+          <ImbaLogo size="sm" textAt="sm" />
         </button>
         <NavRail<LauncherView>
           items={primary}
@@ -78,8 +86,14 @@ export function TopBar({ surface = 'launcher' }: { surface?: LauncherSurface }) 
           what is left of the visit, what there is to spend it with, then the
           three doors — inbox, basket, help — and the identity that owns them.
           Readings before actions, because a player checks the clock and the
-          balance far more often than they press anything up here. */}
-      <div className="flex shrink-0 items-center gap-2">
+          balance far more often than they press anything up here.
+
+          At phone width the row keeps the same order and sheds the parts that are
+          reachable elsewhere (C2.9): the coin balance (its section, `07`, is in
+          the avatar menu), "Help" (section `09`, same menu), the plate glyphs and
+          the menu's caret. What never goes is the clock, the two badges the club
+          talks through, and the menu itself. */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <SessionHud />
         <WalletHud surface={surface} />
         <NotificationBell />

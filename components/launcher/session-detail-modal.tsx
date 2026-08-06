@@ -36,6 +36,7 @@ import { Money } from '@/components/ui/money'
 import { Skeleton } from '@/components/skeleton'
 import { useApi } from '@/hooks/use-api'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
@@ -289,6 +290,17 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
   const [calling, setCalling] = useState(false)
   const [called, setCalled] = useState(false)
 
+  /**
+   * Extending needs the club (C2.12) — calling it does not.
+   *
+   * Same split as the last-minute takeover, for the same reason: the deadline is
+   * the server's to move, so an extend it cannot acknowledge must not be offered.
+   * "Call the admin" stays live through an outage on purpose; it is a request the
+   * club can pick up late, and taking it away is taking away the one thing left
+   * that reaches a human.
+   */
+  const sales = useSalesGate()
+
   const { minutesBanked } = detail
   const postpaid = detail.snapshot.billingMode === 'postpaid'
 
@@ -360,7 +372,7 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
                 variant="secondary"
                 size="sm"
                 loading={extending === minutes}
-                disabled={extending !== null}
+                disabled={extending !== null || !sales.canSpend}
                 onClick={() => void extend(minutes)}
                 iconLeft={<icons.add aria-hidden />}
               >
@@ -368,6 +380,14 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
               </Button>
             ))}
           </div>
+          {/* The caption the disabled row would otherwise be missing. The banked
+              total above it still reads correctly — the minutes are there, they
+              just cannot be granted until the club can confirm it. */}
+          {sales.reason === 'offline' && (
+            <p role="status" className="text-pretty text-xs leading-relaxed text-warning">
+              {`${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}
+            </p>
+          )}
         </div>
       ) : (
         // No banked minutes, so the honest button is the shop rather than an

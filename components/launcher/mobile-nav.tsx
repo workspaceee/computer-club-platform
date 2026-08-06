@@ -29,7 +29,19 @@ export function MobileNav({ surface = 'launcher' }: { surface?: LauncherSurface 
     // Same `frame` rung as the top bar — they are one piece of chrome, and any
     // overlay is allowed to cover both (F6.4). The positioning stays on a plain
     // wrapper so the rail itself keeps carrying the landmark.
-    <div className={cn('fixed inset-x-0 bottom-0 px-3 pb-3 sm:hidden', overlayZ.frame)}>
+    //
+    // The bottom padding is the design's 3 *plus* the device's own bottom inset
+    // (C2.9): pinned to `bottom-0` under `viewportFit: 'cover'`, the bar would
+    // otherwise sit under the iPhone home indicator on the Companion PWA — the
+    // gesture area swallowing the taps meant for Profile and Shop. On a kiosk
+    // display and in a browser tab the token resolves to `0px`, so this is the
+    // same 12px there.
+    <div
+      className={cn(
+        'fixed inset-x-0 bottom-0 px-3 pb-[calc(0.75rem+var(--frame-inset-bottom))] sm:hidden',
+        overlayZ.frame,
+      )}
+    >
       <NavRail<LauncherView>
         items={items}
         value={view}

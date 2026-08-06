@@ -105,7 +105,11 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
               ? t('nav.accountMenuLevel', { name: displayName, level: user.level })
               : t('nav.accountMenu', { name: displayName })
           }
-          className="flex items-center gap-2 rounded-md border border-border pill py-1 pl-1 pr-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          // `pr-1 sm:pr-2`: below `sm` both things that used to sit right of the
+          // avatar — the level chip and the caret — are gone, and the trailing
+          // padding they were separating from the edge would just be dead width
+          // on the one control the narrow bar must not lose (C2.9).
+          className="flex items-center gap-2 rounded-md border border-border pill p-1 sm:pr-2 transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         >
           {/* `Avatar` instead of a hand-rolled initials tile: it derives the
               initials the same way everywhere (`initialsOf`, so "Alexei Petrov"
@@ -127,10 +131,18 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
               {`LVL ${user.level}`}
             </span>
           )}
+          {/* The caret goes below `sm` (C2.9). It is an affordance hint on a
+              control that is already a 38 px avatar tile, and `aria-expanded`
+              above is what actually says "this opens" — so on a phone the 15 px
+              buys nothing and the trigger has to be the one thing in the row
+              that never gets pushed off. */}
           <icons.expand
             size={15}
             aria-hidden
-            className={cn('text-text-medium transition-transform', open && 'rotate-180')}
+            className={cn(
+              'hidden text-text-medium transition-transform sm:block',
+              open && 'rotate-180',
+            )}
           />
         </button>
 
@@ -144,7 +156,12 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
               initial={{ opacity: 0, y: -8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              className="glass-strong absolute right-0 top-12 w-60 overflow-hidden rounded-lg p-1.5"
+              // `max-w-[calc(100vw-1.5rem)]` is the bar's own `px-3` doubled: the
+              // panel hangs off the right edge of a trigger that is already at the
+              // right edge of a phone, so without the clamp a longer nickname or a
+              // wider locale would push it past the viewport and take "log out"
+              // with it (C2.9).
+              className="glass-strong absolute right-0 top-12 w-60 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg p-1.5"
             >
               <div className="mb-1 flex items-center gap-3 border-b border-border px-3 py-3">
                 <Avatar aria-hidden name={displayName} size="sm" level={user?.level} square />

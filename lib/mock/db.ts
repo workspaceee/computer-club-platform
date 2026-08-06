@@ -121,6 +121,32 @@ const clubSettings: ClubSettings = {
   // itself is mocked until a real PSP is wired in Stage 4.
   cardPaymentsEnabled: true,
   warningThresholds: { notice: 30, warning: 10, critical: 3 },
+  /**
+   * A plausible club week (C2.11), written so every branch of
+   * `lib/club-hours.ts` is covered by data rather than by hope:
+   *
+   *   Mon–Thu  12:00 → 02:00  window across midnight (the common shape)
+   *   Fri      12:00 → 04:00  same, longer
+   *   Sat      00:00 → 00:00  round the clock (`from === to`)
+   *   Sun      12:00 → 23:00  ordinary same-day window
+   *
+   * No `null` day on purpose: a closed weekday would put the "Club closed"
+   * overlay over the whole demo for a day at a time. The branch is still
+   * reachable — `?club=closed` (see `lib/dev-flags.ts`) walks straight into it.
+   *
+   * Saturday shows why a 24-hour day is not the same as "never closes": Sunday
+   * opens at noon, so the club really does close at Saturday midnight, and
+   * `clubHoursStatus()` warns about it.
+   */
+  openHours: {
+    1: { from: '12:00', to: '02:00' },
+    2: { from: '12:00', to: '02:00' },
+    3: { from: '12:00', to: '02:00' },
+    4: { from: '12:00', to: '02:00' },
+    5: { from: '12:00', to: '04:00' },
+    6: { from: '00:00', to: '00:00' },
+    7: { from: '12:00', to: '23:00' },
+  },
   bookingGraceMinutes: 15,
 }
 

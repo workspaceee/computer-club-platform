@@ -208,16 +208,22 @@ function HeroCarousel() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Vertically centred from `sm` up, pinned to the top corners below it
+            (C2.9). The copy column is bottom-anchored and its height is fixed by
+            the type, so as the frame narrows the column climbs: measured at
+            320 px the left arrow (314–356) sat straight across the category chip
+            (301–326) and the first line of the game name (338–398). At the top
+            edge there is nothing but veil at any width. */}
         <button
           onClick={() => go(index - 1)}
-          className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute left-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:left-4 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="Previous game"
         >
           <icons.back size={20} />
         </button>
         <button
           onClick={() => go(index + 1)}
-          className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
+          className="glass absolute right-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:right-4 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="Next game"
         >
           <icons.forward size={20} />

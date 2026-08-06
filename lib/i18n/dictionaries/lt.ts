@@ -353,11 +353,16 @@ export const lt: Dictionary = {
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',
-    lockConfirmTitle: 'Užrakinti šį kompiuterį?',
+    // C2.10 — „stotis“, ne „kompiuteris“. Penkios eilutės aplink šią vietą yra
+    // vienas srautas: meniu punktas (`lockStation`), klausimas, pranešimas ir
+    // ekranas, į kurį jis nuveda (`lockedTitle`). Antraštė ir pranešimas sakė
+    // „kompiuteris“, o mygtukas tame pačiame dialoge — „Užrakinti stotį“: vienas
+    // dialogas tą patį dalyką vadino dviem žodžiais.
+    lockConfirmTitle: 'Užrakinti šią stotį?',
     lockConfirmBody: 'Sesija bus pristabdyta. Prisijunk vėl ir tęsk su likusiu laiku.',
-    lockedToast: 'Kompiuteris užrakintas. Sesija pristabdyta.',
+    lockedToast: 'Stotis užrakinta. Sesija pristabdyta.',
     logoutConfirmTitle: 'Atsijungti?',
-    logoutConfirmBody: 'Sesija bus baigta, kompiuteris grįš į užrakto ekraną.',
+    logoutConfirmBody: 'Sesija bus baigta, stotis grįš į užrakto ekraną.',
     lockedTitle: 'Stotis užrakinta',
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
@@ -382,6 +387,38 @@ export const lt: Dictionary = {
     lastCallShop: 'Atidaryti parduotuvę',
     lastCallDismiss: 'Tęsti žaidimą',
     lastCallDismissHint: 'Pasibaigus laikui stotis vis tiek užsirakins.',
+
+    /* ---------------------------------------------------------------- *
+     * Administratoriaus pauzė (C2.7)
+     * ---------------------------------------------------------------- */
+    pauseTitle: 'Sesija pristabdyta',
+    pauseBody: 'Laikmatis sustabdytas — šios minutės jums neskaičiuojamos.',
+    pauseReasonLabel: 'Priežastis',
+    pauseReasonStaff: 'Administratorius pristabdė jūsų sesiją.',
+    pauseReasonBreak: 'Jūsų sesijoje pertrauka.',
+    pauseReasonPaymentRequired: 'Prieš laikmačio paleidimą reikia apmokėti prie baro.',
+    pauseReasonMaintenance: 'Šios stoties techninė priežiūra.',
+    pauseReasonUnknown: 'Klubas pristabdė šią stotį.',
+    pauseRemaining: 'Laikas išsaugotas',
+    pauseWaitHint:
+      'Niekas neprarasta. Žaidimai ir langai lieka tokie, kokie buvo — leidyklė grįš vos administratoriui nuėmus pauzę.',
+    pauseCallAdmin: 'Pašaukti administratorių',
+    pauseResumedToast: 'Pauzė nuimta — grįžtame į žaidimą.',
+
+    /* ---------------------------------------------------------------- *
+     * Sesijos perkėlimas į kitą kompiuterį (C2.8)
+     * ---------------------------------------------------------------- */
+    movedTitle: 'Sesija perkelta',
+    movedBody: 'Jūsų sesija perkelta į {seat}, {zone} zona.',
+    movedBodyNoZone: 'Jūsų sesija perkelta į {seat}.',
+    movedSeatLabel: 'Nauja stotis',
+    movedZoneLabel: 'Zona',
+    // plural: one | few | other
+    movedDeadline:
+      'Persikelkite per {n} minutę — laikas saugomas, kol nueisite.|Persikelkite per {n} minutes — laikas saugomas, kol nueisite.|Persikelkite per {n} minučių — laikas saugomas, kol nueisite.',
+    movedHint:
+      'Už perėjimą nieko neskaičiuojame ir niekas neprarandama: likęs laikas, sąskaita ir paskyra keliauja su jumis. Prie naujos stoties prisijunkite iš naujo.',
+    movedAck: 'Supratau',
 
     /* ---------------------------------------------------------------- *
      * „Mano sesija“ — skydelis už HUD (C2.3)
@@ -419,6 +456,26 @@ export const lt: Dictionary = {
     callAdmin: 'Kviesti administratorių',
     callAdminSent: 'Administratorius pakviestas — jau eina prie jūsų.',
     callAdminAgain: 'Administratorius jau gavo jūsų kvietimą.',
+
+    /* Klubo uždarymas (C2.11) — kitas laikrodis nei C2.6: uždarymo pratęsti negalima. */
+    // plural: one | few | other
+    closingTitle:
+      'Klubas užsidaro po {n} minutės|Klubas užsidaro po {n} minučių|Klubas užsidaro po {n} minutės',
+    closingBody:
+      'Jūsų laikas eina toliau — uždarymas sesijos nenutraukia. Parduotuvė ir baras nebepriima užsakymų.',
+    closingBodyUrgent: 'Laikas išsaugoti žaidimą ir susiruošti. Nepanaudotos minutės pasiliks jums.',
+    closedTitle: 'Klubas uždarytas',
+    closedBody:
+      'Pradėtą žaidimą galite baigti — laikrodis eina, niekas nenutraukiama. Laiko pirkimas ir užsakymai bare uždaryti iki atidarymo.',
+    closedClockLabel: 'Jūsų laikas vis dar eina',
+    closedOpensLabel: 'Vėl atidaroma',
+    closedOpensUnknown: 'Pasiteiraukite prie baro',
+    closedSaveExit: 'Išsaugoti ir išeiti',
+    closedSaveExitHint: 'Likusios minutės grįžta į paskyrą ir lauks kito apsilankymo.',
+    closedGuestHint: 'Sąskaitą apmokėkite prie baro, kai baigsite.',
+    closedCallAdmin: 'Kviesti administratorių',
+    closedDismiss: 'Žaisti toliau',
+    closedDismissHint: 'Stotį išjungs administratorius asmeniškai — ne paleidyklė.',
   },
 
   games: {
@@ -472,6 +529,13 @@ export const lt: Dictionary = {
     openCartEmpty: 'Krepšelis tuščias',
     // plural: one | few | other
     openCart: 'Krepšelis, {n} prekė|Krepšelis, {n} prekės|Krepšelis, {n} prekių',
+
+    /* Uždarymas parduotuvėje (C2.11): closed* — atsisakymas, closing* — tik pastaba. */
+    closedTitle: 'Klubas uždarytas',
+    closedBody: 'Pirkimas ir užsakymai bare vėl veiks {time}.',
+    closedBodyNoTime: 'Pirkimas ir užsakymai bare vėl veiks kartu su klubu.',
+    closedCheckoutHint: 'Apmokėjimas vėl veiks kartu su klubu.',
+    closingPassNote: 'Ilgiau, nei šiandien dirbame — {n} min pasiliks kitam apsilankymui.',
   },
 
   wallet: {
@@ -661,7 +725,7 @@ export const lt: Dictionary = {
     lockSub: 'Užeikite ir žaiskite iškart — sąskaitą apmokėsite kasoje po seanso.',
     flowTitle: 'Kaip veikia atvira sąskaita',
     flowStep1: 'Administratorius atrakina stotį ir pradeda jūsų vizitą.',
-    flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskaitą.',
+    flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskait��.',
     flowStep3: 'Visą sąskaitą apmokate kasoje išeidami.',
     startVisit: 'Pradėti svečio vizitą',
     soon: 'Greitai',
@@ -708,6 +772,13 @@ export const lt: Dictionary = {
     restored: 'Ryšys atkurtas',
     // formos: vienas | keli | daug
     pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinimų',
+
+    // Pinigai be ryšio (C2.12): atsisakymas, o ne žaidėjo klaida.
+    salesTitle: 'Pirkimai pristabdyti',
+    salesBody:
+      'Klubo serveris dabar negali patvirtinti mokėjimo. Seansui tai neturi įtakos: laikas toliau eina, žaidimas nenutrūksta.',
+    salesHint: 'Pirkimai vėl veiks patys, kai ryšys atsinaujins.',
+    salesRefused: 'Nėra ryšio su klubo serveriu — niekas nenuskaityta.',
 
     timeAdded: '+{minutes} min prie sesijos',
     timeAddedByStaff: '+{minutes} min nuo administratoriaus',
