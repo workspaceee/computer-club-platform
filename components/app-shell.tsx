@@ -38,6 +38,7 @@ import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
 import { TimeWarnings } from '@/components/launcher/time-warnings'
+import { ClubClosing } from '@/components/launcher/club-closing'
 import { SessionPauseOverlay } from '@/components/launcher/session-pause-overlay'
 import { SessionMovedOverlay } from '@/components/launcher/session-moved-overlay'
 import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
@@ -194,6 +195,13 @@ export function GlobalOverlays() {
           marks the visit has already been told about. Renders nothing until a
           prepaid remainder crosses one. */}
       <TimeWarnings />
+      {/* The club's day ending (C2.11). Next to the session watcher because it is
+          the same kind of thing about a different clock — and mounted globally for
+          the same two reasons: the marks must fire once per visit rather than once
+          per section change, and the "Club closed" overlay has to be able to cover
+          the launcher instead of living inside it. It stops no clock: closing ends
+          selling, never a session. */}
+      <ClubClosing />
       {/* Paused by an admin (C2.7). Mounted here, above the launcher rather than
           inside it, for the reason that makes the feature work at all: the shell
           stays put, so a pause is a scrim over a live launcher instead of a

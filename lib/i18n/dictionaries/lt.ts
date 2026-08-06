@@ -456,6 +456,26 @@ export const lt: Dictionary = {
     callAdmin: 'Kviesti administratorių',
     callAdminSent: 'Administratorius pakviestas — jau eina prie jūsų.',
     callAdminAgain: 'Administratorius jau gavo jūsų kvietimą.',
+
+    /* Klubo uždarymas (C2.11) — kitas laikrodis nei C2.6: uždarymo pratęsti negalima. */
+    // plural: one | few | other
+    closingTitle:
+      'Klubas užsidaro po {n} minutės|Klubas užsidaro po {n} minučių|Klubas užsidaro po {n} minutės',
+    closingBody:
+      'Jūsų laikas eina toliau — uždarymas sesijos nenutraukia. Parduotuvė ir baras nebepriima užsakymų.',
+    closingBodyUrgent: 'Laikas išsaugoti žaidimą ir susiruošti. Nepanaudotos minutės pasiliks jums.',
+    closedTitle: 'Klubas uždarytas',
+    closedBody:
+      'Pradėtą žaidimą galite baigti — laikrodis eina, niekas nenutraukiama. Laiko pirkimas ir užsakymai bare uždaryti iki atidarymo.',
+    closedClockLabel: 'Jūsų laikas vis dar eina',
+    closedOpensLabel: 'Vėl atidaroma',
+    closedOpensUnknown: 'Pasiteiraukite prie baro',
+    closedSaveExit: 'Išsaugoti ir išeiti',
+    closedSaveExitHint: 'Likusios minutės grįžta į paskyrą ir lauks kito apsilankymo.',
+    closedGuestHint: 'Sąskaitą apmokėkite prie baro, kai baigsite.',
+    closedCallAdmin: 'Kviesti administratorių',
+    closedDismiss: 'Žaisti toliau',
+    closedDismissHint: 'Stotį išjungs administratorius asmeniškai — ne paleidyklė.',
   },
 
   games: {
@@ -509,6 +529,13 @@ export const lt: Dictionary = {
     openCartEmpty: 'Krepšelis tuščias',
     // plural: one | few | other
     openCart: 'Krepšelis, {n} prekė|Krepšelis, {n} prekės|Krepšelis, {n} prekių',
+
+    /* Uždarymas parduotuvėje (C2.11): closed* — atsisakymas, closing* — tik pastaba. */
+    closedTitle: 'Klubas uždarytas',
+    closedBody: 'Pirkimas ir užsakymai bare vėl veiks {time}.',
+    closedBodyNoTime: 'Pirkimas ir užsakymai bare vėl veiks kartu su klubu.',
+    closedCheckoutHint: 'Apmokėjimas vėl veiks kartu su klubu.',
+    closingPassNote: 'Ilgiau, nei šiandien dirbame — {n} min pasiliks kitam apsilankymui.',
   },
 
   wallet: {
@@ -698,7 +725,7 @@ export const lt: Dictionary = {
     lockSub: 'Užeikite ir žaiskite iškart — sąskaitą apmokėsite kasoje po seanso.',
     flowTitle: 'Kaip veikia atvira sąskaita',
     flowStep1: 'Administratorius atrakina stotį ir pradeda jūsų vizitą.',
-    flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskaitą.',
+    flowStep2: 'Žaidimo laikas ir visi užsakymai keliauja į vieną sąskait��.',
     flowStep3: 'Visą sąskaitą apmokate kasoje išeidami.',
     startVisit: 'Pradėti svečio vizitą',
     soon: 'Greitai',

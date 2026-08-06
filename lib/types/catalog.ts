@@ -1,4 +1,4 @@
-import type { Cents, ID, ISODateTime } from './common'
+import type { Cents, ID, ISODateTime, Minutes } from './common'
 
 export type GameCategory =
   | 'Shooter'
@@ -54,6 +54,25 @@ export type ProductCategory =
   | 'membership'
 
 /**
+ * What the shop has to know about a *time* pass to talk about closing (C2.11).
+ *
+ * The grid must answer "does this pass outlast the club's day" without knowing
+ * what a night pass is, so both facts travel as data rather than being
+ * recognised from an id or a name. `fetchShopTime` fills this in from the `Pass`
+ * row; every other tab leaves it undefined.
+ */
+export interface TimePassMeta {
+  /** Everything the pass grants, bonus minutes included. */
+  minutes: Minutes
+  /**
+   * The pass is *sold* to cross closing, so a "runs past closing" note on it
+   * would be nonsense. True for a windowed pass — a night pass is `22:00`–`08:00`
+   * precisely because it spans the club's own edge — and for unlimited-in-window.
+   */
+  crossesClosing: boolean
+}
+
+/**
  * Everything the shop grid needs from anything sellable (F7.2).
  *
  * The grid has three tabs backed by two different tables — `products` for the
@@ -71,6 +90,12 @@ export interface ShopEntry {
   name: string
   category: ProductCategory
   priceCents: Cents
+  /**
+   * Set only on rows that sell *time* (C2.11) — see `TimePassMeta`. Undefined on
+   * a drink, and that absence is what keeps the closing notice off cards it
+   * would be meaningless on.
+   */
+  time?: TimePassMeta
   description?: string
   /** Marketing badge such as "Popular" — optional and admin-editable. */
   tag?: string
