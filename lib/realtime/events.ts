@@ -462,7 +462,12 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'order.status': ['shop', 'orders'],
   'tab.updated': ['shop', 'orders', 'wallet'],
   'pass.granted': ['session', 'shop', 'wallet'],
-  'wallet.updated': ['wallet', 'shop', 'profile'],
+  // Also `tournaments`: since C3.8 the home card's "Join" button is enabled by
+  // whether the wallet covers the entry fee, and the server puts that answer in
+  // the board (`affordable`) rather than making the card do wallet arithmetic. A
+  // balance change is therefore exactly the event that makes the button wrong —
+  // in either direction.
+  'wallet.updated': ['wallet', 'shop', 'profile', 'tournaments'],
   'message.received': ['support', 'help'],
   broadcast: ['support'],
   'quest.completed': ['loyalty', 'wallet'],
