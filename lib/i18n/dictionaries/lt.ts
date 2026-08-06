@@ -605,6 +605,39 @@ export const lt: Dictionary = {
     barEmpty: 'Šįvakar bare nieko nėra',
     barEmptyBody: 'Baras dar neišdėjo meniu — pasitikslinkite pas darbuotojus.',
     barClosedHint: 'Baras priims užsakymą, kai klubas atsidarys.',
+
+    // „Klubas dabar“ — kiek vietų laisva pagal zonas ir kas iš draugų salėje
+    // (C3.7). Vienintelė šio ekrano kortelė apie pačią salę, o ne apie paskyrą.
+    // Zonų pavadinimai ir vietų numeriai — klubo duomenys, spausdinami kaip yra
+    // (F2.2).
+    clubNowTitle: 'Klubas dabar',
+    clubNowFree: 'Laisva {free} iš {total} vietų',
+    clubNowFull: 'Laisvų vietų nėra',
+    clubNowZones: 'Laisvos vietos pagal zonas',
+    clubNowZoneFull: 'Užimta',
+    // formos: viena | kelios | kita
+    clubNowZoneFree: 'laisva {n}|laisva {n}|laisva {n}',
+    clubNowZoneLabel: '{zone}: laisva {free} iš {total} vietų',
+    // formos: viena | kelios | kita
+    clubNowFriends: '{n} draugas klube|{n} draugai klube|{n} draugų klube',
+    clubNowFriendSeat: 'Vieta {seat}',
+    clubNowFriendPlaying: 'Žaidžia {game}',
+    clubNowFriendIdle: 'Dar ne žaidime',
+    clubNowCall: 'Pakviesti',
+    clubNowCallLabel: 'Pakviesti {name} į grupę',
+    clubNowCalledToast: '{name} — pakvietimas į grupę išsiųstas',
+    clubNowInvited: 'Pakviestas',
+    clubNowJoined: 'Tavo grupėje',
+    clubNowNeedGame: 'Paleisk žaidimą — tada galėsi pakviesti draugus tiesiai iš čia.',
+    clubNowNoInvites: 'Nepriima pakvietimų',
+    clubNowPartyGame: 'Grupė žaidime {game}',
+    // formos: viena | kelios | kita
+    clubNowAway: 'dar {n} draugas ne klube|dar {n} draugai ne klube|dar {n} draugų ne klube',
+    clubNowNoFriends: 'Draugų kol kas nėra',
+    clubNowNoFriendsBody:
+      'Pridėk tuos, su kuriais žaidi klube, ir kortelė parodys, prie kurio kompiuterio jie sėdi.',
+    clubNowEmpty: 'Kol kas nėra ką parodyti',
+    clubNowEmptyBody: 'Klubas dar nesužymėjo zonų — pasitikslink pas darbuotojus.',
   },
 
   games: {

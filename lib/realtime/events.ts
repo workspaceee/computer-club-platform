@@ -454,7 +454,11 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'session.paused': ['session'],
   'session.resumed': ['session'],
   'session.ended': ['session', 'shop', 'wallet'],
-  'session.moved': ['session', 'catalog'],
+  // Also `social`: since C3.7 a card on the home screen names the PC each friend
+  // is sitting at, and a seat move is precisely the event that makes that label
+  // wrong. It travels scoped to the mover, so the only client this reaches is the
+  // one whose own row changed — the rest are covered by that card's poll.
+  'session.moved': ['session', 'catalog', 'social'],
   'order.status': ['shop', 'orders'],
   'tab.updated': ['shop', 'orders', 'wallet'],
   'pass.granted': ['session', 'shop', 'wallet'],

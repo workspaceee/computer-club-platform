@@ -950,7 +950,7 @@ export const en = {
     clubNowCall: 'Call to party',
     /** The visible label is two words shared by every row, so the name carries who. */
     clubNowCallLabel: 'Call {name} into the party',
-    /** The receipt. One line, because the drawerless action has nowhere else to報 answer. */
+    /** The receipt. One line, because the action has no panel of its own to answer in. */
     clubNowCalledToast: '{name} has been invited to the party',
     /** Already asked — the invite is out and the answer is theirs to give. */
     clubNowInvited: 'Invited',
