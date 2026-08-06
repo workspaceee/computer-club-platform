@@ -47,7 +47,7 @@ import type { Club, ClubSettings, UserPreferences } from '@/lib/types/settings'
 import type { Friendship, FriendSummary, Party } from '@/lib/types/social'
 import type { Tab, Transaction } from '@/lib/types/tab'
 import type { Tournament, TournamentEntry } from '@/lib/types/tournament'
-import type { User, Wallet } from '@/lib/types/user'
+import type { PrivacySettings, User, Wallet } from '@/lib/types/user'
 
 /* ------------------------------------------------------------------ *
  * Time anchor
@@ -682,6 +682,35 @@ const userPreferences: UserPreferences[] = [
       enabled: true,
       showFps: true,
       showPing: true,
+      showClock: true,
+      showTimeLeft: true,
+      corner: 'tr',
+    },
+  },
+  /**
+   * One friend who has switched party invites off (C3.7).
+   *
+   * Without this row every seat in the seed accepts invites, and the branch where
+   * the card must *not* offer a call button — because `inviteToParty` would refuse
+   * it — is unreachable data. `SilentWolf` is the natural candidate: he is seated
+   * in the Arena during the demo, so the state is visible rather than hypothetical.
+   */
+  {
+    userId: 'u-wolf',
+    locale: 'en',
+    density: 'comfortable',
+    reduceMotion: false,
+    sounds: true,
+    privacy: {
+      showOnLeaderboard: true,
+      showRealName: false,
+      allowFriendRequests: true,
+      allowPartyInvites: false,
+    },
+    overlay: {
+      enabled: true,
+      showFps: true,
+      showPing: false,
       showClock: true,
       showTimeLeft: true,
       corner: 'tr',
@@ -2288,6 +2317,26 @@ export function getLeaderboard(viewerId: ID = db.currentUserId) {
     }))
 }
 
+/**
+ * Permissive defaults for a member with no preferences row.
+ *
+ * One definition, because privacy is checked in two places that must never
+ * disagree: the endpoints that refuse a request (`sendFriendRequest`,
+ * `inviteToParty`) and the summaries that decide whether to offer the button at
+ * all (C3.7). A card that guessed "probably allowed" would render an invite that
+ * the API is about to reject.
+ */
+export const DEFAULT_PRIVACY: PrivacySettings = {
+  showOnLeaderboard: true,
+  showRealName: false,
+  allowFriendRequests: true,
+  allowPartyInvites: true,
+}
+
+export function getPrivacy(userId: ID): PrivacySettings {
+  return db.userPreferences.find((p) => p.userId === userId)?.privacy ?? DEFAULT_PRIVACY
+}
+
 /** Accepted friends of one member, resolved to the summary the social list needs. */
 export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
   const ids = db.friendships
@@ -2305,6 +2354,13 @@ export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
         online: friend.online,
         machineLabel: friend.machineId ? (getMachine(friend.machineId)?.label ?? null) : null,
         playingGameId: friend.playingGameId,
+        // Resolved here, not by the caller: a friend can be in a title this
+        // station has not installed, and a client-side lookup in the local
+        // library would then print nothing at all.
+        playingGameName: friend.playingGameId
+          ? (getGame(friend.playingGameId)?.name ?? null)
+          : null,
+        acceptsPartyInvites: getPrivacy(friend.user.id).allowPartyInvites,
       },
     ]
   })
