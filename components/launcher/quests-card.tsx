@@ -36,9 +36,10 @@
  *     revalidation cannot between them invent coins.
  *
  * Season XP is deliberately *not* pushed into the store on a claim: the greeting's
- * XP bar is fed by the profile snapshot, and the live pass surface is C3.5's to
- * own. Paying the coins twice would be a lie; showing the XP bar a beat later is
- * not.
+ * XP bar is fed by the profile snapshot, and the season standing belongs to the
+ * Battle Pass card (C3.5). What the claim does instead is invalidate the whole
+ * `loyalty` family, so that card re-reads the XP it just earned from the server —
+ * the one place that knows both numbers — rather than being handed a patched copy.
  */
 
 import { motion } from 'framer-motion'
@@ -51,7 +52,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Progress } from '@/components/ui/progress'
 import { SectionHeader } from '@/components/ui/section-header'
-import { useApi } from '@/hooks/use-api'
+import { useApi, useInvalidate } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
@@ -87,6 +88,7 @@ export function QuestsCard() {
   // cached set. The `loyalty` head is what makes a pushed `quest.completed` land
   // here without a subscription of its own (`EVENT_INVALIDATES`).
   const board = useApi(user ? ['loyalty/quests/daily', user.email] : null, fetchDailyQuests)
+  const invalidate = useInvalidate()
 
   const [claiming, setClaiming] = useState<ID | null>(null)
   // A ref beside the state for the reason `useExtendTime()` keeps one: a double
@@ -104,7 +106,11 @@ export function QuestsCard() {
         // The club's balance, not ours plus a reward: `addCoins` here would
         // double-count the moment a `wallet.updated` push landed as well.
         setCoins(result.wallet.coins)
-        await board.mutate()
+        // The whole loyalty family, not just this list: the claim also paid XP,
+        // and the Battle Pass card below reads the season from its own key
+        // (C3.5). Re-asking the server is what keeps the two cards telling the
+        // same story — the claim moved a number neither of them owns.
+        await invalidate('loyalty')
         toast(
           'success',
           t('home.questClaimedToast', {
@@ -120,7 +126,7 @@ export function QuestsCard() {
         setClaiming(null)
       }
     },
-    [board, setCoins, t, toast],
+    [invalidate, setCoins, t, toast],
   )
 
   if (!user) return null

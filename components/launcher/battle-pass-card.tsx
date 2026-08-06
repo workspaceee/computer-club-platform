@@ -145,14 +145,17 @@ export function BattlePassCard() {
                 {/* The ring is the card's one signature element: the tier number
                     inside its own progress, so "where I am" and "how far to the
                     next" are a single object rather than two readings to compare.
-                    Its accessible name carries the XP — the arc is decoration. */}
+                    Muted for screen readers on purpose — it draws the same two
+                    numbers the bar and the "Tier N" line beside it already state,
+                    and left announceable it would be a second `progressbar` with
+                    an identical name, read twice in a row. */}
                 <RingProgress
                   value={view.xpIntoLevel}
                   max={view.xpForNextLevel}
                   size={104}
                   thickness={7}
                   tone="xp"
-                  label={t('home.passToNextTier', { level: view.userSeason.level + 1 })}
+                  aria-hidden
                 >
                   <span className="flex flex-col items-center leading-none">
                     <span className="label-mono text-[8px] text-text-low">
@@ -262,7 +265,10 @@ function NextReward({ tier }: { tier: BattlePassTier }) {
 
   const reward =
     tier.rewardType === 'coins'
-      ? `${formatCoins(tier.rewardAmount)} ${t('wallet.coinBalance')}`
+      ? // Declension from the count, digits from `formatCoins` — the club's
+        // currency keeps its own grouping while the noun still agrees with the
+        // number ("145 коинов", not "145 коин").
+        tp('common.coins', tier.rewardAmount, { n: formatCoins(tier.rewardAmount) })
       : tier.rewardType === 'time'
         ? t('home.passRewardTime', { duration: tp('common.minutes', tier.rewardAmount) })
         : tier.label
