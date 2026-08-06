@@ -5,6 +5,7 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
+import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
 import { Skeleton } from '@/components/skeleton'
@@ -52,6 +53,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
 
   return (
     <div className="flex flex-col gap-10">
+      {/* The greeting owns the page heading (C3.1). It used to be an ad-hoc
+          "Welcome back // NAME" eyebrow inside the hero, which greeted the player
+          without telling them anything — no level, no streak, no elapsed time —
+          and would have left the surface welcoming twice once a real greeting
+          existed. */}
+      <HomeGreeting />
       <HeroCarousel />
       <QuickStats showLoyalty={!isGuest} />
       {/* The strip decides for itself what a guest may see: it asks the server as
@@ -69,8 +76,6 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
 
 function HeroCarousel() {
   const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const user = useStore((s) => s.user)
-  const guest = useStore((s) => s.guest)
   const [index, setIndex] = useState(0)
   const [dir, setDir] = useState(1)
   // Auto-advance is suspended while the keyboard is inside the hero (F6.7).
@@ -109,10 +114,9 @@ function HeroCarousel() {
   if (!game) {
     return (
       <section>
-        <div className="mb-4 flex flex-col gap-2">
-          <Skeleton className="h-3 w-32" radius="sm" />
-          <Skeleton className="h-10 w-72" radius="sm" />
-        </div>
+        {/* The heading skeleton went with the heading: the greeting above renders
+            from the store and is never in a loading state, so a placeholder here
+            would reserve space for text that has already arrived. */}
         {featured.error ? (
           <ApiErrorState state={featured} className="h-72 md:h-96" />
         ) : featured.isLoading ? (
@@ -131,23 +135,9 @@ function HeroCarousel() {
 
   return (
     <section>
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          {/* A guest has no profile to welcome "back", so the shell greets the
-              tab label instead of an empty name (F6.2). */}
-          <p className="label-mono mb-1 text-[10px] text-text-low">
-            {user ? 'Welcome back //' : guest ? `${t('guest.badge')} //` : 'Welcome'}{' '}
-            <span className="text-primary">{user?.nickname ?? guest?.label}</span>
-          </p>
-          <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
-            Ready to <span className="text-primary text-glow">dominate</span>
-          </h1>
-        </div>
-        <span className="label-mono hidden rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-[10px] text-primary sm:inline">
-          Top 5 Live
-        </span>
-      </div>
-
+      {/* No header block. The greeting above the carousel is the page heading now,
+          and "Top 5 Live" labelled nothing — the row is curated featured games,
+          not a live top five, so the chip went with the duplicate welcome. */}
       <div
         onFocusCapture={() => setHeld(true)}
         onBlurCapture={(e) => {
