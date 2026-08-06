@@ -66,5 +66,6 @@ const OVERRIDES: Record<string, ClubHoursOverride> = {
 export function readClubHoursOverride(): ClubHoursOverride | null {
   if (!DEV_SHORTCUTS || typeof window === 'undefined') return null
   const value = new URLSearchParams(window.location.search).get('club')
-  return (value && OVERRIDES[value]) ?? null
+  if (!value) return null
+  return OVERRIDES[value] ?? null
 }
