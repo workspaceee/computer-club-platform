@@ -532,6 +532,31 @@ export const lt: Dictionary = {
     // Užrakinta stotis: skaičiai viršuje vienu metu ir tikri, ir klaidinantys —
     // stovėdami jie nieko neišnaudoja.
     sessionPaused: 'Laikrodis pristabdytas',
+
+    // „Dienos užduotys“ — vienintelė pradžios ekrano kortelė, kuri prašo žaidėjo
+    // ką nors *nuveikti* (C3.4). Pačių užduočių tekstus rašo administratorius ir
+    // jie spausdinami tokie, kokie yra, todėl čia tik rėmas aplink juos (F2.2).
+    questsTitle: 'Dienos užduotys',
+    // Kiek diena dar verta — per visą aktyvų rinkinį, įskaitant užduotį, kuri
+    // nepakliuvo į tris eilutes ekrane. Abi reikšmės atkeliauja jau suformatuotos.
+    questsPending: 'Šiandien dar nepasiimta: {coins} monetų ir {xp} XP',
+    // Skaičiuojama iki kito klubo atidarymo, o ne iki vidurnakčio: žaidėjas prie
+    // stoties 03:00 vis dar yra tame rinkinyje, su kuriuo sėdo vakare.
+    // `{duration}` atkeliauja kaip frazė („4 valandos“), todėl klubo diena gali
+    // pasikeisti bet kurią valandą.
+    questsResetIn: 'Atsinaujins po {duration}',
+    // Paskutinė minutė prieš pasikeitimą, kur skaičiuoklė rodytų „0 minučių“.
+    questsResetNow: 'Atsinaujina',
+    // Prieinamas eilutės mygtuko pavadinimas: ekrane vienas žodis „Pasiimti“, o
+    // trys vienodi pavadinimai sąraše — trys mygtukai be vardo.
+    questClaim: 'Pasiimti atlygį už užduotį: {title}',
+    // Vieno pasiėmimo kvitas. Abi reikšmės jau suformatuotos.
+    questClaimedToast: 'Gauta: {coins} monetų ir {xp} XP',
+    // Klubas nepaskyrė nė vienos užduoties. Tai ne klaida ir ne žaidėjo darbas,
+    // todėl pasakoma, ko laukiama.
+    questsEmpty: 'Šiandien užduočių nėra',
+    questsEmptyBody:
+      'Klubas dar nepaskyrė dienos užduočių — naujos atsiras iki kito atidarymo.',
   },
 
   games: {
@@ -654,7 +679,7 @@ export const lt: Dictionary = {
     tierElite: 'Elitas',
     achievements: 'Pasiekimai',
     noAchievements: 'Pasiekimų dar nėra',
-    noAchievementsBody: 'Sužaiskite sesiją — pirmieji ženkleliai pradės atsirakinti.',
+    noAchievementsBody: 'Sužaiskite sesiją — pirmieji ženkleliai prad��s atsirakinti.',
     activity: 'Naujausia veikla',
     noActivity: 'Veiklos dar nėra',
     noActivityBody: 'Sesijos, pirkimai ir atrakinimai atsiras čia.',
