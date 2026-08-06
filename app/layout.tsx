@@ -87,6 +87,16 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
 
+  // The shell paints its own background to all four edges, so it takes the whole
+  // display rather than the safe rectangle: `contain` (the default) would letterbox
+  // the club's near-black inside the device's own bars on a notched phone — the
+  // surface the Companion PWA runs on (C2.9). What that buys has to be paid back,
+  // because with `cover` a fixed layer reaches *under* the home indicator: the two
+  // that sit on that edge — the launcher's bottom bar and the toast column — keep
+  // clear of it with `--frame-inset-bottom` (globals.css). Nothing else in the
+  // product is bottom-fixed.
+  viewportFit: 'cover',
+
   // Pinch-zoom off: the layout is already sized for the seat, and a guest who
   // zooms by accident on a touch screen has no address bar and no reset gesture
   // to get back — the station looks broken until an admin fixes it. Accessibility

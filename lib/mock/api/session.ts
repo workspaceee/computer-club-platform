@@ -77,6 +77,7 @@ function snapshot(session: Session): SessionSnapshot {
     expiresAt:
       session.state === 'active' ? new Date(nowMs + left * 1000).toISOString() : null,
     secondsLeft: left,
+    secondsUsed: session.secondsUsed,
     debtSeconds: session.debtSeconds,
     tabTotalCents: tab?.totalCents ?? 0,
     serverTime: new Date(nowMs).toISOString(),

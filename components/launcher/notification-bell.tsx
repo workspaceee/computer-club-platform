@@ -158,10 +158,16 @@ export function NotificationBell() {
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
-            // Anchored to the bell on a wide screen and pinned to the viewport
-            // edges on a narrow one: at 360 px a fixed-width popover hanging off
-            // a control this far right would run off the screen.
-            className="glass-strong absolute right-0 top-12 z-10 flex max-h-[70svh] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg"
+            // Anchored to the bell from `sm` up, pinned to the viewport below it.
+            //
+            // Clamping the *width* to `calc(100vw-2rem)` was not enough and hid a
+            // real defect at 360 px: the bell is not the rightmost control in the
+            // bar, so a 328 px panel right-aligned to it started at x = -42 and
+            // cut the left edge off its own title ("ВЕДОМЛЕНИЯ", "ОДНЯ"). A
+            // popover has to be positioned against whichever box it must stay
+            // inside — the bell on a wide screen, the viewport on a phone — so on
+            // narrow screens it leaves the anchor entirely and spans the bar.
+            className="glass-strong fixed inset-x-4 top-[4.25rem] z-20 flex max-h-[70svh] flex-col overflow-hidden rounded-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[22rem]"
           >
             <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div className="min-w-0">

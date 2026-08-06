@@ -353,15 +353,72 @@ export const lt: Dictionary = {
     expired: 'Sesija baigėsi',
     expiredBody:
       'Apmokėtas laikas baigėsi. Papildykite prie baro arba programėlėje, kad galėtumėte žaisti toliau.',
-    lockConfirmTitle: 'Užrakinti šį kompiuterį?',
+    // C2.10 — „stotis“, ne „kompiuteris“. Penkios eilutės aplink šią vietą yra
+    // vienas srautas: meniu punktas (`lockStation`), klausimas, pranešimas ir
+    // ekranas, į kurį jis nuveda (`lockedTitle`). Antraštė ir pranešimas sakė
+    // „kompiuteris“, o mygtukas tame pačiame dialoge — „Užrakinti stotį“: vienas
+    // dialogas tą patį dalyką vadino dviem žodžiais.
+    lockConfirmTitle: 'Užrakinti šią stotį?',
     lockConfirmBody: 'Sesija bus pristabdyta. Prisijunk vėl ir tęsk su likusiu laiku.',
-    lockedToast: 'Kompiuteris užrakintas. Sesija pristabdyta.',
+    lockedToast: 'Stotis užrakinta. Sesija pristabdyta.',
     logoutConfirmTitle: 'Atsijungti?',
-    logoutConfirmBody: 'Sesija bus baigta, kompiuteris grįš į užrakto ekraną.',
+    logoutConfirmBody: 'Sesija bus baigta, stotis grįš į užrakto ekraną.',
     lockedTitle: 'Stotis užrakinta',
     lockedBody: 'Laikmatis pristabdytas. Prisijunkite dar kartą ir tęskite nuo tos vietos.',
     minutesLeft: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
     warningLowTime: 'Liko mažiau nei {n} min. sesijos laiko.',
+
+    /* ---------------------------------------------------------------- *
+     * Laikas baigiasi (C2.6)
+     * ---------------------------------------------------------------- */
+    warnTitle: 'liko {n} minutė|liko {n} minutės|liko {n} minučių',
+    warnBody: 'Pratęskite sesijos skydelyje arba ramiai baikite.',
+    warnBodyUrgent: 'Pratęskite dabar, kad išsaugotumėte vietą, arba išsaugokite progresą.',
+    warnFinal: 'Šioje stotyje liko viena minutė.',
+    warnAction: 'Pratęsti',
+    lastCallTitle: 'Liko viena minutė',
+    lastCallBody:
+      'Sesija baigsis greičiau nei po minutės. Pridėkite laiko, kad tęstumėte, pašaukite administratorių, jei kažkas ne taip, arba išsaugokite žaidimą ir atlaisvinkite stotį.',
+    lastCallClock: 'Iki pabaigos',
+    lastCallExtend: 'Pratęsti',
+    lastCallAdmin: 'Pašaukti administratorių',
+    lastCallSaveExit: 'Išsaugoti ir baigti',
+    lastCallExtendHint: 'Abonemente nėra minučių — laiko paketų yra parduotuvėje.',
+    lastCallShop: 'Atidaryti parduotuvę',
+    lastCallDismiss: 'Tęsti žaidimą',
+    lastCallDismissHint: 'Pasibaigus laikui stotis vis tiek užsirakins.',
+
+    /* ---------------------------------------------------------------- *
+     * Administratoriaus pauzė (C2.7)
+     * ---------------------------------------------------------------- */
+    pauseTitle: 'Sesija pristabdyta',
+    pauseBody: 'Laikmatis sustabdytas — šios minutės jums neskaičiuojamos.',
+    pauseReasonLabel: 'Priežastis',
+    pauseReasonStaff: 'Administratorius pristabdė jūsų sesiją.',
+    pauseReasonBreak: 'Jūsų sesijoje pertrauka.',
+    pauseReasonPaymentRequired: 'Prieš laikmačio paleidimą reikia apmokėti prie baro.',
+    pauseReasonMaintenance: 'Šios stoties techninė priežiūra.',
+    pauseReasonUnknown: 'Klubas pristabdė šią stotį.',
+    pauseRemaining: 'Laikas išsaugotas',
+    pauseWaitHint:
+      'Niekas neprarasta. Žaidimai ir langai lieka tokie, kokie buvo — leidyklė grįš vos administratoriui nuėmus pauzę.',
+    pauseCallAdmin: 'Pašaukti administratorių',
+    pauseResumedToast: 'Pauzė nuimta — grįžtame į žaidimą.',
+
+    /* ---------------------------------------------------------------- *
+     * Sesijos perkėlimas į kitą kompiuterį (C2.8)
+     * ---------------------------------------------------------------- */
+    movedTitle: 'Sesija perkelta',
+    movedBody: 'Jūsų sesija perkelta į {seat}, {zone} zona.',
+    movedBodyNoZone: 'Jūsų sesija perkelta į {seat}.',
+    movedSeatLabel: 'Nauja stotis',
+    movedZoneLabel: 'Zona',
+    // plural: one | few | other
+    movedDeadline:
+      'Persikelkite per {n} minutę — laikas saugomas, kol nueisite.|Persikelkite per {n} minutes — laikas saugomas, kol nueisite.|Persikelkite per {n} minučių — laikas saugomas, kol nueisite.',
+    movedHint:
+      'Už perėjimą nieko neskaičiuojame ir niekas neprarandama: likęs laikas, sąskaita ir paskyra keliauja su jumis. Prie naujos stoties prisijunkite iš naujo.',
+    movedAck: 'Supratau',
 
     /* ---------------------------------------------------------------- *
      * „Mano sesija“ — skydelis už HUD (C2.3)
@@ -399,6 +456,61 @@ export const lt: Dictionary = {
     callAdmin: 'Kviesti administratorių',
     callAdminSent: 'Administratorius pakviestas — jau eina prie jūsų.',
     callAdminAgain: 'Administratorius jau gavo jūsų kvietimą.',
+
+    /* Klubo uždarymas (C2.11) — kitas laikrodis nei C2.6: uždarymo pratęsti negalima. */
+    // plural: one | few | other
+    closingTitle:
+      'Klubas užsidaro po {n} minutės|Klubas užsidaro po {n} minučių|Klubas užsidaro po {n} minutės',
+    closingBody:
+      'Jūsų laikas eina toliau — uždarymas sesijos nenutraukia. Parduotuvė ir baras nebepriima užsakymų.',
+    closingBodyUrgent: 'Laikas išsaugoti žaidimą ir susiruošti. Nepanaudotos minutės pasiliks jums.',
+    closedTitle: 'Klubas uždarytas',
+    closedBody:
+      'Pradėtą žaidimą galite baigti — laikrodis eina, niekas nenutraukiama. Laiko pirkimas ir užsakymai bare uždaryti iki atidarymo.',
+    closedClockLabel: 'Jūsų laikas vis dar eina',
+    closedOpensLabel: 'Vėl atidaroma',
+    closedOpensUnknown: 'Pasiteiraukite prie baro',
+    closedSaveExit: 'Išsaugoti ir išeiti',
+    closedSaveExitHint: 'Likusios minutės grįžta į paskyrą ir lauks kito apsilankymo.',
+    closedGuestHint: 'Sąskaitą apmokėkite prie baro, kai baigsite.',
+    closedCallAdmin: 'Kviesti administratorių',
+    closedDismiss: 'Žaisti toliau',
+    closedDismissHint: 'Stotį išjungs administratorius asmeniškai — ne paleidyklė.',
+  },
+
+  home: {
+    greetMorning: 'Labas rytas, {name}',
+    greetAfternoon: 'Laba diena, {name}',
+    greetEvening: 'Labas vakaras, {name}',
+    greetNight: 'Vis dar žaidi, {name}',
+    level: '{level} lygis',
+    levelProgress: '{xp} iš {max} XP iki {next} lygio',
+    levelProgressShort: '{xp} / {max} XP',
+    playingFor: 'Žaidžiama {duration}',
+    justArrived: 'Ką tik atsisėdai',
+    // plurals lt: one | few | other
+    streakDays: '{n} diena iš eilės|{n} dienos iš eilės|{n} dienų iš eilės',
+    streakStart: 'Serija pradedama šiandien',
+    streakLabel: 'Apsilankymų serija',
+
+    // „Tęsti“ — trys paskutiniai žaidimai, kiekvienas vienu paspaudimu (C3.2).
+    // Antraštė yra veiksmas, o ne bibliotekos „Neseniai žaisti“: tai ne istorija,
+    // o kelias atgal į tą partiją, iš kurios žaidėjas išėjo.
+    continueTitle: 'Tęsti',
+    continueLaunch: 'Paleisti {name} — {when}',
+    continueRunning: 'Jau veikia',
+    continueLaunching: 'Paleidžiama…',
+    continueEmpty: 'Žaidimų kol kas nėra',
+    continueEmptyBody:
+      'Paleisk ką nors iš bibliotekos — žaidimas lauks čia, ir nuo kito apsilankymo į jį grįši vienu paspaudimu.',
+    // Praėjęs laikas, o ne kalendorius: 23:50 palikta partija ryte yra „prieš
+    // 8 valandas“, ir būtent tai žaidėjui rūpi.
+    // plurals lt: one | few | other
+    playedJustNow: 'Žaista ką tik',
+    playedMinutesAgo:
+      'Žaista prieš {n} minutę|Žaista prieš {n} minutes|Žaista prieš {n} minučių',
+    playedHoursAgo: 'Žaista prieš {n} valandą|Žaista prieš {n} valandas|Žaista prieš {n} valandų',
+    playedDaysAgo: 'Žaista prieš {n} dieną|Žaista prieš {n} dienas|Žaista prieš {n} dienų',
   },
 
   games: {
@@ -422,6 +534,32 @@ export const lt: Dictionary = {
     openLibrary: 'Atidaryti biblioteką',
     noAccounts: 'Laisvų paskyrų nėra',
     noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
+
+    // Paleidimo dialogo vardas (C3.2): matoma antraštė nupiešta ant viršelio,
+    // todėl ekrano skaitytuvui pavadinimas duodamas atskirai.
+    launchDialog: 'Paleisti {name}',
+    launchDialogPending: 'Paleisti žaidimą',
+
+    // Agento žingsniai — vienintelis dalykas, kurį žaidėjas mato tas sekundes (F2.4).
+    launchStepAccount: 'Ruošiama paskyra…',
+    launchStepSession: 'Įterpiama sesija…',
+    launchStepStart: 'Startuoja žaidimas…',
+
+    // Abu paleidimo baigties variantus rodo pats kabliukas, todėl greitas
+    // paleidimas iš „Tęsti“ kortelės sako tais pačiais žodžiais — be dialogo.
+    launchedToast: '{name} paleistas — paleidyklė nuleidžiama',
+    launchFailed: 'Paleisti nepavyko ({code})',
+
+    // Klubo paskyrų sąrašas (F3.4) — pasiūlytas pasirinkimas, o ne paleidimo
+    // parametras: užimtumą tvarko serveris. Todėl vienas paspaudimas jį praleidžia.
+    selectAccount: 'Pasirinkite paskyrą',
+    accountLinked: 'Priskirta: {name}',
+    // Parašyta žodžiais prie spalvoto taškelio: pats taškelis nieko nepasako nei
+    // skaitytuvui, nei tam, kas tų dviejų atspalvių neatskiria (F6.6).
+    accountAvailable: 'Laisva',
+    accountInUse: 'Užimta',
+    rememberAccount: 'Įsiminti pasirinkimą šiam žaidimui',
+
     inGame: 'Žaidime',
     inGameNow: 'Veikia {name}',
     inGameQuiet:
@@ -452,6 +590,13 @@ export const lt: Dictionary = {
     openCartEmpty: 'Krepšelis tuščias',
     // plural: one | few | other
     openCart: 'Krepšelis, {n} prekė|Krepšelis, {n} prekės|Krepšelis, {n} prekių',
+
+    /* Uždarymas parduotuvėje (C2.11): closed* — atsisakymas, closing* — tik pastaba. */
+    closedTitle: 'Klubas uždarytas',
+    closedBody: 'Pirkimas ir užsakymai bare vėl veiks {time}.',
+    closedBodyNoTime: 'Pirkimas ir užsakymai bare vėl veiks kartu su klubu.',
+    closedCheckoutHint: 'Apmokėjimas vėl veiks kartu su klubu.',
+    closingPassNote: 'Ilgiau, nei šiandien dirbame — {n} min pasiliks kitam apsilankymui.',
   },
 
   wallet: {
@@ -689,6 +834,13 @@ export const lt: Dictionary = {
     // formos: vienas | keli | daug
     pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinimų',
 
+    // Pinigai be ryšio (C2.12): atsisakymas, o ne žaidėjo klaida.
+    salesTitle: 'Pirkimai pristabdyti',
+    salesBody:
+      'Klubo serveris dabar negali patvirtinti mokėjimo. Seansui tai neturi įtakos: laikas toliau eina, žaidimas nenutrūksta.',
+    salesHint: 'Pirkimai vėl veiks patys, kai ryšys atsinaujins.',
+    salesRefused: 'Nėra ryšio su klubo serveriu — niekas nenuskaityta.',
+
     timeAdded: '+{minutes} min prie sesijos',
     timeAddedByStaff: '+{minutes} min nuo administratoriaus',
     sessionPaused: 'Sesija pristabdyta',
@@ -748,7 +900,7 @@ export const lt: Dictionary = {
     agentUnavailable: 'Šiame kompiuteryje nėra stoties agento',
     unsupported: 'Šis kompiuteris to negali',
     agentTimeout: 'Stoties agentas neatsakė',
-    gameNotInstalled: 'Šis žaidimas čia ne��diegtas',
+    gameNotInstalled: 'Šis žaidimas čia neįdiegtas',
     gameAlreadyRunning: 'Žaidimas jau paleistas',
     gameNotRunning: 'Šis žaidimas nepaleistas',
     launcherFailed: 'Žaidimo paleidyklė nepasileido',

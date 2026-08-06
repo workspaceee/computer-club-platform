@@ -35,6 +35,7 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { answerNotification } from '@/lib/mock/api'
 import { isApiError } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
+import { serverNowMs } from '@/lib/time'
 import type { Notification, NotificationLevel } from '@/lib/types/notification'
 import { cn } from '@/lib/utils'
 
@@ -96,11 +97,19 @@ export function groupByDay(list: readonly Notification[]): NotificationDay[] {
   return groups
 }
 
-/** "Today" / "Yesterday" as words, anything older as a locale-formatted date. */
+/**
+ * "Today" / "Yesterday" as words, anything older as a locale-formatted date.
+ *
+ * Which day *is* today comes from `serverNowMs()`, not from `new Date()`: the
+ * timestamps being grouped were stamped by the server, so comparing them against
+ * a kiosk's system clock would let a machine an hour off file this evening's
+ * messages under "Yesterday". Same skew correction the session countdown uses.
+ */
 export function useDayLabel() {
   const { t, formatFullDate } = useT()
-  const today = dayKey(new Date())
-  const yesterdayDate = new Date()
+  const nowMs = serverNowMs()
+  const today = dayKey(new Date(nowMs))
+  const yesterdayDate = new Date(nowMs)
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
   const yesterday = dayKey(yesterdayDate)
 

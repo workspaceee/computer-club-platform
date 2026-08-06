@@ -121,6 +121,32 @@ const clubSettings: ClubSettings = {
   // itself is mocked until a real PSP is wired in Stage 4.
   cardPaymentsEnabled: true,
   warningThresholds: { notice: 30, warning: 10, critical: 3 },
+  /**
+   * A plausible club week (C2.11), written so every branch of
+   * `lib/club-hours.ts` is covered by data rather than by hope:
+   *
+   *   Mon–Thu  12:00 → 02:00  window across midnight (the common shape)
+   *   Fri      12:00 → 04:00  same, longer
+   *   Sat      00:00 → 00:00  round the clock (`from === to`)
+   *   Sun      12:00 → 23:00  ordinary same-day window
+   *
+   * No `null` day on purpose: a closed weekday would put the "Club closed"
+   * overlay over the whole demo for a day at a time. The branch is still
+   * reachable — `?club=closed` (see `lib/dev-flags.ts`) walks straight into it.
+   *
+   * Saturday shows why a 24-hour day is not the same as "never closes": Sunday
+   * opens at noon, so the club really does close at Saturday midnight, and
+   * `clubHoursStatus()` warns about it.
+   */
+  openHours: {
+    1: { from: '12:00', to: '02:00' },
+    2: { from: '12:00', to: '02:00' },
+    3: { from: '12:00', to: '02:00' },
+    4: { from: '12:00', to: '02:00' },
+    5: { from: '12:00', to: '04:00' },
+    6: { from: '00:00', to: '00:00' },
+    7: { from: '12:00', to: '23:00' },
+  },
   bookingGraceMinutes: 15,
 }
 
@@ -475,6 +501,13 @@ export interface PlayerStats {
   seasonHours: number
   seasonCoins: Coins
   achievementsUnlocked: number
+  /**
+   * Consecutive visit days, today included (C3.1). Optional because only the
+   * signed-in member's streak is ever rendered — the leaderboard ranks by season
+   * hours, so authoring twelve streaks nobody reads would be twelve numbers that
+   * can silently drift out of step with the sessions around them.
+   */
+  visitStreak?: number
 }
 
 /** A demo account bundled with everything the UI needs about it. */
@@ -527,7 +560,7 @@ const playersList: DemoPlayer[] = [
     12,
     6400,
     { moneyCents: 1750, coins: 1250 },
-    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11 },
+    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11, visitStreak: 4 },
     { machineId: CURRENT_MACHINE_ID, playingGameId: 'cs2' },
     { email: 'demo@imba.club' },
   ),
@@ -1211,6 +1244,14 @@ const activity: ActivityEvent[] = [
   { id: 'e6', type: 'achievement', label: 'Unlocked "Marathon"', time: '3 days ago' },
 ]
 
+/**
+ * Launch history. Feeds the "Continue" row (C3.2) and the playtime list on the
+ * profile, so the demo member needs more than one visit's worth: three distinct
+ * titles at three different distances (this visit / last night / three days ago)
+ * so every bucket of the "last played" label is reachable on screen, plus a
+ * repeat of one of them to prove the row deduplicates by title instead of
+ * printing the same cover twice.
+ */
 const gameLaunches: GameLaunch[] = [
   {
     id: 'gl-1',
@@ -1227,6 +1268,34 @@ const gameLaunches: GameLaunch[] = [
     sessionId: 'sess-demo-prev',
     startedAt: atDays(-1),
     endedAt: atHours(-20),
+  },
+  // Same title as `gl-2`, one visit earlier: the row must still list Valorant
+  // once, dated by this launch's *newer* sibling above.
+  {
+    id: 'gl-2b',
+    userId: CURRENT_USER_ID,
+    gameId: 'valorant',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-4),
+    endedAt: atDays(-4),
+  },
+  {
+    id: 'gl-2c',
+    userId: CURRENT_USER_ID,
+    gameId: 'bg3',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-3),
+    endedAt: atDays(-3),
+  },
+  // Fourth title on purpose: the card asks for three, so the seed has to be able
+  // to prove that the fourth is left off rather than that there is no fourth.
+  {
+    id: 'gl-2d',
+    userId: CURRENT_USER_ID,
+    gameId: 'forza',
+    sessionId: 'sess-demo-prev3',
+    startedAt: atDays(-6),
+    endedAt: atDays(-6),
   },
   {
     id: 'gl-3',

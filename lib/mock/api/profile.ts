@@ -41,6 +41,9 @@ export function buildProfile(userId: ID = db.currentUserId): UserProfile {
     xpMax: xpForLevel(user.level + 1),
     coins: wallet.coins,
     memberSince: formatMemberSince(user.createdAt),
+    // Zero until the club has counted a second day in a row (C3.1), so a brand
+    // new account is greeted as a first visit rather than with a streak of one.
+    visitStreak: stats.visitStreak ?? 0,
     totalHours: stats.totalHours,
     gamesPlayed: stats.gamesPlayed,
     sessions: stats.sessions,

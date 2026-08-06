@@ -95,6 +95,18 @@ export function fetchShopTime(): Promise<ShopEntry[]> {
         priceCents: pass.priceCents,
         tag: pass.id === 'pass-5h' ? 'Popular' : undefined,
         description: describePass(pass),
+        /**
+         * What the closing notice is decided from (C2.11).
+         *
+         * Derived here, from the pass row, rather than in the grid: whether a
+         * pass is *meant* to span the club's edge is a property of the product,
+         * and a UI that inferred it from `id === 'pass-night'` would start
+         * lying the day an admin adds a second night pass.
+         */
+        time: {
+          minutes: pass.hours * 60 + pass.bonusMinutes,
+          crossesClosing: pass.timeWindow !== null || pass.unlimitedInWindow,
+        },
         // A pass is always purchasable while it is active; there is nothing to
         // run out of.
         inStock: true,

@@ -77,6 +77,21 @@ export interface SessionSnapshot {
   /** `null` while paused — there is no deadline until the session resumes. */
   expiresAt: ISODateTime | null
   secondsLeft: Seconds
+  /**
+   * Billed seconds this visit has already run through, as the club counts them
+   * (C3.1).
+   *
+   * The opposite direction from `secondsLeft`, and not derivable from it: the
+   * remainder moves whenever time is *added*, so "granted minus left" is the size
+   * of the last purchase rather than the length of the visit. It is also not
+   * derivable from `startedAt`, because wall-clock since the start counts the
+   * hour a player spent locked out at the bar as time played.
+   *
+   * Server-owned like every other number about time (F3.7). A postpaid seat has
+   * nothing granted to burn, so its billed time accrues in `debtSeconds` instead
+   * and a reader after the visit's length has to add the two.
+   */
+  secondsUsed: Seconds
   debtSeconds: Seconds
   tabTotalCents: Cents
   /** Server time at the moment of the reply, used to correct for clock skew. */
