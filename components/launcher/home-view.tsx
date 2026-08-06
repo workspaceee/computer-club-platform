@@ -5,6 +5,7 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
+import { BattlePassCard } from '@/components/launcher/battle-pass-card'
 import { ContinueRow } from '@/components/launcher/continue-row'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
@@ -327,9 +328,10 @@ function PrizeLadder() {
 
   return (
     <section>
-      {/* 05, not 04: the dailies card above took that number when it landed
-          between the promo strip and this ladder (C3.4). */}
-      <SectionHeader index="05">Prize Ladder</SectionHeader>
+      {/* 06, not 04: the dailies card (C3.4) and the season card (C3.5) both
+          landed between the promo strip and this ladder, and each took a number
+          with it. */}
+      <SectionHeader index="06">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}
@@ -404,7 +406,7 @@ function Leaderboard() {
 
   return (
     <section>
-      <SectionHeader index="06">Leaderboard</SectionHeader>
+      <SectionHeader index="07">Leaderboard</SectionHeader>
       <div className="glass overflow-hidden rounded-xl">
         <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
           <span>#</span>
