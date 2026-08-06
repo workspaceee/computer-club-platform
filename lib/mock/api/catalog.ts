@@ -118,11 +118,41 @@ export function fetchGameCategories(): Promise<{ category: GameCategory; count: 
   })
 }
 
-/** `GET /api/games/recent` — the member's continue-playing row. */
-export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Promise<Game[]> {
+/**
+ * One row of the "Continue" card (C3.2): a title the member has played, and when
+ * they last started it.
+ *
+ * The timestamp travels *with* the game rather than the row being a bare `Game`,
+ * because "last played" is the only thing that makes the card more than three
+ * more covers — it is what tells the player which of these three is the match
+ * they just stepped away from. Deriving it on the client would mean pulling the
+ * whole launch history onto the home surface and reducing it there, which is the
+ * same mistake `sortGames` exists to prevent one function above.
+ *
+ * A `Minutes` total is deliberately *not* here: the card has room for one fact,
+ * and the profile screen is where playtime per title belongs.
+ */
+export interface RecentGame {
+  game: Game
+  /** Start of the most recent launch of this title. */
+  lastPlayedAt: ISODateTime
+}
+
+/**
+ * `GET /api/games/recent` — the member's continue-playing row.
+ *
+ * Deduplicated by title, newest first: a player who restarted CS2 four times
+ * tonight has played *one* game, and a row that repeated it four times would
+ * bury the other two. `limit` is the caller's — the home card asks for three,
+ * and nothing about that number lives in this function.
+ */
+export function fetchRecentGames(
+  userId: ID = db.currentUserId,
+  limit = 6,
+): Promise<RecentGame[]> {
   return query('catalog.fetchRecentGames', () => {
     const seen = new Set<ID>()
-    const ordered: Game[] = []
+    const ordered: RecentGame[] = []
     const launches = db.gameLaunches
       .filter((l) => l.userId === userId)
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
@@ -132,7 +162,9 @@ export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Prom
       const game = db.games.find((g) => g.id === launch.gameId)
       if (!game) continue
       seen.add(launch.gameId)
-      ordered.push(game)
+      // Newest-first order means the first row seen for a title *is* its latest
+      // launch, so no per-title max has to be computed.
+      ordered.push({ game, lastPlayedAt: launch.startedAt })
       if (ordered.length === limit) break
     }
     return ordered

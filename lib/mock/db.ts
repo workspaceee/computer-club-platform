@@ -1244,6 +1244,14 @@ const activity: ActivityEvent[] = [
   { id: 'e6', type: 'achievement', label: 'Unlocked "Marathon"', time: '3 days ago' },
 ]
 
+/**
+ * Launch history. Feeds the "Continue" row (C3.2) and the playtime list on the
+ * profile, so the demo member needs more than one visit's worth: three distinct
+ * titles at three different distances (this visit / last night / three days ago)
+ * so every bucket of the "last played" label is reachable on screen, plus a
+ * repeat of one of them to prove the row deduplicates by title instead of
+ * printing the same cover twice.
+ */
 const gameLaunches: GameLaunch[] = [
   {
     id: 'gl-1',
@@ -1260,6 +1268,34 @@ const gameLaunches: GameLaunch[] = [
     sessionId: 'sess-demo-prev',
     startedAt: atDays(-1),
     endedAt: atHours(-20),
+  },
+  // Same title as `gl-2`, one visit earlier: the row must still list Valorant
+  // once, dated by this launch's *newer* sibling above.
+  {
+    id: 'gl-2b',
+    userId: CURRENT_USER_ID,
+    gameId: 'valorant',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-4),
+    endedAt: atDays(-4),
+  },
+  {
+    id: 'gl-2c',
+    userId: CURRENT_USER_ID,
+    gameId: 'bg3',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-3),
+    endedAt: atDays(-3),
+  },
+  // Fourth title on purpose: the card asks for three, so the seed has to be able
+  // to prove that the fourth is left off rather than that there is no fourth.
+  {
+    id: 'gl-2d',
+    userId: CURRENT_USER_ID,
+    gameId: 'forza',
+    sessionId: 'sess-demo-prev3',
+    startedAt: atDays(-6),
+    endedAt: atDays(-6),
   },
   {
     id: 'gl-3',

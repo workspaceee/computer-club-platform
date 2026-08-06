@@ -692,6 +692,44 @@ export const en = {
     /** A streak that is not running — a first visit, or one that lapsed. */
     streakStart: 'Streak starts today',
     streakLabel: 'Visit streak',
+
+    /**
+     * "Continue" — the last three titles, one click each (C3.2).
+     *
+     * A verb, and deliberately not the library's own "Recently played" label: the
+     * row under the greeting is not a history list, it is the way back into the
+     * match the player walked away from, and the heading should say what clicking
+     * it does.
+     */
+    continueTitle: 'Continue',
+    /**
+     * Accessible name of the card.
+     *
+     * The whole tile is the button, so the verb never appears on screen — but a
+     * reader announcing only the game name would present an action as a label.
+     * `{when}` repeats whichever status the tile is showing, so what is announced
+     * and what is read are the same sentence.
+     */
+    continueLaunch: 'Launch {name} — {when}',
+    /** Already on this machine: the tile is inert, and says why. */
+    continueRunning: 'Running now',
+    continueLaunching: 'Starting…',
+    continueEmpty: 'No games yet',
+    continueEmptyBody:
+      'Start something from the library and it waits for you here — one click back in on every visit after this one.',
+    /**
+     * When the title was last started, as elapsed time.
+     *
+     * Elapsed rather than calendar-relative ("Yesterday"), because a single row
+     * reads as a distance: a match abandoned at 23:50 is "8 hours ago" the next
+     * morning, and that is the fact the player is deciding on.
+     *
+     * plurals: one | other
+     */
+    playedJustNow: 'Played just now',
+    playedMinutesAgo: 'Played {n} minute ago|Played {n} minutes ago',
+    playedHoursAgo: 'Played {n} hour ago|Played {n} hours ago',
+    playedDaysAgo: 'Played {n} day ago|Played {n} days ago',
   },
 
   games: {
