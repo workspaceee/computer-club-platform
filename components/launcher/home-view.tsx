@@ -85,6 +85,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           walk-in on its own — quest progress is keyed to an account — so the gate
           here is the store's, not this surface's. */}
       <QuestsCard />
+      {/* The season, under the dailies (C3.5). Same order-of-effort argument the
+          quests card makes about the ladder below it: the club's daily ask, then
+          where the XP those quests pay actually goes. It gates itself on the store
+          for the same reason — season standing is keyed to an account, so a walk-in
+          would be shown the previous member's tier. */}
+      <BattlePassCard />
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
         <Leaderboard />

@@ -557,6 +557,40 @@ export const lt: Dictionary = {
     questsEmpty: 'Šiandien užduočių nėra',
     questsEmptyBody:
       'Klubas dar nepaskyrė dienos užduočių — naujos atsiras iki kito atidarymo.',
+
+    // „Battle Pass“ — sezonas kortelės dydžiu (C3.5). Keturi atsakymai ir tiek:
+    // kuriame lygyje žaidėjas stovi, kiek iki kito, ką duos kitas ir kur gyvena
+    // visos kopėčios. Antraštė imama iš `loyalty.battlePass` — praleidimas yra
+    // vienas visame produkte ir neturi būti pavadintas dukart.
+    //
+    // Žodynas sąmoningai perskirtas: pasisveikinimas viršuje sako „lygis“ (paskyros
+    // rangas), o čia viskas sako „pakopa“ (vieta sezone). Du skaičiai — du žodžiai,
+    // kitaip tai atrodytų kaip vienas skaitiklis, prieštaraujantis sau.
+    passTier: '{level} pakopa',
+    // Patirties juostos pavadinimas: kur ji eina — kur stovi, jau pasakė žiedas.
+    passToNextTier: 'Iki {level} pakopos',
+    // Antraštė virš juostos; abi reikšmės atkeliauja sugrupuotos pagal lokalę.
+    passXpOf: '{xp} / {max} XP',
+    // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
+    passNextGives: '{level} pakopa duoda',
+    // Pakopa, kuri atsilygina žaidimo laiku. `{duration}` atkeliauja kaip frazė.
+    passRewardTime: '{duration} žaidimo laiko',
+    // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
+    // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
+    // ekrane, kur atlygis parodomas atidarymo metu (C8.6).
+    passReady:
+      '{n} pakopa paruošta pasiimti|{n} pakopos paruoštos pasiimti|{n} pakopų paruošta pasiimti',
+    // Kiek sezonui liko. `{duration}` atkeliauja kaip frazė („12 dienų“).
+    passSeasonEndsIn: 'Sezonas baigsis po {duration}',
+    // Paskutinė diena, kur dienų skaitiklis rodytų „0 dienų“.
+    passSeasonEndsToday: 'Sezonas baigiasi šiandien',
+    // Kopėčios pereitos: aukščiau paskutinės pakopos nėra ko žadėti.
+    passTopTier: 'Paskutinė sezono pakopa',
+    passTopTierBody: '{level} pakopa yra paskutinė — pasiimk, kas liko, iki sezono galo.',
+    // Kelias į visas kopėčias. Ekrane vienas žodis, todėl skaitytojui pasakoma,
+    // kurį praleidimą jis atidaro.
+    passOpen: 'Atidaryti',
+    passOpenLabel: 'Atidaryti Battle Pass — {season}',
   },
 
   games: {

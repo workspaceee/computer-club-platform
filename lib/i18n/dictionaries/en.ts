@@ -812,6 +812,50 @@ export const en = {
     questsEmpty: 'No quests today',
     questsEmptyBody:
       'The club has not set any dailies yet — new ones land with the next opening.',
+
+    /**
+     * "Battle Pass" — the season at teaser size (C3.5).
+     *
+     * The card answers four questions and stops: which tier the player stands on,
+     * how far the next one is, what that next one pays, and where the whole ladder
+     * lives. The heading itself is `loyalty.battlePass` — the pass is one subject
+     * across the product and must not be named twice.
+     *
+     * Note the vocabulary split. The greeting above says "Level", which is the
+     * *account* rank; everything here says "Tier", which is the *season* standing.
+     * Two numbers, two words: sharing one would make the greeting and this card
+     * look like a single counter disagreeing with itself.
+     */
+    passTier: 'Tier {level}',
+    /** Name of the XP bar — where it is going, since the ring already says where it is. */
+    passToNextTier: 'To tier {level}',
+    /** Bar caption. Both values arrive grouped for the reader's locale. */
+    passXpOf: '{xp} / {max} XP',
+    /** Heads the reward the next tier pays — the "what do I get" line. */
+    passNextGives: 'Tier {level} gives',
+    /** A tier paid in play time. `{duration}` arrives as a phrase ("30 minutes"). */
+    passRewardTime: '{duration} of play time',
+    /**
+     * Tiers reached but never collected. A reason to press the button, not a number
+     * the card can act on: collecting happens on the pass screen, where the reward
+     * is shown being opened (C8.6).
+     *
+     * plurals: one | other
+     */
+    passReady: '{n} tier ready to claim|{n} tiers ready to claim',
+    /** How long the season has left. `{duration}` arrives as a phrase ("12 days"). */
+    passSeasonEndsIn: 'Season ends in {duration}',
+    /** The last day, where a day counter would read "0 days". */
+    passSeasonEndsToday: 'Season ends today',
+    /** The ladder is finished: there is no tier above the last one to promise. */
+    passTopTier: 'Top tier of the season',
+    passTopTierBody: 'Tier {level} is the last one — collect what is left before the season ends.',
+    /**
+     * The way into the full ladder. One word on screen, so the reader is told which
+     * pass it opens.
+     */
+    passOpen: 'Open',
+    passOpenLabel: 'Open the Battle Pass — {season}',
   },
 
   games: {
