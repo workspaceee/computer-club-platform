@@ -492,6 +492,25 @@ export const lt: Dictionary = {
     streakDays: '{n} diena iš eilės|{n} dienos iš eilės|{n} dienų iš eilės',
     streakStart: 'Serija pradedama šiandien',
     streakLabel: 'Apsilankymų serija',
+
+    // „Tęsti“ — trys paskutiniai žaidimai, kiekvienas vienu paspaudimu (C3.2).
+    // Antraštė yra veiksmas, o ne bibliotekos „Neseniai žaisti“: tai ne istorija,
+    // o kelias atgal į tą partiją, iš kurios žaidėjas išėjo.
+    continueTitle: 'Tęsti',
+    continueLaunch: 'Paleisti {name} — {when}',
+    continueRunning: 'Jau veikia',
+    continueLaunching: 'Paleidžiama…',
+    continueEmpty: 'Žaidimų kol kas nėra',
+    continueEmptyBody:
+      'Paleisk ką nors iš bibliotekos — žaidimas lauks čia, ir nuo kito apsilankymo į jį grįši vienu paspaudimu.',
+    // Praėjęs laikas, o ne kalendorius: 23:50 palikta partija ryte yra „prieš
+    // 8 valandas“, ir būtent tai žaidėjui rūpi.
+    // plurals lt: one | few | other
+    playedJustNow: 'Žaista ką tik',
+    playedMinutesAgo:
+      'Žaista prieš {n} minutę|Žaista prieš {n} minutes|Žaista prieš {n} minučių',
+    playedHoursAgo: 'Žaista prieš {n} valandą|Žaista prieš {n} valandas|Žaista prieš {n} valandų',
+    playedDaysAgo: 'Žaista prieš {n} dieną|Žaista prieš {n} dienas|Žaista prieš {n} dienų',
   },
 
   games: {
@@ -515,6 +534,32 @@ export const lt: Dictionary = {
     openLibrary: 'Atidaryti biblioteką',
     noAccounts: 'Laisvų paskyrų nėra',
     noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
+
+    // Paleidimo dialogo vardas (C3.2): matoma antraštė nupiešta ant viršelio,
+    // todėl ekrano skaitytuvui pavadinimas duodamas atskirai.
+    launchDialog: 'Paleisti {name}',
+    launchDialogPending: 'Paleisti žaidimą',
+
+    // Agento žingsniai — vienintelis dalykas, kurį žaidėjas mato tas sekundes (F2.4).
+    launchStepAccount: 'Ruošiama paskyra…',
+    launchStepSession: 'Įterpiama sesija…',
+    launchStepStart: 'Startuoja žaidimas…',
+
+    // Abu paleidimo baigties variantus rodo pats kabliukas, todėl greitas
+    // paleidimas iš „Tęsti“ kortelės sako tais pačiais žodžiais — be dialogo.
+    launchedToast: '{name} paleistas — paleidyklė nuleidžiama',
+    launchFailed: 'Paleisti nepavyko ({code})',
+
+    // Klubo paskyrų sąrašas (F3.4) — pasiūlytas pasirinkimas, o ne paleidimo
+    // parametras: užimtumą tvarko serveris. Todėl vienas paspaudimas jį praleidžia.
+    selectAccount: 'Pasirinkite paskyrą',
+    accountLinked: 'Priskirta: {name}',
+    // Parašyta žodžiais prie spalvoto taškelio: pats taškelis nieko nepasako nei
+    // skaitytuvui, nei tam, kas tų dviejų atspalvių neatskiria (F6.6).
+    accountAvailable: 'Laisva',
+    accountInUse: 'Užimta',
+    rememberAccount: 'Įsiminti pasirinkimą šiam žaidimui',
+
     inGame: 'Žaidime',
     inGameNow: 'Veikia {name}',
     inGameQuiet:

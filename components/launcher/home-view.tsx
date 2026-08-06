@@ -5,6 +5,7 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
+import { ContinueRow } from '@/components/launcher/continue-row'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
@@ -59,6 +60,11 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           and would have left the surface welcoming twice once a real greeting
           existed. */}
       <HomeGreeting />
+      {/* Above the hero, and that is the whole point (C3.2): a player who left a
+          match five minutes ago should meet the way back into it before they meet
+          the club's curated recommendations. It renders nothing on the guest
+          surface — the history is keyed to an account, and a walk-in has none. */}
+      <ContinueRow />
       <HeroCarousel />
       <QuickStats showLoyalty={!isGuest} />
       {/* The strip decides for itself what a guest may see: it asks the server as

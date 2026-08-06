@@ -753,6 +753,58 @@ export const en = {
     openLibrary: 'Open library',
     noAccounts: 'No accounts available',
     noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
+
+    /**
+     * The launch dialog's own name (C3.2).
+     *
+     * The visible title is painted into the cover art, so the dialog is named
+     * here instead — a reader must open with "Launch Civilization VII" and not
+     * with an unnamed dialog. `launchDialogPending` covers the frame before the
+     * game has arrived, which is short but not zero.
+     */
+    launchDialog: 'Launch {name}',
+    launchDialogPending: 'Launch game',
+
+    /**
+     * The agent's checklist, in order (see hooks/use-game-launch.ts).
+     *
+     * These three lines are the *only* thing on screen for the seconds a start
+     * takes, so they were the last place in the product that could afford a
+     * hardcoded English string (F2.4).
+     */
+    launchStepAccount: 'Preparing account…',
+    launchStepSession: 'Injecting session…',
+    launchStepStart: 'Starting game…',
+
+    /**
+     * Both outcomes of a start, raised as toasts by the hook — which is why they
+     * live in `games` and not in the dialog: quick launch from the "Continue"
+     * card produces the same two sentences without a dialog ever opening.
+     *
+     * The failure carries the API's code rather than its message: the wording is
+     * ours, the code is what an admin can act on (F2.2).
+     */
+    launchedToast: '{name} launched — minimizing the launcher',
+    launchFailed: 'Launch failed ({code})',
+
+    /**
+     * The house-account list (F3.4).
+     *
+     * A *choice offered* to the player, not a parameter the launch needs — the
+     * endpoint takes a game id and the server owns availability. That is exactly
+     * why one click from the "Continue" card is allowed to skip this list.
+     */
+    selectAccount: 'Select account',
+    accountLinked: 'Linked: {name}',
+    /**
+     * Written out next to every row, because the other half of this signal is a
+     * red or green disc — and a coloured dot announces nothing to a reader and
+     * nothing at all to a player who cannot tell the two hues apart (F6.6).
+     */
+    accountAvailable: 'Available',
+    accountInUse: 'In use',
+    rememberAccount: 'Remember my choice for this game',
+
     // F8.4 — the strip that *names* the silence. A launcher that simply stops
     // making sounds is indistinguishable from a broken one, and the player has
     // no way to learn the rule or to end the state.

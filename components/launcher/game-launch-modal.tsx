@@ -1,5 +1,23 @@
 'use client'
 
+/**
+ * The launch dialog (F3.4) — now one caller of the launch sequence, not the
+ * sequence itself (C3.2).
+ *
+ * Everything about *starting* a title moved to `useGameLaunch()`: the order of
+ * the endpoint and the agent's steps, the guard that keeps two titles off one
+ * machine, the confirmation toast, and the hand-over into `runningGameId`. What
+ * is left here is what only a dialog has — cover art large enough to confirm you
+ * picked the right game, the club's house accounts, and the checklist drawn from
+ * the hook's step index.
+ *
+ * The one thing to notice about the account list: it is a *choice offered* to the
+ * player, not something the sequence needs. `catalog.launchGame` takes a game id
+ * and the server owns availability, so the selection never leaves this component
+ * — which is exactly why the "Continue" card is allowed to skip the dialog and
+ * still start the same game the same way.
+ */
+
 import { motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
 import { useEffect, useId, useState } from 'react'
@@ -10,20 +28,18 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Overlay } from '@/components/ui/overlay'
 import { useApi } from '@/hooks/use-api'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
+import { LAUNCH_STEP_KEYS, useGameLaunch } from '@/hooks/use-game-launch'
 import { useT } from '@/lib/i18n/provider'
-import { fetchGame, fetchHouseAccounts, launchGame, toApiError } from '@/lib/mock/api'
+import { fetchGame, fetchHouseAccounts } from '@/lib/mock/api'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-
-const LAUNCH_STEPS = ['Preparing account...', 'Injecting session...', 'Starting game...']
 
 export function GameLaunchModal() {
   const { t } = useT()
   const launchGameId = useStore((s) => s.launchGameId)
   const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const setRunningGame = useStore((s) => s.setRunningGame)
-  const toast = useStore((s) => s.toast)
+  const { launch, launchingId, step } = useGameLaunch()
 
   // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
   // conditional on the modal being open, so nothing is fetched while it is shut.
@@ -37,15 +53,24 @@ export function GameLaunchModal() {
 
   const [account, setAccount] = useState<string | null>(null)
   const [remember, setRemember] = useState(false)
-  const [launching, setLaunching] = useState(false)
-  const [step, setStep] = useState(0)
+
+  /**
+   * Read from the store rather than kept locally, so "a launch is running" is the
+   * same fact here and on the "Continue" card. A local flag would have let this
+   * dialog stay dismissable — and its Launch button live — while a quick launch
+   * fired from the home surface was already talking to the machine.
+   *
+   * Scoped to *this* game: another title coming up is not a reason to freeze this
+   * dialog into a checklist that is not about it.
+   */
+  const launching = launchGameId !== null && launchingId === launchGameId
+  // A launch anywhere blocks this button, because the machine takes one title.
+  const blocked = launchingId !== null && !launching
 
   useEffect(() => {
     if (launchGameId) {
       setAccount(null)
       setRemember(false)
-      setLaunching(false)
-      setStep(0)
     }
   }, [launchGameId])
 
@@ -55,14 +80,6 @@ export function GameLaunchModal() {
     const free = houseAccounts.find((a) => a.status !== 'in-use')
     if (free) setAccount(free.id)
   }, [account, houseAccounts])
-
-  useEffect(() => {
-    if (!launching) return
-    const timers = LAUNCH_STEPS.map((_, i) =>
-      setTimeout(() => setStep(i), i * 1000),
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [launching])
 
   const close = () => {
     if (launching) return
@@ -81,33 +98,12 @@ export function GameLaunchModal() {
     closeOnEscape: !launching,
   })
 
-  const handleLaunch = async () => {
+  // No `setLaunching`, no timers, no toast: the hook closes this dialog itself
+  // when the start succeeds, because closing it is part of handing the machine
+  // over and not a separate thing the caller decides.
+  const handleLaunch = () => {
     if (!game) return
-    setLaunching(true)
-    setStep(0)
-    try {
-      // The endpoint answers in a few hundred ms, but the agent's own steps are the
-      // slow part — wait for both so the checklist is never cut short.
-      await Promise.all([
-        launchGame(game.id),
-        new Promise((resolve) => setTimeout(resolve, LAUNCH_STEPS.length * 1000)),
-      ])
-      // The confirmation belongs to the *launcher's* action and is raised while
-      // the launcher is still what the player is looking at, so it goes out
-      // before the machine is handed over.
-      toast('success', `${game.name} launched! Minimizing...`)
-      setLaunching(false)
-      setLaunchGame(null)
-      // From here the title holds the machine, and the shell goes quiet except
-      // for the session clock and an administrator (F8.4). This is the only
-      // place that enters that state, because it is the only place that knows a
-      // start actually succeeded — the dialog closing is not the same event.
-      setRunningGame(game.id)
-    } catch (err) {
-      setLaunching(false)
-      // The API answers with a code; the wording stays in the UI (F2.2).
-      toast('error', `Launch failed (${toApiError(err).code})`)
-    }
+    void launch(game)
   }
 
   return (
@@ -124,9 +120,10 @@ export function GameLaunchModal() {
         role="dialog"
         aria-modal="true"
         // The visible title is painted inside `GameCover`, so the name is given
-        // directly rather than referenced — a screen reader still opens with
-        // "Launch Civilization VII" instead of an unnamed dialog.
-        aria-label={game ? `Launch ${game.name}` : 'Launch game'}
+        // through `aria-labelledby` on a screen-reader-only line rather than
+        // referenced from art — a reader still opens with "Launch Civilization
+        // VII" instead of an unnamed dialog.
+        aria-labelledby={titleId}
         tabIndex={-1}
         initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -140,7 +137,10 @@ export function GameLaunchModal() {
           OVERLAY_MAX_H,
         )}
       >
-            <div className="relative shrink-0">
+        <p id={titleId} className="sr-only">
+          {game ? t('games.launchDialog', { name: game.name }) : t('games.launchDialogPending')}
+        </p>
+        <div className="relative shrink-0">
               {game ? (
                 <GameCover
                   game={game}
@@ -160,7 +160,7 @@ export function GameLaunchModal() {
                 // hover goes to `pill-deep`, the rung the depth scale keeps for
                 // exactly this (a plate on unvetted media, §3.3).
                 className="pill absolute right-3 top-3 rounded-lg p-1.5 text-text-high transition-colors hover:pill-deep disabled:opacity-40"
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <icons.close size={18} />
               </button>
@@ -172,7 +172,7 @@ export function GameLaunchModal() {
               {!launching ? (
                 <>
                   <p className="label-mono mb-3 text-[10px] text-text-low">
-                    Select account
+                    {t('games.selectAccount')}
                   </p>
                   <DataBoundary
                     state={accounts}
@@ -215,7 +215,11 @@ export function GameLaunchModal() {
                           )}
                         >
                           <div className="flex items-center gap-3">
+                            {/* Decoration: the same fact is written out to the
+                                right of the row, so the disc is not the only
+                                place availability lives (F6.6). */}
                             <span
+                              aria-hidden
                               className={cn(
                                 'h-2.5 w-2.5 rounded-full',
                                 disabled ? 'bg-danger' : 'bg-success',
@@ -224,12 +228,14 @@ export function GameLaunchModal() {
                             <div>
                               <p className="text-sm font-semibold text-text-high">{acc.label}</p>
                               {acc.linkedUser && (
-                                <p className="text-xs text-text-low">Linked: {acc.linkedUser}</p>
+                                <p className="text-xs text-text-low">
+                                  {t('games.accountLinked', { name: acc.linkedUser })}
+                                </p>
                               )}
                             </div>
                           </div>
                           <span className="text-xs font-medium text-text-medium">
-                            {disabled ? 'In Use' : 'Available'}
+                            {disabled ? t('games.accountInUse') : t('games.accountAvailable')}
                           </span>
                         </button>
                       )
@@ -245,7 +251,7 @@ export function GameLaunchModal() {
                       onChange={(e) => setRemember(e.target.checked)}
                       className="h-4 w-4 accent-primary"
                     />
-                    Remember my choice for this game
+                    {t('games.rememberAccount')}
                   </label>
 
                   <div className="mt-6 flex gap-3">
@@ -253,37 +259,49 @@ export function GameLaunchModal() {
                       onClick={close}
                       className="flex-1 rounded-lg border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleLaunch}
-                      disabled={!game || !account}
+                      // `blocked`: a quick launch fired from the home surface
+                      // owns the machine already, and this dialog must not queue
+                      // a second title behind it.
+                      disabled={!game || !account || blocked}
                       className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Launch
+                      {t('games.launch')}
                     </button>
                   </div>
                 </>
               ) : (
+                // The checklist is drawn from the hook's step index, so the
+                // dialog and the "Continue" card cannot disagree about how far
+                // along a launch is.
                 <div className="flex flex-col items-center gap-4 py-6">
                   <icons.pending size={40} className="animate-spin text-primary" />
-                  <div className="flex flex-col items-center gap-2">
-                    {LAUNCH_STEPS.map((label, i) => (
+                  {/* The only thing on screen for the seconds a start takes, so
+                      it is announced rather than only painted. */}
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="flex flex-col items-center gap-2"
+                  >
+                    {LAUNCH_STEP_KEYS.map((key, i) => (
                       <div
-                        key={label}
+                        key={key}
                         className={cn(
                           'flex items-center gap-2 text-sm transition-colors',
                           i <= step ? 'text-text-high' : 'text-text-low',
                         )}
                       >
                         {i < step ? (
-                          <icons.check size={14} className="text-success" />
+                          <icons.check size={14} aria-hidden className="text-success" />
                         ) : i === step ? (
-                          <icons.pending size={14} className="animate-spin text-primary" />
+                          <icons.pending size={14} aria-hidden className="animate-spin text-primary" />
                         ) : (
-                          <span className="h-3.5 w-3.5" />
+                          <span aria-hidden className="h-3.5 w-3.5" />
                         )}
-                        {label}
+                        {t(key)}
                       </div>
                     ))}
                   </div>

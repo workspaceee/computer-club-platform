@@ -99,6 +99,10 @@ export function ContinueRow() {
 
   return (
     <section aria-labelledby="continue-heading">
+      {/* `03`, matching the surface's existing run: the hero and the stat tiles
+          above it carry no heading at all, but the ladder and the leaderboard
+          below are already numbered 04 and 05, so this is the section that
+          precedes them. */}
       <SectionHeader index="03" title={t('home.continueTitle')} headingId="continue-heading" />
       <DataBoundary
         state={recent}
