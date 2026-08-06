@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
 import { ProductImage } from '@/components/product-image'
 import { Drawer } from '@/components/ui/drawer'
+import { useClubHours } from '@/hooks/use-club-hours'
 import { useT } from '@/lib/i18n/provider'
 import { formatEur, mulCents } from '@/lib/money'
 import { cartTotalCents, useStore } from '@/lib/store'
@@ -40,6 +41,17 @@ export function CartDrawer() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const totalCents = cartTotalCents(cart)
 
+  /**
+   * Closing stops *selling*, and a cart filled at 23:58 is the one way a purchase
+   * could still land after the doors shut (C2.11): the grid's "Add" buttons go off
+   * with the club, but items already in here kept their way to checkout. Blocked
+   * at the button rather than by emptying the cart — the club will be open again
+   * tomorrow and the player's picks are worth keeping — and the line under it says
+   * *why*, because a disabled primary action with no explanation reads as a bug.
+   */
+  const club = useClubHours()
+  const clubClosed = club.ready && !club.open
+
   return (
     <>
       <Drawer
@@ -56,12 +68,17 @@ export function CartDrawer() {
               </span>
             </div>
             <button
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || clubClosed}
               onClick={() => setCheckoutOpen(true)}
               className="w-full rounded-lg bg-primary py-3 font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('shop.checkout')}
             </button>
+            {clubClosed && (
+              <p className="text-pretty text-center text-xs leading-relaxed text-text-low">
+                {t('shop.closedCheckoutHint')}
+              </p>
+            )}
           </div>
         }
       >
