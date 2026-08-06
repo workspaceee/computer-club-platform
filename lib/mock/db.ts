@@ -501,6 +501,13 @@ export interface PlayerStats {
   seasonHours: number
   seasonCoins: Coins
   achievementsUnlocked: number
+  /**
+   * Consecutive visit days, today included (C3.1). Optional because only the
+   * signed-in member's streak is ever rendered — the leaderboard ranks by season
+   * hours, so authoring twelve streaks nobody reads would be twelve numbers that
+   * can silently drift out of step with the sessions around them.
+   */
+  visitStreak?: number
 }
 
 /** A demo account bundled with everything the UI needs about it. */
@@ -553,7 +560,7 @@ const playersList: DemoPlayer[] = [
     12,
     6400,
     { moneyCents: 1750, coins: 1250 },
-    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11 },
+    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11, visitStreak: 4 },
     { machineId: CURRENT_MACHINE_ID, playingGameId: 'cs2' },
     { email: 'demo@imba.club' },
   ),

@@ -478,6 +478,22 @@ export const lt: Dictionary = {
     closedDismissHint: 'Stotį išjungs administratorius asmeniškai — ne paleidyklė.',
   },
 
+  home: {
+    greetMorning: 'Labas rytas, {name}',
+    greetAfternoon: 'Laba diena, {name}',
+    greetEvening: 'Labas vakaras, {name}',
+    greetNight: 'Vis dar žaidi, {name}',
+    level: '{level} lygis',
+    levelProgress: '{xp} iš {max} XP iki {next} lygio',
+    levelProgressShort: '{xp} / {max} XP',
+    playingFor: 'Žaidžiama {duration}',
+    justArrived: 'Ką tik atsisėdai',
+    // plurals lt: one | few | other
+    streakDays: '{n} diena iš eilės|{n} dienos iš eilės|{n} dienų iš eilės',
+    streakStart: 'Serija pradedama šiandien',
+    streakLabel: 'Apsilankymų serija',
+  },
+
   games: {
     title: 'Žaidimai',
     subtitle: 'Viskas, kas įdiegta šioje stotyje, paruošta paleisti.',
