@@ -638,6 +638,41 @@ export const lt: Dictionary = {
       'Pridėk tuos, su kuriais žaidi klube, ir kortelė parodys, prie kurio kompiuterio jie sėdi.',
     clubNowEmpty: 'Kol kas nėra ką parodyti',
     clubNowEmptyBody: 'Klubas dar nesužymėjo zonų — pasitikslink pas darbuotojus.',
+
+    // „Turnyras“ — artimiausias tinklelis ir laikas iki starto (C3.8).
+    tournamentTitle: 'Turnyras',
+    tournamentSubtitle: 'Artimiausias klubo tinklelis — ir laikas iki jo.',
+    tournamentAll: 'Visi turnyrai',
+    tournamentAllLabel: 'Atidaryti turnyrų skyrių',
+    tournamentStartsIn: 'Iki starto',
+    tournamentStartingNow: 'Startuoja dabar',
+    tournamentStartsAt: 'Startas {time}',
+    // formos: viena | kelios | kita
+    tournamentSlots:
+      'liko {n} vieta iš {total}|liko {n} vietos iš {total}|liko {n} vietų iš {total}',
+    tournamentNoSlots: 'Vietų nėra',
+    tournamentPrize: 'Pirma vieta',
+    tournamentEntry: 'Startinis mokestis',
+    tournamentFree: 'Dalyvavimas nemokamas',
+    tournamentFormat: 'Formatas',
+    tournamentFormatSingleElim: 'Vienguba eliminacija',
+    tournamentFormatDoubleElim: 'Dviguba eliminacija',
+    tournamentFormatRoundRobin: 'Ratų sistema',
+    tournamentFormatSwiss: 'Šveicariška sistema',
+    tournamentJoin: 'Dalyvauti',
+    tournamentJoinLabel: 'Dalyvauti {name}',
+    tournamentJoinedToast: 'Tu tinklelyje: {name}',
+    tournamentCheckIn: 'Registruotis',
+    tournamentCheckInLabel: 'Registruotis į {name}',
+    tournamentCheckedInToast: 'Registracija priimta — {name}',
+    tournamentCheckedIn: 'Užsiregistravai',
+    tournamentRegistered: 'Tu dalyvauji',
+    tournamentFull: 'Vietų nėra',
+    tournamentCantAfford: 'Balanse nepakanka startiniam mokesčiui.',
+    tournamentClosedHint: 'Registracija atsidarys kartu su klubu.',
+    tournamentEmpty: 'Turnyrų dar nepaskelbta',
+    tournamentEmptyBody:
+      'Klubas skelbia naujus turnyrus kas savaitę — darbuotojai žinos, kas bus toliau.',
   },
 
   games: {
