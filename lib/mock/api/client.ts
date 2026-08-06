@@ -11,6 +11,7 @@
 //     the dictionaries (`errors` namespace, F2.2). The API never returns prose.
 //  3. Responses are deep-cloned, so a component that mutates what it received
 //     cannot corrupt the store — exactly like a real JSON response.
+import { DEV_SHORTCUTS, readEndpointFault } from '@/lib/dev-flags'
 import { db } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 
@@ -213,6 +214,27 @@ export const mockFaults = {
       latencyFactor: faults.latencyFactor,
     }
   },
+}
+
+/**
+ * Arms `?fail=<endpoint>[:code]` before the page's first read (C3.3).
+ *
+ * Module scope rather than an effect: the first `query()` can be in flight before
+ * any component has mounted, and a fault that lands after it would leave the
+ * screen showing data on the very load that asked to see the failure. The client
+ * bundle evaluates this once, and the `window` guard keeps the server render out
+ * of it — the switch describes what *this tab* asked for, not what SSR produced.
+ *
+ * The code is validated against `STATUS`, the one list of codes that exists, so a
+ * typo falls back to `generic` instead of arming a fault whose `status` is
+ * `undefined`.
+ */
+if (DEV_SHORTCUTS && typeof window !== 'undefined') {
+  const armed = readEndpointFault()
+  if (armed) {
+    const code = armed.code && armed.code in STATUS ? (armed.code as ApiErrorCode) : 'generic'
+    faults.always.set(armed.endpoint, code)
+  }
 }
 
 /** Which fault, if any, applies to this call. Consumes one-shots. */

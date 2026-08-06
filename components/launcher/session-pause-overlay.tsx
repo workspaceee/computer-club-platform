@@ -37,6 +37,7 @@ import { useCallback, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Overlay } from '@/components/ui/overlay'
 import { formatRemainder } from '@/components/auth/session-paused'
+import { scrimPeekEnabled } from '@/lib/dev-flags'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
@@ -79,6 +80,12 @@ export function SessionPauseOverlay() {
   const [called, setCalled] = useState(false)
 
   useRealtimeEvent('session.paused', (event) => {
+    // Dev-only, and dropped from a production build: the console can raise a pause
+    // with the scrim lifted so the launcher *under* it can be reviewed — the one
+    // line the session card prints about a stopped clock has no other way to be
+    // looked at (C3.3, `lib/dev-flags.ts`). The pause itself is untouched: the
+    // snapshot still lands, the clock still stops. Only this screen stands aside.
+    if (scrimPeekEnabled()) return
     setReason(event.payload.reason)
     // A fresh pause is a fresh wait: the admin who lifted the last one is not
     // necessarily watching this one, so the call button is offered again.

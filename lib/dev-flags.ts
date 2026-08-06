@@ -83,3 +83,94 @@ export function readClubHoursOverride(): ClubHoursOverride | null {
   if (!value) return null
   return OVERRIDES[value] ?? null
 }
+
+/**
+ * Standing in an outage **with a visit running** (C2.12 / C3.3).
+ *
+ * The bus console already cuts the link, and for the shop that was enough. It is
+ * not enough for anything that needs a *second* condition set at boot: the mock
+ * db and the channel live in the tab's module instance, so a reload — the only way
+ * to hand the app a `?club=…` — puts the link back up. The two states a reviewer
+ * has to see together, an open club and a dead link, were therefore unreachable
+ * by construction, which is exactly how they ended up in the debt list of both
+ * tasks.
+ *
+ *   `/?link=cut`    boot with the cable out — the banner, the sales gate, the
+ *                   offline line on the session card
+ *   `/?link=blip`   the same, then the cable goes back in after
+ *                   `LINK_BLIP_MS`, so the reconnect edge (silent resync, one
+ *                   "connection restored" toast) can be watched **while the clock
+ *                   is running** rather than on a login screen
+ *
+ * It cuts the *real* link, the same call the console's button makes — status,
+ * backoff, the queued backlog and the delayed banner all behave exactly as they
+ * do in the product. Nothing about the outage is faked; only the moment it starts
+ * is chosen for us.
+ */
+export type LinkOverride = 'cut' | 'blip'
+
+/** How long `?link=blip` stays down. Past the banner delay, inside the backoff. */
+export const LINK_BLIP_MS = 9_000
+
+export function readLinkOverride(): LinkOverride | null {
+  if (!DEV_SHORTCUTS || typeof window === 'undefined') return null
+  const value = new URLSearchParams(window.location.search).get('link')
+  return value === 'cut' || value === 'blip' ? value : null
+}
+
+/**
+ * Failing one endpoint on purpose (C3.3).
+ *
+ * Every screen that reads has an error branch, and a reviewer has no way to reach
+ * one: the mock never fails on its own, and `mockFaults` is a module handle with
+ * no UI. So the switch names the endpoint, and the transport arms it before the
+ * first read of the page:
+ *
+ *   `/?fail=session.fetchSessionDetail`           → `generic`
+ *   `/?fail=session.fetchSessionDetail:timeout`   → any `ApiErrorCode`
+ *
+ * The endpoint string is the one `query()` / `mutate()` is called with, so the
+ * switch needs no registry to keep in sync — an endpoint that no longer exists
+ * simply never matches. The code is validated by the transport, which is the file
+ * that owns the list.
+ */
+export interface EndpointFault {
+  endpoint: string
+  /** Unvalidated here on purpose — `client.ts` owns the code list. */
+  code: string | null
+}
+
+export function readEndpointFault(): EndpointFault | null {
+  if (!DEV_SHORTCUTS || typeof window === 'undefined') return null
+  const value = new URLSearchParams(window.location.search).get('fail')
+  if (!value) return null
+  const [endpoint, code] = value.split(':')
+  if (!endpoint) return null
+  return { endpoint, code: code ?? null }
+}
+
+/**
+ * Reviewing the layer *under* a blocking overlay (C3.3).
+ *
+ * An admin pause is the only state in the product that stops the clock with the
+ * launcher still mounted, and it deliberately covers the launcher with a scrim
+ * nothing dismisses (C2.7) — so the one line the session card prints about a
+ * stopped clock cannot be looked at while the state that prints it is in force.
+ *
+ * This lifts the scrim and **nothing else**: the pause is published by the console
+ * as always, the snapshot lands, the clock stops, the card renders what it really
+ * renders. Module state rather than a query parameter, because the pause is raised
+ * in this tab and a reload would throw it away — the same reason the console's own
+ * link switch is not in the URL.
+ */
+let scrimPeek = false
+
+/** Called by the bus console's "pause, no scrim" button. */
+export function setScrimPeek(on: boolean): void {
+  scrimPeek = DEV_SHORTCUTS && on
+}
+
+/** Read by the overlays that would otherwise cover the screen under review. */
+export function scrimPeekEnabled(): boolean {
+  return DEV_SHORTCUTS && scrimPeek
+}
