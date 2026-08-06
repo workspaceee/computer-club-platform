@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 /**
  * Starting a title on this machine — the one door (C3.2).
@@ -37,11 +37,11 @@
  * the club's network is the worst possible moment to take a player's game away.
  */
 
-import { useCallback, useEffect, useState } from 'react'
-import { useT } from '@/lib/i18n/provider'
-import type { TKey } from '@/lib/i18n/types'
-import { launchGame, toApiError } from '@/lib/mock/api'
-import { useStore } from '@/lib/store'
+import { useCallback, useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/provider";
+import type { TKey } from "@/lib/i18n/types";
+import { launchGame, toApiError } from "@/lib/mock/api";
+import { useStore } from "@/lib/store";
 
 /**
  * The agent's own steps, in order.
@@ -51,16 +51,16 @@ import { useStore } from '@/lib/store'
  * sentence in the product's slowest moment (F2.4).
  */
 export const LAUNCH_STEP_KEYS: readonly TKey[] = [
-  'games.launchStepAccount',
-  'games.launchStepSession',
-  'games.launchStepStart',
-]
+  "games.launchStepAccount",
+  "games.launchStepSession",
+  "games.launchStepStart",
+];
 
 /** How long each step is shown. The mock's stand-in for agent telemetry. */
-const STEP_MS = 1000
+const STEP_MS = 1000;
 
 /** Total length of the simulated hand-over. */
-export const LAUNCH_TOTAL_MS = LAUNCH_STEP_KEYS.length * STEP_MS
+export const LAUNCH_TOTAL_MS = LAUNCH_STEP_KEYS.length * STEP_MS;
 
 export interface GameLaunchController {
   /**
@@ -70,22 +70,22 @@ export interface GameLaunchController {
    * title, and a caller that has a card on screen already holds it — refetching
    * the name inside the sequence would make the toast wait on a request.
    */
-  launch: (game: { id: string; name: string }) => Promise<void>
+  launch: (game: { id: string; name: string }) => Promise<void>;
   /** The title this launcher is bringing up, from anywhere in the shell. */
-  launchingId: string | null
+  launchingId: string | null;
   /** Index into `LAUNCH_STEP_KEYS` — for surfaces that draw the checklist. */
-  step: number
+  step: number;
   /** `true` while any launch is in flight. */
-  busy: boolean
+  busy: boolean;
 }
 
 export function useGameLaunch(): GameLaunchController {
-  const { t } = useT()
-  const launchingId = useStore((s) => s.launchingGameId)
-  const setLaunchingGame = useStore((s) => s.setLaunchingGame)
-  const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const setRunningGame = useStore((s) => s.setRunningGame)
-  const toast = useStore((s) => s.toast)
+  const { t } = useT();
+  const launchingId = useStore((s) => s.launchingGameId);
+  const setLaunchingGame = useStore((s) => s.setLaunchingGame);
+  const setLaunchGame = useStore((s) => s.setLaunchGame);
+  const setRunningGame = useStore((s) => s.setRunningGame);
+  const toast = useStore((s) => s.toast);
 
   /**
    * The step index stays local while the id is global: which title is coming up
@@ -93,48 +93,50 @@ export function useGameLaunch(): GameLaunchController {
    * to the surface drawing it. Putting the index in the store would add a write
    * per second to state that half the product subscribes to.
    */
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(0);
 
   // Driven off the store flag rather than from inside `launch()`, so the timers
   // are cleaned up if the surface unmounts mid-launch — a dialog closing must not
   // leave three `setTimeout`s writing into a dead component.
   useEffect(() => {
-    if (launchingId === null) return
-    setStep(0)
-    const timers = LAUNCH_STEP_KEYS.map((_, i) => setTimeout(() => setStep(i), i * STEP_MS))
-    return () => timers.forEach(clearTimeout)
-  }, [launchingId])
+    if (launchingId === null) return;
+    setStep(0);
+    const timers = LAUNCH_STEP_KEYS.map((_, i) =>
+      setTimeout(() => setStep(i), i * STEP_MS),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [launchingId]);
 
   const launch = useCallback(
     async (game: { id: string; name: string }) => {
       // The guard reads the store, so it holds across surfaces and across a
       // double click that arrives before React has re-rendered the first one.
-      if (useStore.getState().launchingGameId !== null) return
-      setLaunchingGame(game.id)
+      if (useStore.getState().launchingGameId !== null) return;
+      setLaunchingGame(game.id);
 
       try {
         await Promise.all([
           launchGame(game.id),
           new Promise((resolve) => setTimeout(resolve, LAUNCH_TOTAL_MS)),
-        ])
+        ]);
         // Raised while the launcher is still what the player is looking at: from
         // the next line on, the title holds the screen.
-        toast('success', t('games.launchedToast', { name: game.name }))
-        setLaunchingGame(null)
+        toast("success", t("games.launchedToast", { name: game.name }));
+        setLaunchingGame(null);
         // Closes the dialog when there was one. Quick launch never opened it, and
         // `null → null` is not a state change.
-        setLaunchGame(null)
+        setLaunchGame(null);
         // The only place the shell enters "a game holds the machine" (F8.4),
         // because it is the only place that knows a start succeeded.
-        setRunningGame(game.id)
+        setRunningGame(game.id);
       } catch (err) {
-        setLaunchingGame(null)
+        setLaunchingGame(null);
         // The API answers with a code; the sentence is ours (F2.2).
-        toast('error', t('games.launchFailed', { code: toApiError(err).code }))
+        toast("error", t("games.launchFailed", { code: toApiError(err).code }));
       }
     },
     [setLaunchingGame, setLaunchGame, setRunningGame, toast, t],
-  )
+  );
 
-  return { launch, launchingId, step, busy: launchingId !== null }
+  return { launch, launchingId, step, busy: launchingId !== null };
 }

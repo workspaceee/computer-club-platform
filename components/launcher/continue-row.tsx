@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 /**
  * "Continue" — the last three titles, one click back into any of them (C3.2).
@@ -21,32 +21,37 @@
  * likely to be coming back to.
  */
 
-import { motion } from 'framer-motion'
-import { useCallback } from 'react'
-import { DataBoundary } from '@/components/data-boundary'
-import { GameCover } from '@/components/game-cover'
-import { Skeleton } from '@/components/skeleton'
-import { EmptyState } from '@/components/ui/empty-state'
-import { SectionHeader } from '@/components/ui/section-header'
-import { useApi } from '@/hooks/use-api'
-import { useGameLaunch } from '@/hooks/use-game-launch'
-import { useT } from '@/lib/i18n/provider'
-import { icons } from '@/lib/icons'
-import { fetchRecentGames, type RecentGame } from '@/lib/mock/api'
-import { useStore } from '@/lib/store'
-import { SECONDS_PER_HOUR, SECONDS_PER_MINUTE, secondsSince, serverNowMs } from '@/lib/time'
-import type { TKey } from '@/lib/i18n/types'
-import { cn } from '@/lib/utils'
+import { motion } from "framer-motion";
+import { useCallback } from "react";
+import { DataBoundary } from "@/components/data-boundary";
+import { GameCover } from "@/components/game-cover";
+import { Skeleton } from "@/components/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeader } from "@/components/ui/section-header";
+import { useApi } from "@/hooks/use-api";
+import { useGameLaunch } from "@/hooks/use-game-launch";
+import { useT } from "@/lib/i18n/provider";
+import { icons } from "@/lib/icons";
+import { fetchRecentGames, type RecentGame } from "@/lib/mock/api";
+import { useStore } from "@/lib/store";
+import {
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+  secondsSince,
+  serverNowMs,
+} from "@/lib/time";
+import type { TKey } from "@/lib/i18n/types";
+import { cn } from "@/lib/utils";
 
 /**
  * Three, from the task. Kept as a named constant because it is also the column
  * count of the grid below — the row must not be able to ask for four titles and
  * then lay out three.
  */
-const CONTINUE_SLOTS = 3
+const CONTINUE_SLOTS = 3;
 
 /** Below this a start is "just now" — a number of minutes would read as noise. */
-const JUST_NOW_SECONDS = 2 * SECONDS_PER_MINUTE
+const JUST_NOW_SECONDS = 2 * SECONDS_PER_MINUTE;
 
 /**
  * "When did I last play this", as a plural key plus its count.
@@ -62,14 +67,18 @@ const JUST_NOW_SECONDS = 2 * SECONDS_PER_MINUTE
  * off report a launch from ten minutes ago as an hour old.
  */
 function lastPlayed(iso: string): { key: TKey; count: number } {
-  const seconds = secondsSince(iso, serverNowMs())
-  if (seconds < JUST_NOW_SECONDS) return { key: 'home.playedJustNow', count: 0 }
+  const seconds = secondsSince(iso, serverNowMs());
+  if (seconds < JUST_NOW_SECONDS)
+    return { key: "home.playedJustNow", count: 0 };
   if (seconds < SECONDS_PER_HOUR) {
-    return { key: 'home.playedMinutesAgo', count: Math.floor(seconds / SECONDS_PER_MINUTE) }
+    return {
+      key: "home.playedMinutesAgo",
+      count: Math.floor(seconds / SECONDS_PER_MINUTE),
+    };
   }
-  const hours = Math.floor(seconds / SECONDS_PER_HOUR)
-  if (hours < 24) return { key: 'home.playedHoursAgo', count: hours }
-  return { key: 'home.playedDaysAgo', count: Math.floor(hours / 24) }
+  const hours = Math.floor(seconds / SECONDS_PER_HOUR);
+  if (hours < 24) return { key: "home.playedHoursAgo", count: hours };
+  return { key: "home.playedDaysAgo", count: Math.floor(hours / 24) };
 }
 
 /**
@@ -80,22 +89,23 @@ function lastPlayed(iso: string): { key: TKey; count: number } {
  * would be showing a walk-in the previous member's games.
  */
 export function ContinueRow() {
-  const { t, tp } = useT()
-  const user = useStore((s) => s.user)
-  const setView = useStore((s) => s.setView)
-  const runningGameId = useStore((s) => s.runningGameId)
-  const { launch, launchingId, busy } = useGameLaunch()
+  const { t, tp } = useT();
+  const user = useStore((s) => s.user);
+  const setView = useStore((s) => s.setView);
+  const runningGameId = useStore((s) => s.runningGameId);
+  const { launch, launchingId, busy } = useGameLaunch();
 
   // `GET /api/games/recent`, keyed by the member so a sign-out cannot leave the
   // next player looking at a cached row. Null key on the guest surface: nothing
   // is fetched for somebody who has no history to fetch.
-  const recent = useApi(user ? ['games/recent', user.email, CONTINUE_SLOTS] : null, () =>
-    fetchRecentGames(undefined, CONTINUE_SLOTS),
-  )
+  const recent = useApi(
+    user ? ["games/recent", user.email, CONTINUE_SLOTS] : null,
+    () => fetchRecentGames(undefined, CONTINUE_SLOTS),
+  );
 
-  const openLibrary = useCallback(() => setView('games'), [setView])
+  const openLibrary = useCallback(() => setView("games"), [setView]);
 
-  if (!user) return null
+  if (!user) return null;
 
   return (
     <section aria-labelledby="continue-heading">
@@ -103,7 +113,11 @@ export function ContinueRow() {
           above it carry no heading at all, but the ladder and the leaderboard
           below are already numbered 04 and 05, so this is the section that
           precedes them. */}
-      <SectionHeader index="03" title={t('home.continueTitle')} headingId="continue-heading" />
+      <SectionHeader
+        index="03"
+        title={t("home.continueTitle")}
+        headingId="continue-heading"
+      />
       <DataBoundary
         state={recent}
         errorBare
@@ -123,9 +137,9 @@ export function ContinueRow() {
             bare
             size="sm"
             icon={icons.games}
-            title={t('home.continueEmpty')}
-            description={t('home.continueEmptyBody')}
-            actionLabel={t('games.openLibrary')}
+            title={t("home.continueEmpty")}
+            description={t("home.continueEmptyBody")}
+            actionLabel={t("games.openLibrary")}
             onAction={openLibrary}
           />
         }
@@ -152,7 +166,7 @@ export function ContinueRow() {
         )}
       </DataBoundary>
     </section>
-  )
+  );
 }
 
 /**
@@ -164,7 +178,9 @@ export function ContinueRow() {
  * are three tab stops, which is cheaper than the mode.
  */
 function Row({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{children}</div>
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{children}</div>
+  );
 }
 
 function ContinueCard({
@@ -176,29 +192,29 @@ function ContinueCard({
   onLaunch,
   label,
 }: {
-  row: RecentGame
-  index: number
-  running: boolean
-  launching: boolean
-  blocked: boolean
-  onLaunch: () => void
-  label: (count: number, key: TKey) => string
+  row: RecentGame;
+  index: number;
+  running: boolean;
+  launching: boolean;
+  blocked: boolean;
+  onLaunch: () => void;
+  label: (count: number, key: TKey) => string;
 }) {
-  const { t } = useT()
-  const { game } = row
-  const when = lastPlayed(row.lastPlayedAt)
-  const whenText = label(when.count, when.key)
+  const { t } = useT();
+  const { game } = row;
+  const when = lastPlayed(row.lastPlayedAt);
+  const whenText = label(when.count, when.key);
 
   // Three mutually exclusive states, and each one changes what the row *says*
   // rather than only how it looks: the meta line is the only line a player reads
   // twice.
   const status = running
-    ? t('home.continueRunning')
+    ? t("home.continueRunning")
     : launching
-      ? t('home.continueLaunching')
-      : whenText
+      ? t("home.continueLaunching")
+      : whenText;
 
-  const disabled = running || blocked || launching
+  const disabled = running || blocked || launching;
 
   return (
     <motion.button
@@ -208,17 +224,17 @@ function ContinueCard({
       // The visible text says the title and the state; the verb does not appear
       // on screen because the whole card is the control. Given to the reader
       // explicitly so the button announces an action and not just a name.
-      aria-label={t('home.continueLaunch', { name: game.name, when: status })}
+      aria-label={t("home.continueLaunch", { name: game.name, when: status })}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06 }}
       className={cn(
-        'glass group relative flex items-center gap-3 overflow-hidden rounded-lg p-2 pr-3 text-left transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        "glass group relative flex items-center gap-3 overflow-hidden rounded-lg p-2 pr-3 text-left transition-all",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         disabled
-          ? 'cursor-default'
-          : 'hover:border-primary/45 hover:shadow-[0_0_24px_-10px_rgba(229,53,43,0.6)] active:translate-y-px',
-        blocked && 'opacity-45',
+          ? "cursor-default"
+          : "hover:border-primary/45 hover:shadow-[0_0_24px_-10px_rgba(229,53,43,0.6)] active:translate-y-px",
+        blocked && "opacity-45",
       )}
     >
       <span className="relative shrink-0 overflow-hidden rounded-md">
@@ -236,18 +252,22 @@ function ContinueCard({
         <span
           aria-hidden
           className={cn(
-            'scrim absolute inset-0 flex items-center justify-center transition-opacity',
+            "scrim absolute inset-0 flex items-center justify-center transition-opacity",
             launching
-              ? 'opacity-100'
+              ? "opacity-100"
               : running || blocked
-                ? 'opacity-0'
-                : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
+                ? "opacity-0"
+                : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
           )}
         >
           {launching ? (
             <icons.pending size={18} className="animate-spin text-primary" />
           ) : (
-            <icons.play size={18} fill="currentColor" className="text-primary" />
+            <icons.play
+              size={18}
+              fill="currentColor"
+              className="text-primary"
+            />
           )}
         </span>
       </span>
@@ -260,11 +280,17 @@ function ContinueCard({
           {running ? (
             <icons.games size={11} aria-hidden className="text-warning" />
           ) : launching ? (
-            <icons.pending size={11} aria-hidden className="animate-spin text-primary" />
+            <icons.pending
+              size={11}
+              aria-hidden
+              className="animate-spin text-primary"
+            />
           ) : (
             <icons.clock size={11} aria-hidden />
           )}
-          <span className={cn('truncate', running && 'text-warning')}>{status}</span>
+          <span className={cn("truncate", running && "text-warning")}>
+            {status}
+          </span>
         </span>
       </span>
 
@@ -278,5 +304,5 @@ function ContinueCard({
         />
       )}
     </motion.button>
-  )
+  );
 }
