@@ -856,6 +856,47 @@ export const en = {
      */
     passOpen: 'Open',
     passOpenLabel: 'Open the Battle Pass — {season}',
+
+    /**
+     * "The bar" — three rows and a basket, on the home screen (C3.6).
+     *
+     * The card is a shortcut, not a menu: the club's most-ordered rows with the
+     * one button that matters, so a player who wants a cola does not cross the
+     * shop's three tabs and 37 cards to get one. Product names, descriptions and
+     * the campaign copy are all admin-authored and printed as the club wrote them
+     * — everything here is the frame around them (F2.2).
+     */
+    barTitle: 'The bar',
+    /** Says where the ranking comes from, so "popular" is not the app's opinion. */
+    barSubtitle: 'What the club orders most — straight to your seat.',
+    /** The way to the full menu, for everything these three rows are not. */
+    barMenu: 'Whole menu',
+    barMenuLabel: 'Open the shop — the whole bar menu',
+    /**
+     * The visible label on a row's button. One word, because four of them share a
+     * card with prices and photographs and there is no room for a sentence.
+     */
+    barAdd: 'Add',
+    /**
+     * …which makes it four identical names in one card, so the accessible name is
+     * given the row it fills the basket with.
+     */
+    barAddLabel: 'Add to the basket: {name}',
+    /** The receipt for one tap. The drawer opens with it, so this only confirms which row. */
+    barAddedToast: '{name} added to the basket',
+    /**
+     * A row the counter has run out of never reaches this card, so this is the
+     * whole card having nothing to offer — a club with an empty bar list.
+     */
+    barEmpty: 'Nothing on the bar tonight',
+    barEmptyBody: 'The counter has not put anything on the menu yet — ask the staff what is around.',
+    /**
+     * Under the disabled add buttons while the club is shut (C2.11).
+     *
+     * The prices above stay true — there is simply nobody to pour it — so this is
+     * a "not yet", with the hour attached, rather than an error.
+     */
+    barClosedHint: 'The bar takes orders again when the club opens.',
   },
 
   games: {
