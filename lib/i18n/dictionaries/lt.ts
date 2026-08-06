@@ -591,6 +591,20 @@ export const lt: Dictionary = {
     // kurį praleidimą jis atidaro.
     passOpen: 'Atidaryti',
     passOpenLabel: 'Atidaryti Battle Pass — {season}',
+
+    // „Baras“ — trys pozicijos ir krepšelis pačiame pradžios ekrane (C3.6).
+    // Prekių pavadinimai ir akcijos tekstas — klubo, spausdinami kaip parašyta;
+    // čia tik rėmas aplink juos (F2.2).
+    barTitle: 'Baras',
+    barSubtitle: 'Ko klube užsisakoma daugiausia — tiesiai į tavo vietą.',
+    barMenu: 'Visas meniu',
+    barMenuLabel: 'Atidaryti parduotuvę — visas baro meniu',
+    barAdd: 'Įdėti',
+    barAddLabel: 'Įdėti į krepšelį: {name}',
+    barAddedToast: '{name} — krepšelyje',
+    barEmpty: 'Šįvakar bare nieko nėra',
+    barEmptyBody: 'Baras dar neišdėjo meniu — pasitikslinkite pas darbuotojus.',
+    barClosedHint: 'Baras priims užsakymą, kai klubas atsidarys.',
   },
 
   games: {

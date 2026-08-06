@@ -1553,6 +1553,32 @@ const promos: Promo[] = [
       refId: 'pass-night',
     },
   ),
+  // The bar's own campaign (C3.6). `surfaces: ['bar']` and nothing else: the
+  // promo strip higher up the same screen reads `home`, so a row listed on both
+  // would advertise one tray twice — once as a hero banner and once inside the
+  // card that can put it in the basket. No art of its own (`image: ''`): the card
+  // draws the promoted product's photograph, which is the thing being sold.
+  //
+  // The copy names no percentage. Discounts are not modelled in the cart, and
+  // `quoteCart` would price the combo at its catalogue price regardless, so a
+  // banner promising "−15 %" would be contradicted by the drawer one click later.
+  promo(
+    'promo-bar-combo',
+    'sale',
+    {
+      badge: 'Kitchen deal',
+      title: 'Solo Combo — burger, fries and a cola',
+      subtitle: 'One tray, one price, brought to your seat while the kitchen is quiet',
+    },
+    {
+      priority: 95,
+      endsAt: atHours(4),
+      surfaces: ['bar'],
+      image: '',
+      refType: 'product',
+      refId: 'combo-solo',
+    },
+  ),
   promo(
     'promo-fifa-ladder',
     'tournament',

@@ -5,6 +5,7 @@ import { icons, type LucideIcon } from '@/lib/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
+import { BarCard } from '@/components/launcher/bar-card'
 import { BattlePassCard } from '@/components/launcher/battle-pass-card'
 import { ContinueRow } from '@/components/launcher/continue-row'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
@@ -92,6 +93,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           for the same reason — season standing is keyed to an account, so a walk-in
           would be shown the previous member's tier. */}
       <BattlePassCard />
+      {/* The bar, under the loyalty block (C3.6). It is the one card on this screen
+          that spends money rather than earning it, so it comes after the block that
+          explains what the evening pays — and it is shown to a walk-in too: a guest
+          orders at the counter exactly like a member does. It carries the campaign
+          the promo strip above deliberately never sees (`surface: 'bar'`). */}
+      <BarCard surface={surface} />
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
         <Leaderboard />
@@ -328,10 +335,10 @@ function PrizeLadder() {
 
   return (
     <section>
-      {/* 06, not 04: the dailies card (C3.4) and the season card (C3.5) both
-          landed between the promo strip and this ladder, and each took a number
-          with it. */}
-      <SectionHeader index="06">Prize Ladder</SectionHeader>
+      {/* 07, not 04: the dailies card (C3.4), the season card (C3.5) and the bar
+          card (C3.6) all landed between the promo strip and this ladder, and each
+          took a number with it. */}
+      <SectionHeader index="07">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}
@@ -406,7 +413,7 @@ function Leaderboard() {
 
   return (
     <section>
-      <SectionHeader index="07">Leaderboard</SectionHeader>
+      <SectionHeader index="08">Leaderboard</SectionHeader>
       <div className="glass overflow-hidden rounded-xl">
         <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
           <span>#</span>
