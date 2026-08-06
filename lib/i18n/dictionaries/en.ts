@@ -1020,6 +1020,32 @@ export const en = {
     // plural: one | other
     pendingUpdates: '{n} update waiting|{n} updates waiting',
 
+    /* ---------------------------------------------------------------- *
+     * Money while the link is down (C2.12)
+     *
+     * Three shapes of one refusal, because it has to be stated wherever the
+     * player reaches for their money and a sentence that fits a section banner
+     * does not fit under a button:
+     *
+     *   salesTitle/salesBody  the banner in the shop — a refusal, and it repeats
+     *                         the promise that the clock is unaffected, because
+     *                         "you cannot buy" is exactly when a player starts
+     *                         wondering whether their minutes are burning.
+     *   salesHint             the line under a disabled Checkout / Extend.
+     *   salesRefused          the toast if a request is fired anyway (a click
+     *                         that beat the state, a form that was already open).
+     *                         It says *nothing was charged* — that is the only
+     *                         thing the player actually needs to know.
+     *
+     * Never "try again later": the shell retries the link by itself, and the
+     * buttons come back on their own the moment it is up.
+     * ---------------------------------------------------------------- */
+    salesTitle: 'Purchases are paused',
+    salesBody:
+      'The club server cannot confirm a payment right now. Your session is unaffected — the clock keeps running and your game is not interrupted.',
+    salesHint: 'Purchases resume by themselves once the link is back.',
+    salesRefused: 'No connection to the club server — nothing was charged.',
+
     timeAdded: '+{minutes} min added to your session',
     timeAddedByStaff: '+{minutes} min from the admin',
     sessionPaused: 'Session paused',
