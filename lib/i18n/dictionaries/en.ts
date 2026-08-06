@@ -897,6 +897,95 @@ export const en = {
      * a "not yet", with the hour attached, rather than an error.
      */
     barClosedHint: 'The bar takes orders again when the club opens.',
+
+    /**
+     * "The club now" — free seats by zone, and who of your friends is on the floor
+     * (C3.7).
+     *
+     * The one card on this screen about the *room* rather than about the account.
+     * Zone names and seat labels are club data and printed as they come; everything
+     * here is the frame (F2.2).
+     */
+    clubNowTitle: 'The club now',
+    /**
+     * Club-wide free seats, as a fraction — the headline the zone rows break down.
+     *
+     * A fraction and not a percentage: "8 of 40 free" is a decision, "20 % free" is
+     * a statistic, and the player is deciding whether to move a friend next to them.
+     */
+    clubNowFree: '{free} of {total} seats free',
+    /** A genuinely full club. Not an error — the counter will say the same thing. */
+    clubNowFull: 'Every seat taken',
+    /** Heads the per-zone breakdown, which is the "where" of that headline. */
+    clubNowZones: 'Free seats by zone',
+    /**
+     * A zone with nothing free. Said in words next to the zone name, because a `0`
+     * in a row of numbers is read as a number and not as a closed door.
+     */
+    clubNowZoneFull: 'Full',
+    /** Free seats in one zone. plurals: one | other */
+    clubNowZoneFree: '{n} free|{n} free',
+    /** Accessible name of a zone row: the count is a fraction on screen. */
+    clubNowZoneLabel: '{zone}: {free} of {total} seats free',
+    /**
+     * Heads the friend list. plurals: one | other
+     *
+     * "Here now" and not "Online": this card counts seats in this building, and a
+     * friend online from home is precisely the person it must not point at.
+     */
+    clubNowFriends: '{n} friend here now|{n} friends here now',
+    /**
+     * Which seat a friend is on. `{seat}` is the club's own label ("PC #17"), so
+     * the sentence works for a hall numbered any way the club likes.
+     */
+    clubNowFriendSeat: 'On {seat}',
+    /** …and what they are in. `{game}` is the title, printed as the library has it. */
+    clubNowFriendPlaying: 'Playing {game}',
+    /** A seated friend who has not launched anything yet. */
+    clubNowFriendIdle: 'Not in a game yet',
+    /**
+     * The button. A verb aimed at a person, because that is what pressing it does —
+     * it does not "create a party", it calls someone into the one you are in.
+     */
+    clubNowCall: 'Call to party',
+    /** The visible label is two words shared by every row, so the name carries who. */
+    clubNowCallLabel: 'Call {name} into the party',
+    /** The receipt. One line, because the drawerless action has nowhere else to報 answer. */
+    clubNowCalledToast: '{name} has been invited to the party',
+    /** Already asked — the invite is out and the answer is theirs to give. */
+    clubNowInvited: 'Invited',
+    /** Already in. Nothing to press, and the row says why. */
+    clubNowJoined: 'In your party',
+    /**
+     * The viewer has no title running and owns no party, so there is nothing to
+     * invite anyone *into*. Stated once under the list rather than as five disabled
+     * buttons with no explanation.
+     */
+    clubNowNeedGame: 'Start a game and you can pull friends into it from here.',
+    /**
+     * A friend who has switched party invites off in their own settings. Their
+     * choice, so the row states it plainly instead of offering a button that fails.
+     */
+    clubNowNoInvites: 'Not accepting invites',
+    /**
+     * What the party would form around, in the header. Present only when there is
+     * one — it is the answer to "invited to what".
+     */
+    clubNowPartyGame: 'Party in {game}',
+    /**
+     * Friends who are not in the club tonight — a count, never a roster.
+     *
+     * A greyed-out list of absent people would bury the two who are actually here,
+     * which is the only thing this card is for. plurals: one | other
+     */
+    clubNowAway: '{n} more friend is not in the club|{n} more friends are not in the club',
+    /** No friends seated, but the club is still worth describing — the zones remain. */
+    clubNowNoFriends: 'None of your friends are here yet',
+    clubNowNoFriendsBody:
+      'Add the players you meet at the club and this card will show which PC they are on.',
+    /** A club with no zones configured at all: the whole card has nothing to report. */
+    clubNowEmpty: 'Nothing to report yet',
+    clubNowEmptyBody: 'The club has not mapped its zones — ask the staff which seats are open.',
   },
 
   games: {
