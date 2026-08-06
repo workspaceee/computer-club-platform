@@ -1014,6 +1014,13 @@ export const en = {
     tournamentSlots: '{n} of {total} slot left|{n} of {total} slots left',
     /** A full bracket. Words, not a `0` in a row of numbers. */
     tournamentNoSlots: 'Bracket full',
+    /**
+     * Caption over the seat strip — the row of pips that draws the bracket as
+     * many seats, taken and free. "Slots" is already spoken by
+     * `tournamentSlots` beside it, so the caption names the *thing* filling up
+     * rather than repeating the noun.
+     */
+    tournamentSeats: 'Bracket',
     /** What first place pays. The club's own wording for the prize (F2.2). */
     tournamentPrize: 'First place',
     /** Entry fee. Either currency may be the whole price, or both may be charged. */

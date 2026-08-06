@@ -651,6 +651,7 @@ export const lt: Dictionary = {
     tournamentSlots:
       'liko {n} vieta iš {total}|liko {n} vietos iš {total}|liko {n} vietų iš {total}',
     tournamentNoSlots: 'Vietų nėra',
+    tournamentSeats: 'Tinklelis',
     tournamentPrize: 'Pirma vieta',
     tournamentEntry: 'Startinis mokestis',
     tournamentFree: 'Dalyvavimas nemokamas',
