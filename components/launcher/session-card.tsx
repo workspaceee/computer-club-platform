@@ -239,7 +239,15 @@ export function SessionCard() {
                 ))}
               </div>
               {/* The banked total above still reads correctly — the minutes are
-                  there, they just cannot be granted until the club confirms it. */}
+                  there, they just cannot be granted until the club confirms it.
+                  One line, whichever pause is in force: `reason` is exclusive, so
+                  a club that is both shut and unreachable gets the sentence with a
+                  reopening time rather than two explanations for one dead button. */}
+              {extendCtl.sales.reason === 'closed' && (
+                <p role="status" className="text-pretty text-xs leading-relaxed text-warning">
+                  {t('session.extendClosedHint')}
+                </p>
+              )}
               {extendCtl.sales.reason === 'offline' && (
                 <p role="status" className="text-pretty text-xs leading-relaxed text-warning">
                   {`${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}

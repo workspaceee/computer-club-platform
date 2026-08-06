@@ -323,7 +323,13 @@ function SessionActions({ detail, onRefresh }: { detail: SessionDetail; onRefres
           </div>
           {/* The caption the disabled row would otherwise be missing. The banked
               total above it still reads correctly — the minutes are there, they
-              just cannot be granted until the club can confirm it. */}
+              just cannot be granted until the club can confirm it. One line,
+              whichever pause is in force: `reason` is exclusive. */}
+          {sales.reason === 'closed' && (
+            <p role="status" className="text-pretty text-xs leading-relaxed text-warning">
+              {t('session.extendClosedHint')}
+            </p>
+          )}
           {sales.reason === 'offline' && (
             <p role="status" className="text-pretty text-xs leading-relaxed text-warning">
               {`${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}

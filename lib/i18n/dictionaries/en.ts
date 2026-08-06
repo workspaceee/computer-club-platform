@@ -605,6 +605,20 @@ export const en = {
     banked: '{n} min banked on your pass',
     extendBy: '+{n} min',
     extendedToast: 'Session extended by {n} min.',
+    /**
+     * The line under a disabled extend while the club is shut (C2.11, C2.12).
+     *
+     * Three surfaces offer the extend and all three used to caption only the
+     * *offline* refusal, which left the closed club — the commoner of the two, and
+     * the one with a reopening time attached — as three dead buttons and no
+     * sentence. That is the exact failure `useSalesGate()` was written to stop:
+     * a greyed-out money button with nothing on screen saying why.
+     *
+     * Its own line rather than `shop.closedCheckoutHint`, which names checkout;
+     * the fact here is that the minutes stay banked, because a dead "+15 min" is
+     * read as "my pass is gone".
+     */
+    extendClosedHint: 'Your banked minutes keep — buying time opens again with the club.',
     /** No banked minutes: the honest button is the shop, not a failing extend. */
     buyTime: 'Buy time',
     buyTimeHint: 'No pass minutes banked. Time passes are in the shop.',
