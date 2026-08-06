@@ -657,6 +657,43 @@ export const en = {
     closedDismissHint: 'An admin will come round to close the station down in person.',
   },
 
+  // The home surface (C3). The greeting lives here rather than in `session`
+  // because it is the one place that speaks to the *person* — every other
+  // namespace names a thing the club sells.
+  home: {
+    /**
+     * Time-of-day greeting (C3.1).
+     *
+     * Four bands and not one "Hello", because a club is busiest at the hours a
+     * generic greeting reads worst: someone sitting down at 02:00 is not being
+     * wished a good morning. The bands are copy, not logic — a language that
+     * splits the evening differently changes these strings, not the component.
+     */
+    greetMorning: 'Good morning, {name}',
+    greetAfternoon: 'Good afternoon, {name}',
+    greetEvening: 'Good evening, {name}',
+    greetNight: 'Still going, {name}',
+    /** Level as a rank, next to the name. */
+    level: 'Level {level}',
+    /** Screen-reader name for the XP bar — the bar itself is decoration. */
+    levelProgress: '{xp} of {max} XP towards level {next}',
+    levelProgressShort: '{xp} / {max} XP',
+    /** How long this visit has been running. `{duration}` is already formatted. */
+    playingFor: 'Playing for {duration}',
+    /**
+     * The first minute of a visit, which has no honest number yet.
+     *
+     * "Playing for 0 minutes" is the sentence this key exists to avoid: it reads
+     * as a broken counter on the one screen a player sees before anything else.
+     */
+    justArrived: 'Just sat down',
+    /** Visit streak. plurals: one | other */
+    streakDays: '{n} day in a row|{n} days in a row',
+    /** A streak that is not running — a first visit, or one that lapsed. */
+    streakStart: 'Streak starts today',
+    streakLabel: 'Visit streak',
+  },
+
   games: {
     title: 'Games',
     subtitle: 'Everything installed on this station, ready to launch.',

@@ -27,6 +27,12 @@
  * single interval in `session-manager.tsx` writes it so React can re-render each
  * second. Its meaning follows the billing mode — seconds left when prepaid,
  * seconds used when postpaid.
+ *
+ * `sessionPlayedSeconds` is the same arrangement for the *other* question — how
+ * long this visit has been running (C3.1) — and it is a separate anchor rather
+ * than arithmetic on the first, because adding time moves the remainder:
+ * `SESSION_LENGTH - sessionSeconds` measures the last purchase, not the evening.
+ * Both are written by the one tick, so the two directions cannot drift apart.
  */
 import {
   markSnapshotObserved,
@@ -87,6 +93,33 @@ export interface SessionSlice {
   sessionExpired: boolean
   /** Derived cache written by `syncClock()`. Never decremented by hand. */
   sessionSeconds: Seconds
+
+  /**
+   * Billed seconds already behind this visit when the last anchor was set (C3.1).
+   *
+   * The banked half of the *other* direction. `bankedSeconds` answers "how much
+   * is left", this answers "how much has been played" — and the home greeting
+   * needs the second one, which no arithmetic on the first can recover: adding
+   * time moves the remainder, so `SESSION_LENGTH - sessionSeconds` measures the
+   * last purchase rather than the visit.
+   *
+   * Server-owned, like the remainder: it arrives in the snapshot and is replaced
+   * whenever one does. Both halves of the club's count are added, because they
+   * are the same fact split by billing model — a prepaid seat burns `secondsUsed`
+   * out of what it was granted, a walk-in has nothing granted and accrues the
+   * identical minutes into `debtSeconds`.
+   */
+  playedSeconds: Seconds
+  /**
+   * Derived cache of the played clock, written by the same `syncClock()` tick as
+   * `sessionSeconds` (F6.3).
+   *
+   * A cache rather than a second interval for the reason the whole slice exists:
+   * two timers counting the same visit in opposite directions would drift apart
+   * the first time the station slept, and the launcher would greet a player with
+   * "you have been playing 40 minutes" above a clock that had burned 55.
+   */
+  sessionPlayedSeconds: Seconds
 
   /**
    * Minute marks already announced this visit (C2.6) — 15 / 10 / 5 / 1.
@@ -248,6 +281,28 @@ export function unreportedSeconds(s: {
   return Math.max(0, atAnchor - derive(s))
 }
 
+/**
+ * How long this visit has been played, derived (C3.1).
+ *
+ * Deliberately built on `unreportedSeconds` rather than on a second span of its
+ * own: that function already answers "how much has run since the last anchor" in
+ * whichever direction the mode counts, and it is the *same* span the club is owed
+ * an account of. Reusing it means the greeting and the heartbeat can never
+ * disagree about the length of the visit, and a paused clock contributes nothing
+ * here for free — a station locked at the bar is not time played.
+ */
+function derivePlayed(s: {
+  billingMode: BillingMode
+  timerRunning: boolean
+  expiresAt: ISODateTime | null
+  runningSince: ISODateTime | null
+  serverTime: ISODateTime | null
+  bankedSeconds: Seconds
+  playedSeconds: Seconds
+}): Seconds {
+  return s.playedSeconds + unreportedSeconds(s)
+}
+
 const nowIso = (): ISODateTime => new Date().toISOString()
 
 /** Anchors for a running span, from a banked value. */
@@ -277,6 +332,8 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   timerRunning: false,
   sessionExpired: false,
   sessionSeconds: SESSION_LENGTH,
+  playedSeconds: 0,
+  sessionPlayedSeconds: 0,
   warnedMinutes: [],
   warningPulseAt: null,
   closingWarned: [],
@@ -292,6 +349,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       timeSource: mode === 'postpaid' ? 'postpaid' : (source ?? 'wallet'),
       bankedSeconds: banked,
       sessionSeconds: banked,
+      // Nothing has been played yet, in either billing model — this is the one
+      // number that opens at zero regardless of what the seat was sold.
+      playedSeconds: 0,
+      sessionPlayedSeconds: 0,
       timerRunning: true,
       sessionExpired: false,
       // A fresh visit has heard nothing yet, and the marks of the previous one
@@ -306,10 +367,18 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   // Banking the derived value is what makes a pause lossless: the anchors are
   // dropped, so a paused visit has no deadline to drift against.
   pauseSession: () => {
-    const banked = derive(get())
+    const state = get()
+    const banked = derive(state)
+    // Banked *before* the anchors are dropped, for the same reason as the
+    // remainder: `derivePlayed` measures the running span against them, so
+    // clearing them first would silently forget everything played since the last
+    // snapshot — the minutes a locked station is most likely to be holding.
+    const played = derivePlayed(state)
     set({
       bankedSeconds: banked,
       sessionSeconds: banked,
+      playedSeconds: played,
+      sessionPlayedSeconds: played,
       timerRunning: false,
       expiresAt: null,
       runningSince: null,
@@ -336,6 +405,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       timeSource: 'wallet',
       bankedSeconds: SESSION_LENGTH,
       sessionSeconds: SESSION_LENGTH,
+      // A free station has played nothing. Leaving the previous visit's total
+      // here is what would greet the next player with somebody else's evening.
+      playedSeconds: 0,
+      sessionPlayedSeconds: 0,
       timerRunning: false,
       sessionExpired: false,
       expiresAt: null,
@@ -350,18 +423,25 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     const state = get()
     if (!state.timerRunning) return
     const value = derive(state)
+    const played = derivePlayed(state)
 
     // Only prepaid time can run out. A guest reaching two hours owes for two
     // hours; ending their visit on a timer would be the shell inventing a limit
     // the club never sold.
     if (state.billingMode === 'prepaid' && value <= 0) {
-      set({ sessionSeconds: 0, bankedSeconds: 0 })
+      // The played total is banked on the way out rather than left at whatever the
+      // previous tick wrote: an expiry reached while the station slept crosses the
+      // deadline and the last minutes of the visit in the same instant, and the
+      // receipt behind the expiry screen has to include them.
+      set({ sessionSeconds: 0, bankedSeconds: 0, playedSeconds: played, sessionPlayedSeconds: played })
       get().expireSession()
       return
     }
     // Guard the write so a 1 Hz interval does not wake every subscriber when the
     // visible second has not actually changed (waking from sleep, fast resyncs).
-    if (value !== state.sessionSeconds) set({ sessionSeconds: value })
+    if (value !== state.sessionSeconds || played !== state.sessionPlayedSeconds) {
+      set({ sessionSeconds: value, sessionPlayedSeconds: played })
+    }
   },
 
   applySnapshot: (snapshot) => {
@@ -372,6 +452,14 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     // been run up. On a walk-in seat nothing is granted, so every billed second
     // is already in `debtSeconds` — the same figure the counter settles.
     const banked = postpaid ? snapshot.debtSeconds : snapshot.secondsLeft
+    // The club's own count of the visit's length (C3.1). Both halves are added
+    // rather than picked by mode, because they are one fact split by billing
+    // model: a prepaid seat burns `secondsUsed` out of what it was granted, a
+    // walk-in has nothing granted and accrues the identical minutes as debt. A
+    // prepaid seat carries no debt and a postpaid one nothing used, so the sum is
+    // the visit either way — and stays the visit if the club ever sells a walk-in
+    // an hour up front.
+    const played = snapshot.secondsUsed + snapshot.debtSeconds
     // This snapshot is being adopted *now*, so the skew correction must measure
     // from now. Without saying so, a stamp the client had seen before (a server
     // answering twice in one second, or a mock clock that does not move) is dated
@@ -400,6 +488,11 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       serverTime: snapshot.serverTime,
       bankedSeconds: banked,
       sessionSeconds: banked,
+      // Re-anchored in the same write as the remainder: the snapshot is one
+      // instant of the club's books, and a played total left over from the
+      // previous one would be measured against the deadline that just replaced it.
+      playedSeconds: played,
+      sessionPlayedSeconds: played,
       timerRunning: running,
       sessionExpired: snapshot.state === 'ended',
       // Time moved, so the warnings have to move with it (C2.6). A mark is kept
