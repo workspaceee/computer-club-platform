@@ -11,6 +11,7 @@ import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import {
   ApiError,
+  fetchPausedVisit,
   unlockWithPin,
   type AuthResult,
   type PausedVisit,
@@ -30,6 +31,19 @@ export function formatRemainder(seconds: number): string {
   const { hours, minutes } = formatDurationParts(seconds)
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
+
+/**
+ * How often the card re-reads the visit holding this seat.
+ *
+ * The remainder is still the *club's* number and still not animated down — the
+ * clock is stopped, so nothing here counts. What this fixes is the number going
+ * stale: a visit can sit on this screen for minutes while an admin tops the
+ * account up, closes the overrun, or the club re-prices the seat, and a card that
+ * read `secondsLeft` once at mount would keep promising an amount that no longer
+ * exists. Same 10 s beat the seat-taken panel polls on, and for the same reason:
+ * nothing is addressed to this client while it is nobody's session.
+ */
+const REFRESH_MS = 10_000
 
 interface SessionPausedProps {
   /** The visit holding this seat, as read by `fetchPausedVisit`. */
@@ -99,6 +113,39 @@ export function SessionPaused({
   const [locked, setLocked] = useState(visit.attemptsLeft <= 0)
 
   /**
+   * The visit as last read, not as first handed down.
+   *
+   * The prop is the mount-time answer; this is the one the card prints, so a
+   * re-read can correct the remainder without the parent re-mounting the flow (and
+   * without resetting a half-typed PIN).
+   */
+  const [live, setLive] = useState(visit)
+  useEffect(() => setLive(visit), [visit])
+
+  useEffect(() => {
+    let alive = true
+    const id = setInterval(() => {
+      void fetchPausedVisit()
+        .then((fresh) => {
+          // A different visit — or none — is the parent's business to act on
+          // (it owns `onGone`); this poll only ever refreshes the one it is
+          // showing, so a seat taken over mid-wait cannot repaint the card with
+          // a stranger's clock.
+          if (!alive || !fresh || fresh.sessionId !== visit.sessionId) return
+          setLive(fresh)
+        })
+        .catch(() => {
+          // A failed read is not new information: keep the last number the club
+          // gave us rather than blanking the one fact this screen exists to state.
+        })
+    }, REFRESH_MS)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [visit.sessionId])
+
+  /**
    * The visit is parked with nothing left on it.
    *
    * A member seat is prepaid, and `resumeSessionRow` refuses to restart a prepaid
@@ -114,7 +161,7 @@ export function SessionPaused({
    * is the honest thing to say. Silently falling back to a login form would make
    * the club's refusal look like the screen forgetting the visit existed.
    */
-  const spent = visit.secondsLeft <= 0
+  const spent = live.secondsLeft <= 0
   /**
    * The keypad has no reason to exist: budget spent, or clock spent. One name for
    * the two, because every branch below cares about the *door*, not about which
@@ -223,17 +270,17 @@ export function SessionPaused({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {/* Data, never translated: the nickname the club knows. */}
           <span className="truncate font-display text-base font-semibold uppercase tracking-tight text-text-high">
-            {visit.holder}
+            {live.holder}
           </span>
           <span className="label-mono text-[10px] text-text-low">
-            {t('auth.seatTakenSince', { time: formatTime(new Date(visit.startedAt)) })}
+            {t('auth.seatTakenSince', { time: formatTime(new Date(live.startedAt)) })}
           </span>
         </div>
         {/* The number the whole screen exists to state. `font-clock` and
             `tabular-nums`, like every billed clock in the shell. */}
         <div className="flex shrink-0 flex-col items-end gap-0.5">
           <span className="font-clock text-2xl font-semibold leading-none tabular-nums text-text-high">
-            {formatRemainder(visit.secondsLeft)}
+            {formatRemainder(live.secondsLeft)}
           </span>
           <span className="label-mono text-[9px] text-text-low">
             {t('session.timeLeft')}
