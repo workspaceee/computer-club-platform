@@ -234,6 +234,22 @@ export interface BattlePassView {
   xpForNextLevel: number
   /** Levels reached but not yet collected — the "claim all" badge count. */
   claimable: number
+  /**
+   * The rung the member is standing on, and the one above it — both on the free
+   * track, which is the lane every member has.
+   *
+   * Picked here rather than in the caller for the reason `fetchDailyQuests()`
+   * picks its three: "which tier is next" is a product decision, and a home-screen
+   * teaser that scanned `tiers` itself would be a second place deciding it — one
+   * that could disagree with the pass screen about what the next reward is. The
+   * premium lane stays out of this pair on purpose: the teaser promises what
+   * levelling up pays, not what buying the season pays (C8.5 owns both tracks).
+   *
+   * `nextTier` is `null` at the top of the ladder — there is no level above the
+   * last one, and inventing one would promise a reward the season cannot give.
+   */
+  currentTier: BattlePassTier | null
+  nextTier: BattlePassTier | null
 }
 
 /** `GET /api/loyalty/battlepass` — one call for the whole pass screen. */
@@ -248,6 +264,12 @@ export function fetchBattlePass(track?: BattlePassTrack): Promise<BattlePassView
       unlocked: tier.level <= userSeason.level && (tier.track === 'free' || userSeason.paidUnlocked),
     }))
 
+    // Off the full ladder, not off the filtered `tiers`: a caller asking for the
+    // paid lane alone must still be told where the free lane stands, or the pair
+    // would change meaning with the query.
+    const onFreeTrack = (level: number) =>
+      db.battlePassTiers.find((t) => t.level === level && t.track === 'free') ?? null
+
     return {
       season,
       userSeason,
@@ -255,6 +277,8 @@ export function fetchBattlePass(track?: BattlePassTrack): Promise<BattlePassView
       xpIntoLevel: userSeason.xp % XP_PER_LEVEL,
       xpForNextLevel: XP_PER_LEVEL,
       claimable: tiers.filter((t) => t.unlocked && !t.claimed).length,
+      currentTier: onFreeTrack(userSeason.level),
+      nextTier: userSeason.level >= season.levels ? null : onFreeTrack(userSeason.level + 1),
     }
   })
 }
