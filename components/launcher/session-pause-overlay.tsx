@@ -80,10 +80,10 @@ export function SessionPauseOverlay() {
   const [called, setCalled] = useState(false)
 
   useRealtimeEvent('session.paused', (event) => {
-    // Dev-only, and dropped from a production build: the console can raise a pause
-    // with the scrim lifted so the launcher *under* it can be reviewed — the one
-    // line the session card prints about a stopped clock has no other way to be
-    // looked at (C3.3, `lib/dev-flags.ts`). The pause itself is untouched: the
+    // Dev-only, and dropped from a production build: `/?seat=pause` raises a real
+    // pause with the scrim lifted so the launcher *under* it can be reviewed — the
+    // one line the session card prints about a stopped clock has no other way to
+    // be looked at (C3.3, `lib/dev-flags.ts`). The pause itself is untouched: the
     // snapshot still lands, the clock still stops. Only this screen stands aside.
     if (scrimPeekEnabled()) return
     setReason(event.payload.reason)

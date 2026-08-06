@@ -150,22 +150,50 @@ export function readEndpointFault(): EndpointFault | null {
 }
 
 /**
- * Reviewing the layer *under* a blocking overlay (C3.3).
+ * Booting into a paused seat, with the launcher left readable (C3.3).
  *
  * An admin pause is the only state in the product that stops the clock with the
  * launcher still mounted, and it deliberately covers the launcher with a scrim
  * nothing dismisses (C2.7) — so the one line the session card prints about a
  * stopped clock cannot be looked at while the state that prints it is in force.
  *
- * This lifts the scrim and **nothing else**: the pause is published by the console
- * as always, the snapshot lands, the clock stops, the card renders what it really
- * renders. Module state rather than a query parameter, because the pause is raised
- * in this tab and a reload would throw it away — the same reason the console's own
- * link switch is not in the URL.
+ *   `/?seat=pause`   sign in, then the seat is paused for you, scrim lifted
+ *
+ * The console's own "Pause seat" was not a way to reach this and could not be
+ * made into one. `/dev/bus` is a different route: the pause it raises lands
+ * *before* anybody has signed in, so the station answers it the way it should —
+ * `SessionPaused` on the lock screen, PIN to come back — and the PIN then
+ * resumes the visit. Coming back the other way is no better: nothing in the
+ * launcher links to the console, browser history does not re-render the route,
+ * and a reload drops both the sign-in and any module state a peek was armed in.
+ * So the switch had to be something the *launcher* reads once it is already up,
+ * which is what this is.
+ *
+ * The pause itself is the product's own: the dev hook calls the same
+ * `admin-sim.pauseSession()` the console button calls, the frame travels the real
+ * bus, `SessionManager` adopts the snapshot, the clock stops. The only thing this
+ * changes is that `SessionPauseOverlay` stands aside, because the whole point is
+ * to read the launcher *underneath* — and the console still raises a pause with
+ * the scrim on, which is the path that proves the overlay works.
+ */
+export type SeatOverride = 'pause'
+
+export function readSeatOverride(): SeatOverride | null {
+  if (!DEV_SHORTCUTS || typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('seat') === 'pause' ? 'pause' : null
+}
+
+/**
+ * Whether the blocking pause overlay should step aside for the switch above.
+ *
+ * Module state rather than a second query parameter: it is armed by the same hook
+ * that raises the pause, and the two must not be able to disagree. The console
+ * disarms it around its own pause/resume buttons, so a peek left over from a
+ * `?seat=pause` boot cannot quietly turn a later staff pause into a scrim-less
+ * one — that would be a build lying about which overlays it shows.
  */
 let scrimPeek = false
 
-/** Called by the bus console's "pause, no scrim" button. */
 export function setScrimPeek(on: boolean): void {
   scrimPeek = DEV_SHORTCUTS && on
 }

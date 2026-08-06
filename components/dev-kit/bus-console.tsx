@@ -56,22 +56,15 @@ const GROUPS: ActionGroup[] = [
       { label: 'Warn: 10 min left', run: () => admin.warnLowTime(10) },
       { label: 'Warn: 2 min left', run: () => admin.warnLowTime(2) },
       {
+        // A pause raised from here lands *before* a sign-in, so the station
+        // answers it with `SessionPaused` on the lock screen (C1.10) — which is
+        // correct, and which means this button cannot show the paused *launcher*.
+        // That state has its own switch: `/?seat=pause` (C3.3, `lib/dev-flags.ts`).
         label: 'Pause seat',
         run: () => {
+          // Any peek armed by that switch is disarmed here: a pause pressed on
+          // this page is the product's, scrim included.
           setScrimPeek(false)
-          return admin.pauseSession('staff')
-        },
-      },
-      {
-        // The same pause, with the launcher left visible under it (C3.3). The
-        // pause overlay is deliberately undismissable (C2.7), so the session
-        // card's "clock is stopped" line — the only place in the product that
-        // says it in words — is otherwise behind a scrim while the state that
-        // produces it is in force. Review-only: it lifts the scrim and changes
-        // nothing about the pause.
-        label: 'Pause seat (no scrim)',
-        run: () => {
-          setScrimPeek(true)
           return admin.pauseSession('staff')
         },
       },
