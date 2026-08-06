@@ -773,6 +773,13 @@ export const lt: Dictionary = {
     // formos: vienas | keli | daug
     pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinimų',
 
+    // Pinigai be ryšio (C2.12): atsisakymas, o ne žaidėjo klaida.
+    salesTitle: 'Pirkimai pristabdyti',
+    salesBody:
+      'Klubo serveris dabar negali patvirtinti mokėjimo. Seansui tai neturi įtakos: laikas toliau eina, žaidimas nenutrūksta.',
+    salesHint: 'Pirkimai vėl veiks patys, kai ryšys atsinaujins.',
+    salesRefused: 'Nėra ryšio su klubo serveriu — niekas nenuskaityta.',
+
     timeAdded: '+{minutes} min prie sesijos',
     timeAddedByStaff: '+{minutes} min nuo administratoriaus',
     sessionPaused: 'Sesija pristabdyta',
