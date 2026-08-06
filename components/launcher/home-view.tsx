@@ -9,6 +9,7 @@ import { ContinueRow } from '@/components/launcher/continue-row'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
+import { SessionCard } from '@/components/launcher/session-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
@@ -17,7 +18,6 @@ import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
-import { formatDurationParts } from '@/lib/time'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +60,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           and would have left the surface welcoming twice once a real greeting
           existed. */}
       <HomeGreeting />
+      {/* The visit, at the size it can be acted on (C3.3). Above "Continue" and
+          the hero because it is the frame everything else on this screen happens
+          inside: how much of the evening is left, how much is already gone, and
+          the button that buys more. It took the "Time balance" tile's reading with
+          it — see `QuickStats` below. */}
+      <SessionCard />
       {/* Above the hero, and that is the whole point (C3.2): a player who left a
           match five minutes ago should meet the way back into it before they meet
           the club's curated recommendations. It renders nothing on the guest
@@ -250,15 +256,7 @@ function HeroCarousel() {
 }
 
 function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
-  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  // The tile reads the same derived clock as the top bar (F6.3). It used to
-  // render a hardcoded `2h 00m` from the store, which meant the number never
-  // moved — and a walk-in guest was shown a prepaid balance the club had not
-  // sold them.
-  const seconds = useStore((s) => s.sessionSeconds)
-  const postpaid = useStore((s) => s.billingMode) === 'postpaid'
-  const { hours, minutes } = formatDurationParts(seconds)
   // Same SWR key as the prize ladder below, so the row is fetched once.
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
   const ladder = prizes.data ?? []
@@ -266,35 +264,28 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
 
   // A guest has no coin balance and no ladder progress, so those tiles are
   // dropped instead of showing zeros the player can never move.
-  const stats: { icon: LucideIcon; value: string; label: string }[] = [
-    ...(showLoyalty
-      ? [{ icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' }]
-      : []),
-    {
-      icon: icons.timer,
-      value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
-      // Postpaid time is not a balance: it is time already used and billed, so
-      // the tile has to be labelled as such.
-      label: postpaid ? t('session.sessionTime') : t('session.timeBalance'),
-    },
-    ...(showLoyalty
-      ? [
-          {
-            icon: icons.rewards,
-            value: `${prizesUnlocked}/${ladder.length}`,
-            label: 'Prizes unlocked',
-          },
-        ]
-      : []),
-  ]
+  //
+  // The time tile that used to sit between them is gone (C3.3): `SessionCard`
+  // above states the same remainder with the arc of the visit behind it and a
+  // grant button on it, and a tile repeating the number — with no bar, no source
+  // and nothing to press — would have put one reading on the screen twice.
+  const stats: { icon: LucideIcon; value: string; label: string }[] = showLoyalty
+    ? [
+        { icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' },
+        {
+          icon: icons.rewards,
+          value: `${prizesUnlocked}/${ladder.length}`,
+          label: 'Prizes unlocked',
+        },
+      ]
+    : []
+
+  // Which leaves a walk-in with nothing in this row at all — so the row itself
+  // goes, rather than reserving vertical space for an empty grid.
+  if (stats.length === 0) return null
 
   return (
-    <section
-      className={cn(
-        'grid grid-cols-1 gap-4',
-        showLoyalty ? 'sm:grid-cols-3' : 'sm:max-w-sm',
-      )}
-    >
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {stats.map((s, i) => (
         <motion.div
           key={s.label}
