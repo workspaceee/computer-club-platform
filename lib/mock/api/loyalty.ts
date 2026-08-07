@@ -11,6 +11,7 @@ import {
   getBattlePassTiers,
   getLeaderboard,
   getPlayer,
+  getPrivacy,
 } from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 import { parseTime } from '@/lib/time'
@@ -20,7 +21,8 @@ import type {
   ActivityEvent,
   BattlePassTier,
   BattlePassTrack,
-  LeaderboardEntry,
+  LeaderboardBoard,
+  LeaderboardMetric,
   Prize,
   Quest,
   Redemption,
@@ -511,28 +513,71 @@ export function cancelRedemption(redemptionId: ID): Promise<Redemption> {
 
 export interface LeaderboardQuery {
   limit?: number
+  /** Which column the board is ranked by. Defaults to the season's hours. */
+  metric?: LeaderboardMetric
   /** Hide members who opted out of the board (F2.5 privacy). */
   respectPrivacy?: boolean
+  /** Whose row to chase down the list. `null` for an unattended kiosk. */
+  viewerId?: ID | null
 }
 
-/** `GET /api/loyalty/leaderboard` — ranked server-side, viewer flagged. */
-export function fetchLeaderboard(params: LeaderboardQuery = {}): Promise<LeaderboardEntry[]> {
+/**
+ * `GET /api/loyalty/leaderboard` — the top N in one ordering, plus the viewer's
+ * place in it.
+ *
+ * Three decisions live here rather than on the card (C3.10):
+ *
+ *  1. **Ranking is server-side, per metric.** Re-sorting ten rows in the browser
+ *     when the switcher moves would rank the *page*, not the club: the tenth by
+ *     hours is not the tenth by wins, and the player sitting 11th on coins would
+ *     never appear however the reader sorted. So the metric is a parameter, the
+ *     whole field is ordered by it, and `rank` is stamped on the way out.
+ *  2. **A hidden member is hidden before the numbers are handed out.** Filtering
+ *     after ranking would leave a board that goes 1, 2, 4 — printing the exact
+ *     fact the opt-out was meant to withhold. The viewer's own row survives their
+ *     own opt-out: it is their number, and it is only ever sent to them.
+ *  3. **The viewer's row is chased down the entire list.** That is what makes a
+ *     top-10 usable for someone lying twelfth — and it is `null` when they are
+ *     already on the page, so the card never prints one player twice.
+ */
+export function fetchLeaderboard(params: LeaderboardQuery = {}): Promise<LeaderboardBoard> {
   return query('loyalty.fetchLeaderboard', () => {
-    const { limit = 10, respectPrivacy = true } = params
-    const hidden = new Set(
-      respectPrivacy
-        ? db.userPreferences.filter((p) => !p.privacy.showOnLeaderboard).map((p) => p.userId)
-        : [],
-    )
+    const {
+      limit = 10,
+      metric = 'hours',
+      respectPrivacy = true,
+      viewerId = db.currentUserId,
+    } = params
 
-    return getLeaderboard()
-      .filter((entry) => {
-        if (!respectPrivacy) return true
-        const player = [...db.players.values()].find((p) => p.user.nickname === entry.nickname)
-        return !player || !hidden.has(player.user.id) || entry.isCurrentUser
-      })
-      .slice(0, limit)
-      .map((entry, index) => ({ ...entry, rank: index + 1 }))
+    const ranked = getLeaderboard(viewerId ?? undefined)
+      .filter(
+        (row) =>
+          !respectPrivacy ||
+          getPrivacy(row.userId).showOnLeaderboard ||
+          // Their own standing is never withheld from them.
+          row.userId === viewerId,
+      )
+      // Ties broken by season hours, then by nickname: two players on 41 wins
+      // must not swap places between two polls of the same unchanged data.
+      .sort(
+        (a, b) =>
+          b[metric] - a[metric] ||
+          b.hours - a.hours ||
+          a.nickname.localeCompare(b.nickname),
+      )
+      .map(({ userId, ...row }, index) => ({ entry: { ...row, rank: index + 1 }, userId }))
+
+    const rows = ranked.slice(0, limit)
+    const viewerAt = ranked.findIndex((r) => r.userId === viewerId)
+
+    return {
+      metric,
+      rows: rows.map((r) => r.entry),
+      // Only when they fall off the page — otherwise the card would print the
+      // same member in the list and again in the pinned row below it.
+      viewer: viewerAt >= limit ? ranked[viewerAt].entry : null,
+      total: ranked.length,
+    }
   })
 }
 

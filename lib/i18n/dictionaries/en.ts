@@ -1127,6 +1127,54 @@ export const en = {
      * plurals: one | other
      */
     heroPlayers: '{n} player at the club|{n} players at the club',
+
+    /* ── The week's board (C3.10) ─────────────────────────────────────── */
+    leaderboardTitle: 'Leaderboard of the week',
+    /** Says what bounds the list, so ten rows are not read as "the club". */
+    leaderboardSubtitle: 'The top ten this week — and where you stand in it.',
+    /**
+     * Accessible name of the metric switcher.
+     *
+     * Three one-word segments say what they measure but not what pressing them
+     * does — and the control re-ranks the whole club rather than re-sorting the
+     * ten rows on screen, so the group's name is the verb.
+     */
+    leaderboardMetricLabel: 'Rank the board by',
+    /**
+     * The three orderings. Each doubles as the value column's heading, which is
+     * what gives every bare number under it a unit when read aloud.
+     */
+    leaderboardHours: 'Hours',
+    leaderboardCoins: 'Coins',
+    leaderboardWins: 'Wins',
+    /** Column heading for the position: a bare "#" has no spoken name. */
+    leaderboardRank: 'Position',
+    leaderboardPlayer: 'Player',
+    /** Marks the reader's own row among the ten. */
+    leaderboardYou: 'You',
+    /** Under the board when the reader is on it — the row is already highlighted. */
+    leaderboardYouRanked: 'You are {rank} of {total} this week',
+    /** Caption on the pinned row, for a reader who is off the page. */
+    leaderboardYourPlace: 'Your place: {rank} of {total}',
+    /** Nobody's row to point at: a walk-in, or a member who opted out (F2.5). */
+    leaderboardTotal: 'Ranking {total} members this week',
+    /**
+     * The dashed break above the pinned row, for readers who cannot see it.
+     *
+     * Without it a jump from tenth to twelfth reads as a board that lost a
+     * player — the one thing this table must never appear to do.
+     */
+    leaderboardSkipped: 'Positions {from} to {to} are not shown',
+    /**
+     * The gap to the top, spoken.
+     *
+     * The bar behind each value is the card's one piece of decoration that is
+     * load-bearing — it shows *how far* first place is, which no column of
+     * numbers states — so the same fact is given to assistive tech in words.
+     */
+    leaderboardShare: '{percent}% of the leader',
+    /** The leader has no gap to state; the row still needs a name for its bar. */
+    leaderboardLeader: 'Leads the board',
   },
 
   games: {

@@ -707,6 +707,30 @@ export const lt: Dictionary = {
     heroSeeTournaments: 'Visi turnyrai',
     // plurals lt: one | few | other
     heroPlayers: 'klube {n} žaidėjas|klube {n} žaidėjai|klube {n} žaidėjų',
+
+    /* ── Savaitės lentelė (C3.10) ─────────────────────────────────────── */
+    leaderboardTitle: 'Savaitės lyderių lentelė',
+    leaderboardSubtitle: 'Klubo dešimtukas šią savaitę — ir jūsų vieta jame.',
+    // Trys vienažodžiai segmentai pasako, ką jie matuoja, bet ne ką daro
+    // paspaudimas — o perjungiklis perrikiuoja visą klubą, ne dešimt eilučių
+    // ekrane. Todėl grupės pavadinimas yra veiksmas.
+    leaderboardMetricLabel: 'Rikiuoti lentelę pagal',
+    leaderboardHours: 'Valandos',
+    leaderboardCoins: 'Monetos',
+    leaderboardWins: 'Pergalės',
+    leaderboardRank: 'Vieta',
+    leaderboardPlayer: 'Žaidėjas',
+    leaderboardYou: 'Jūs',
+    leaderboardYouRanked: 'Šią savaitę esate {rank} iš {total}',
+    leaderboardYourPlace: 'Jūsų vieta: {rank} iš {total}',
+    leaderboardTotal: 'Šią savaitę rikiuojama narių: {total}',
+    // Be šios frazės šuolis iš dešimtos vietos į dvyliktą skaitosi kaip lentelė,
+    // pametusi žaidėją, — vienintelis dalykas, kuriuo ji negali atrodyti.
+    leaderboardSkipped: 'Vietos nuo {from} iki {to} nerodomos',
+    // Juosta už skaičiaus — vienintelis kortelės akcentas, nešantis faktą: kaip
+    // toli pirmoji vieta. Ekrano skaitytuvui tas pats faktas pasakomas žodžiais.
+    leaderboardShare: '{percent}% lyderio rezultato',
+    leaderboardLeader: 'Pirma vieta',
   },
 
   games: {
