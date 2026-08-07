@@ -2346,8 +2346,14 @@ export function getZoneOccupancy() {
  * opinion about position that the endpoint then has to overwrite. `userId` rides
  * along so `fetchLeaderboard` can check the privacy flag by identity instead of
  * matching nicknames, and is stripped before the payload leaves the API.
+ *
+ * `viewerId` has three states, and `null` is not the same as omitting it:
+ * omitted means "the signed-in member", `null` means **nobody** — an unattended
+ * kiosk, where no row may be flagged. Collapsing the two (`viewerId ?? undefined`
+ * at the call site) is what would put a "You" chip on the previous member's row
+ * in front of the walk-in standing at their seat.
  */
-export function getLeaderboard(viewerId: ID = db.currentUserId) {
+export function getLeaderboard(viewerId: ID | null = db.currentUserId) {
   return [...db.players.values()].map((p) => ({
     userId: p.user.id,
     nickname: p.user.nickname,
