@@ -284,7 +284,7 @@ export function useRealtimeAny(
  * Revalidates the SWR keys an event made stale (`EVENT_INVALIDATES`).
  *
  * Mount once alongside `useRealtimeChannel()`. This is what makes "admin changed
- * the catalogue ��� the player sees the new prices without a restart" true for
+ * the catalogue — the player sees the new prices without a restart" true for
  * every screen at the same time, instead of one handler per query.
  */
 export function useRealtimeRevalidation(): void {
