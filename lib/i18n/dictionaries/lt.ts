@@ -851,7 +851,7 @@ export const lt: Dictionary = {
     tierElite: 'Elitas',
     achievements: 'Pasiekimai',
     noAchievements: 'Pasiekimų dar nėra',
-    noAchievementsBody: 'Sužaiskite sesiją — pirmieji ženkleliai prad��s atsirakinti.',
+    noAchievementsBody: 'Sužaiskite sesiją — pirmieji ženkleliai pradės atsirakinti.',
     activity: 'Naujausia veikla',
     noActivity: 'Veiklos dar nėra',
     noActivityBody: 'Sesijos, pirkimai ir atrakinimai atsiras čia.',
@@ -1050,7 +1050,7 @@ export const lt: Dictionary = {
     attempt: '{n} bandymas',
     restored: 'Ryšys atkurtas',
     // formos: vienas | keli | daug
-    pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinim��',
+    pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinimų',
 
     // Pinigai be ryšio (C2.12): atsisakymas, o ne žaidėjo klaida.
     salesTitle: 'Pirkimai pristabdyti',
