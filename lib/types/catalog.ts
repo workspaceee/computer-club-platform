@@ -22,6 +22,27 @@ export interface Game {
 }
 
 /**
+ * `game_releases` — the club's "new at the club" shelf (C3.9).
+ *
+ * A curated table rather than an `addedAt` column on `Game`, for the same reason
+ * `featuredGameIds` is a list of ids: what counts as a novelty is an editorial
+ * decision the staff makes, not a fact derivable from the catalogue. A title
+ * installed on the machines in March can be *new to this club* in June when it
+ * finally gets a seat in the hall, and a re-release the club wants to shout about
+ * has no new row to stamp at all.
+ *
+ * `note` is the club's own one-line reason for the shelf ("Now on all VIP seats"),
+ * printed as written like tournament and product copy is (F2.2) — the hero frames
+ * it, it does not rewrite it.
+ */
+export interface GameRelease {
+  gameId: ID
+  /** When the club put it on the shelf — newest first, and nothing else. */
+  addedAt: ISODateTime
+  note: string
+}
+
+/**
  * `game_accounts` — shared club logins for launchers that need one. Exposed to
  * the player as "House Account #1" so no credentials ever reach the client.
  */

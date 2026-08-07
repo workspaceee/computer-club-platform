@@ -16,6 +16,7 @@ import type {
   Game,
   GameCategory,
   GameLaunch,
+  GameRelease,
   HouseAccount,
   Product,
   ProductCategory,
@@ -348,6 +349,25 @@ const games: Game[] = buildGames()
 
 /** Curated hero row. Ids, not indexes, so reordering the catalogue is safe. */
 const FEATURED_GAME_IDS: ID[] = ['cs2', 'valorant', 'fortnite', 'cyberpunk', 'marvelrivals']
+
+/**
+ * "New at the club" — the curated novelty shelf behind the hero's third kind of
+ * slide (C3.9).
+ *
+ * Catalogue data, not session state: the staff edits the shelf in admin and a demo
+ * run never mutates it, so like `promos` it is deliberately absent from
+ * `lib/mock/persist.ts`.
+ *
+ * Deliberately *not* the featured five above. The hero would otherwise spend two
+ * of its slides on the same title — the club's evening headline and its newest
+ * arrival are different editorial claims, and a shelf that repeated the front page
+ * would say nothing new. `note` is the club's own line, printed as written.
+ */
+const GAME_RELEASES: GameRelease[] = [
+  { gameId: 'pathofexile2', addedAt: atDays(-2), note: 'Installed on every seat in the Main Hall' },
+  { gameId: 'helldivers2', addedAt: atDays(-6), note: 'Four-seat squads — book the corner pod' },
+  { gameId: 'frostpunk2', addedAt: atDays(-11), note: 'New on the two VIP machines' },
+]
 
 const houseAccounts: HouseAccount[] = [
   { id: 'house-1', label: 'House Account #1', status: 'available' },
@@ -2222,6 +2242,7 @@ export const db = {
   currentMachineId: CURRENT_MACHINE_ID,
   games,
   featuredGameIds: FEATURED_GAME_IDS,
+  gameReleases: GAME_RELEASES,
   houseAccounts,
   gameLaunches,
   products,
@@ -2439,6 +2460,23 @@ export function getActivePromos(
       return true
     })
     .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+}
+
+/**
+ * The novelty shelf, newest first, resolved against the catalogue (C3.9).
+ *
+ * A shelf row naming a title the library no longer stocks is dropped rather than
+ * returned with a `null` game: "new at the club" is an invitation to press Play,
+ * and a slide that cannot launch anything is not one. Ordering is the club's
+ * `addedAt`, so an entry backdated in admin lands where the staff put it instead
+ * of jumping to the front on save.
+ */
+export function getNewReleases(limit?: number): { game: Game; release: GameRelease }[] {
+  const rows = db.gameReleases
+    .map((release) => ({ game: db.games.find((g) => g.id === release.gameId), release }))
+    .filter((row): row is { game: Game; release: GameRelease } => row.game !== undefined)
+    .sort((a, b) => Date.parse(b.release.addedAt) - Date.parse(a.release.addedAt))
+  return limit === undefined ? rows : rows.slice(0, limit)
 }
 
 export function getActiveSeason(): Season {

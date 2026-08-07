@@ -1069,6 +1069,64 @@ export const en = {
     tournamentEmpty: 'No bracket scheduled yet',
     tournamentEmptyBody:
       'The club announces new tournaments every week — the staff will know what is next.',
+
+    /* ---------------------------------------------------------------- *
+     * The hero carousel (C3.9)
+     *
+     * Everything here is the frame the club's own copy sits inside. Campaign
+     * headlines, tournament names and the staff's note on a new title are
+     * admin-authored and printed as written (F2.2) — the keys below name the
+     * *kinds* of slide, the controls, and what the carousel is doing.
+     * ---------------------------------------------------------------- */
+
+    /** Accessible name of the whole carousel region. */
+    heroLabel: 'Club highlights',
+    /**
+     * Screen-reader name of the slide group, and of the dots that walk it.
+     *
+     * "Highlight", not "slide": the number is only meaningful as a position in a
+     * list of things the club is highlighting, and "slide 3 of 5" describes the
+     * widget rather than its content.
+     */
+    heroSlides: 'Highlights',
+    heroPrev: 'Previous highlight',
+    heroNext: 'Next highlight',
+    /** Dot label. `{title}` is the slide's own headline, so the target is named. */
+    heroGoTo: 'Show highlight {n}: {title}',
+    /**
+     * Live-region sentence on every advance.
+     *
+     * Rotation moves no focus, so without this a screen reader is never told the
+     * content under the unchanged heading has been replaced. `{body}` is the
+     * slide's own copy — one sentence, not the whole card.
+     */
+    heroAnnounce: 'Highlight {n} of {total}. {body}',
+    /**
+     * The pause control, which is also the state readout.
+     *
+     * An auto-advancing carousel needs a way to stop that does not require holding
+     * the mouse still (WCAG 2.2.2), and the same button says which state it is in.
+     */
+    heroPause: 'Pause the highlights',
+    heroPlay: 'Resume the highlights',
+    /** Shown while rotation is held, so a stopped carousel does not look broken. */
+    heroPaused: 'Paused',
+
+    /** Eyebrow on a new-arrival slide. The shelf, in two words. */
+    heroNewLabel: 'New at the club',
+    /** Eyebrow on a bracket slide that is not tonight's card. */
+    heroTournamentLabel: 'Tournament',
+    /** Launches the title the slide is about. */
+    heroPlayNow: 'Play now',
+    heroPlayLabel: 'Play {name}',
+    /** Way to the schedule from a bracket slide — the hero does not take entries. */
+    heroSeeTournaments: 'All tournaments',
+    /**
+     * How many are playing it, under a game slide.
+     *
+     * plurals: one | other
+     */
+    heroPlayers: '{n} player at the club|{n} players at the club',
   },
 
   games: {

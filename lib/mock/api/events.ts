@@ -38,6 +38,17 @@ export interface TournamentSummary extends Tournament {
   checkedIn: boolean
 }
 
+/**
+ * Exported for the hero composer (C3.9), which has to describe the *same*
+ * tournaments this module does — including the one it must leave out, because the
+ * home card already shows it. A second `summarize` living in `hero.ts` would be a
+ * second definition of `slotsFree` and `registered` beside the one the register
+ * endpoint enforces.
+ */
+export function summarizeTournament(tournament: Tournament, userId: ID): TournamentSummary {
+  return summarize(tournament, userId)
+}
+
 function summarize(tournament: Tournament, userId: ID): TournamentSummary {
   const entry = db.tournamentEntries.find(
     (e) => e.tournamentId === tournament.id && e.userId === userId,
@@ -111,7 +122,7 @@ export function fetchTournamentEntries(tournamentId: ID): Promise<TournamentEntr
  * sorting by `startsAt` would float it to the front precisely *because* its start
  * is in the past. A bracket in progress is the tournaments screen's business.
  */
-const CARD_STATUSES: TournamentStatus[] = ['announced', 'check-in']
+export const CARD_STATUSES: TournamentStatus[] = ['announced', 'check-in']
 
 /**
  * What this member may do about the tournament on the card.
