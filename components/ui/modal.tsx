@@ -1,12 +1,13 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useId } from 'react'
 import { IconButton } from '@/components/ui/button'
 import { Overlay } from '@/components/ui/overlay'
 import { useDismissableLayer } from '@/hooks/use-dismissable-layer'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useT } from '@/lib/i18n/provider'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { cn } from '@/lib/utils'
 
@@ -33,6 +34,21 @@ interface ModalProps {
   hideClose?: boolean
   /** Disable dismissal via overlay click / Escape. */
   dismissable?: boolean
+  /**
+   * Which rung of `lib/overlay.ts` the card sits on.
+   *
+   * `modal` — the default, and correct for every dialog a *player* opened, which
+   * is all of them today. `takeover` exists for the inverse case: a surface the
+   * player did not ask for and must not be able to bury, which on the normal rung
+   * would render *under* whatever they happened to have open.
+   *
+   * The clock's own takeovers (C2.6's last call, expiry) do **not** come through
+   * here — they are bespoke `Overlay` cards, because a warning that must read as
+   * an alarm wants a centred timer and a danger frame rather than this card's
+   * title-left / close-right header. This prop is what keeps a *dialog-shaped*
+   * takeover from having to fork the card to get the right rung.
+   */
+  layer?: 'modal' | 'takeover'
   className?: string
   children?: React.ReactNode
 }
@@ -53,10 +69,12 @@ export function Modal({
   footer,
   hideClose = false,
   dismissable = true,
+  layer = 'modal',
   className,
   children,
 }: ModalProps) {
   const titleId = useId()
+  const { t } = useT()
   const reduced = useReducedMotion()
   const panelRef = useDismissableLayer({
     open,
@@ -65,7 +83,7 @@ export function Modal({
   })
 
   return (
-    <Overlay open={open} layer="modal" onDismiss={dismissable ? onClose : undefined}>
+    <Overlay open={open} layer={layer} onDismiss={dismissable ? onClose : undefined}>
       <motion.div
         ref={panelRef}
         role="dialog"
@@ -115,8 +133,11 @@ export function Modal({
               )}
             </div>
             {!hideClose && (
-              <IconButton label="Close dialog" size="sm" onClick={onClose} className="relative">
-                <X />
+              // The only string the primitive owns, so it comes from the
+              // dictionary like every other word on screen (F2.2) — a
+              // screen-reader-only name is still copy.
+              <IconButton label={t('common.close')} size="sm" onClick={onClose} className="relative">
+                <icons.close />
               </IconButton>
             )}
           </header>

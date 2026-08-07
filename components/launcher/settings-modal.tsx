@@ -1,10 +1,17 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Monitor, Volume2, MousePointer2, Globe, type LucideIcon } from "lucide-react"
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from "react"
 import { LangSwitcher } from "@/components/lang-switcher"
 import { Overlay } from "@/components/ui/overlay"
+// The shared pair (F1.7) — same visuals as the local helpers below, but they
+// carry `disabled` and a description line, which the interface-sound row needs.
+// Aliased because this file still has its own `Slider`/`Toggle` for the rows the
+// extraction has not reached yet.
+import { Slider as RangeSlider } from "@/components/ui/slider"
+import { Toggle as SwitchRow } from "@/components/ui/toggle"
+import { useDismissableLayer } from "@/hooks/use-dismissable-layer"
 import { useT } from "@/lib/i18n/provider"
 import type { TKey } from "@/lib/i18n/types"
 import { OVERLAY_MAX_H } from "@/lib/overlay"
@@ -14,10 +21,10 @@ import { cn } from "@/lib/utils"
 type TabId = "display" | "audio" | "controls" | "region"
 
 const TABS: { id: TabId; labelKey: TKey; icon: LucideIcon }[] = [
-  { id: "display", labelKey: "settings.display", icon: Monitor },
-  { id: "audio", labelKey: "settings.audio", icon: Volume2 },
-  { id: "controls", labelKey: "settings.controls", icon: MousePointer2 },
-  { id: "region", labelKey: "settings.region", icon: Globe },
+  { id: "display", labelKey: "settings.display", icon: icons.display },
+  { id: "audio", labelKey: "settings.audio", icon: icons.volume },
+  { id: "controls", labelKey: "settings.controls", icon: icons.controls },
+  { id: "region", labelKey: "settings.region", icon: icons.language },
 ]
 
 function Slider({
@@ -161,18 +168,47 @@ export function SettingsModal() {
   const { t } = useT()
   const [tab, setTab] = useState<TabId>("display")
 
+  // C2.10 — settings is one of the four destinations of the profile menu, and it
+  // was the only overlay in the shell that declared `role="dialog"` without ever
+  // joining the shared layer stack. `Overlay` is geometry and a scrim; the
+  // keyboard half has always been the panel's job (`ConfirmDialog` does exactly
+  // this). Four things were missing, and the last one is the one that bites:
+  //
+  //   • **Escape did nothing.** The dialog you reach from the menu was the only
+  //     one in the product you could not dismiss with the keyboard — the X and
+  //     "Done" were the only ways out.
+  //   • **No initial focus.** Focus stayed on whatever opened it — the menu
+  //     trigger, or the profile's Settings button — i.e. *behind* the scrim, so
+  //     the first Tab walked the launcher underneath instead of the dialog.
+  //   • **No focus trap**, for the same reason: `aria-modal="true"` claimed the
+  //     rest of the page was inert while Tab happily left it.
+  //   • **The digit shortcuts stayed live.** `isLayerOpen()` reads this stack, so
+  //     with settings open, pressing `2` navigated the launcher to the games
+  //     library behind the dialog (F6.7). Body scroll was never locked either.
+  //
+  // All five defaults are right for a modal, so nothing is opted out of here.
+  const panelRef = useDismissableLayer({
+    open: settingsOpen,
+    onClose: () => setSettingsOpen(false),
+  })
+
   return (
     <Overlay open={settingsOpen} layer="modal" onDismiss={() => setSettingsOpen(false)}>
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={t('settings.title')}
+            // The panel is the trap's fallback target when it holds no focusable
+            // control, so it has to be programmatically focusable — and then the
+            // ring it would draw around the whole card has to go.
+            tabIndex={-1}
             // Was `z-[60]`, the same rung the offline banner claimed — so during
             // an outage which of the two won depended on render order. The rung
             // now comes from the ladder, and `86vh` becomes the shared `svh` cap
             // so the header cannot leave the top of a short window (F6.4).
             className={cn(
-              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl',
+              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl outline-none',
               OVERLAY_MAX_H,
             )}
             initial={{ scale: 0.95, y: 12 }}
@@ -195,7 +231,7 @@ export function SettingsModal() {
                 aria-label={t('settings.close')}
                 className="relative rounded-md p-1.5 text-text-medium transition-colors hover:bg-white/10 hover:text-text-high"
               >
-                <X className="h-5 w-5" />
+                <icons.close className="h-5 w-5" />
               </button>
             </div>
 
@@ -299,6 +335,35 @@ export function SettingsModal() {
                           <option>Headset (HyperX)</option>
                           <option>Monitor (HDMI)</option>
                         </Select>
+
+                        {/* F8.3 — the launcher's own cues, fenced off from the
+                            three sliders above. Those belong to the machine
+                            (game, chat, output device); this pair belongs to us,
+                            and mixing them in one list is what makes a player
+                            turn the wrong thing down. */}
+                        <div className="flex flex-col gap-3 border-t border-border pt-4">
+                          <p className="label-mono text-[10px] text-text-low">
+                            {t('settings.interfaceGroup')}
+                          </p>
+                          <SwitchRow
+                            label={t('settings.interfaceSounds')}
+                            description={t('settings.interfaceSoundsHint')}
+                            checked={settings.interfaceSounds}
+                            onChange={(next) => updateSettings({ interfaceSounds: next })}
+                          />
+                          {/* Disabled rather than hidden when the cues are off:
+                              a control that vanishes takes its remembered level
+                              with it, and the player cannot see what they will
+                              get back by switching sound on again. */}
+                          <RangeSlider
+                            id="interface-volume"
+                            label={t('settings.interfaceVolume')}
+                            suffix="%"
+                            value={settings.interfaceVolume}
+                            disabled={!settings.interfaceSounds}
+                            onChange={(v) => updateSettings({ interfaceVolume: v })}
+                          />
+                        </div>
                       </>
                     )}
 

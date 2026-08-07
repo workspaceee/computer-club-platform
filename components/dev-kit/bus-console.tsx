@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { useRealtimeStatus } from '@/components/realtime/realtime-provider'
 import { useRealtimeAny } from '@/hooks/use-realtime'
+import { setScrimPeek } from '@/lib/dev-flags'
 import * as admin from '@/lib/realtime/admin-sim'
 import { mockBus, type BusLogEntry } from '@/lib/realtime/mock-bus'
 import type { AnyRealtimeEvent, RealtimeStatus } from '@/lib/realtime/events'
@@ -54,9 +55,38 @@ const GROUPS: ActionGroup[] = [
       { label: '−10 min', run: () => admin.deductTime(10) },
       { label: 'Warn: 10 min left', run: () => admin.warnLowTime(10) },
       { label: 'Warn: 2 min left', run: () => admin.warnLowTime(2) },
-      { label: 'Pause seat', run: () => admin.pauseSession('staff') },
-      { label: 'Resume seat', run: () => admin.resumeSession(), tone: 'success' },
+      {
+        // A pause raised from here lands *before* a sign-in, so the station
+        // answers it with `SessionPaused` on the lock screen (C1.10) — which is
+        // correct, and which means this button cannot show the paused *launcher*.
+        // That state has its own switch: `/?seat=pause` (C3.3, `lib/dev-flags.ts`).
+        label: 'Pause seat',
+        run: () => {
+          // Any peek armed by that switch is disarmed here: a pause pressed on
+          // this page is the product's, scrim included.
+          setScrimPeek(false)
+          return admin.pauseSession('staff')
+        },
+      },
+      {
+        label: 'Resume seat',
+        run: () => {
+          // Back to the product's behaviour, so the next pause covers the screen
+          // like a real one — a peek left armed would be a silent lie about which
+          // overlays this build shows.
+          setScrimPeek(false)
+          return admin.resumeSession()
+        },
+        tone: 'success',
+      },
       { label: 'Move to free seat', run: () => admin.moveSession() },
+      // The seed of C1.12, and the only button here that is not a staff action:
+      // it relocates the fixture's own live row to PC #05 and frees this chair,
+      // which is the state a second station would have left behind. Sign in on
+      // the lock screen afterwards and the refusal is `activeElsewhere` rather
+      // than "the seat is taken" — the transfer card carries its own
+      // "Approve as admin" next to the request it raised.
+      { label: 'Seed DemoPlayer on PC-05', run: () => admin.seatSessionElsewhere('pc-05') },
       { label: 'End session', run: () => admin.endSession('staff'), tone: 'danger' },
     ],
   },
@@ -93,6 +123,22 @@ const GROUPS: ActionGroup[] = [
         run: () => admin.broadcast('critical', 'Evacuation drill', 'Please leave your station.'),
         tone: 'danger',
       },
+    ],
+  },
+  {
+    id: 'phone',
+    title: 'Companion app',
+    note:
+      'The other actor, not staff (C1.5). These publish real login.qr.confirmed frames so the payload and the scope can be read in the log — but they cannot sign anyone in from here: the bus is in-memory per tab and the lock screen is another route, so no live challenge exists on this page. Expect "nothing in the fixture" and drive the actual flow from the QR dialog, which carries the same button next to the code it owns.',
+    actions: [
+      { label: 'Confirm QR login', run: () => admin.confirmQrLogin(), tone: 'success' },
+      // A different player on the phone: proves the station signs in whoever the
+      // frame names, rather than defaulting to the demo account the way the old
+      // fake dialog did.
+      { label: 'Confirm as ClutchQueen', run: () => admin.confirmQrLogin('u-clutch') },
+      // A code that was never on this screen. The frame is published, the dialog
+      // drops it: "a QR confirmation arrived" ≠ "this square was approved".
+      { label: 'Confirm a stale code', run: () => admin.confirmQrLogin('u-demo', 'XXX-XXX') },
     ],
   },
   {

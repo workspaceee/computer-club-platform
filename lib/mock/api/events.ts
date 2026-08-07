@@ -7,6 +7,7 @@
 import { ApiError, mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
 import { db, getMachine, getPlayer } from '@/lib/mock/db'
 import type { Booking, BookingSlot, BookingStatus } from '@/lib/types/booking'
+import type { Game } from '@/lib/types/catalog'
 import type { Cents, ID } from '@/lib/types/common'
 import type { Tournament, TournamentEntry, TournamentStatus } from '@/lib/types/tournament'
 import type { Transaction } from '@/lib/types/tab'
@@ -95,6 +96,86 @@ export function fetchTournamentEntries(tournamentId: ID): Promise<TournamentEntr
   return query('events.fetchTournamentEntries', () =>
     db.tournamentEntries.filter((e) => e.tournamentId === tournamentId),
   )
+}
+
+/* ------------------------------------------------------------------ *
+ * The one tournament the home screen is about (C3.8)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Statuses a card promising "the next tournament and a timer to its start" can
+ * legitimately be about.
+ *
+ * `running` is deliberately excluded even though `fetchTournaments()` counts it as
+ * upcoming: an event that has already begun has no start to count down to, and
+ * sorting by `startsAt` would float it to the front precisely *because* its start
+ * is in the past. A bracket in progress is the tournaments screen's business.
+ */
+const CARD_STATUSES: TournamentStatus[] = ['announced', 'check-in']
+
+/**
+ * What this member may do about the tournament on the card.
+ *
+ * One word from the server rather than four predicates in the client, for the
+ * reason `ClubFriend.callable` is one word (C3.7): the answer folds together the
+ * status, the remaining slots, whether an entry is already held and whether it has
+ * been confirmed — the same conditions `registerForTournament()` and
+ * `checkInToTournament()` refuse on. A card that re-derived it would offer a
+ * button the endpoint is about to reject.
+ */
+export type TournamentAction = 'register' | 'check-in' | 'checked-in' | 'registered' | 'full'
+
+export interface NextTournamentBoard {
+  /** `null` when the club has nothing scheduled that has not started yet. */
+  tournament: TournamentSummary | null
+  /** The title it is played on, for the card's art. `null` if the library lost it. */
+  game: Game | null
+  action: TournamentAction | null
+  /**
+   * Whether the wallet covers the entry fee — money *and* coins, since a
+   * tournament may charge either or both.
+   *
+   * Answered here so no surface does wallet arithmetic of its own: the fee is two
+   * currencies and the refusal is two error codes, and a client comparing them
+   * would be a second definition of "can afford" living next to the one that
+   * actually charges.
+   */
+  affordable: boolean
+}
+
+/** `GET /api/tournaments/next` — the home card's single read. */
+export function fetchNextTournament(userId: ID = db.currentUserId): Promise<NextTournamentBoard> {
+  return query('events.fetchNextTournament', () => {
+    const next = db.tournaments
+      .filter((t) => CARD_STATUSES.includes(t.status))
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0]
+
+    if (!next) return { tournament: null, game: null, action: null, affordable: false }
+
+    const tournament = summarize(next, userId)
+    const wallet = getPlayer(userId)?.wallet
+    const affordable =
+      wallet !== undefined &&
+      wallet.moneyCents >= next.feeCents &&
+      wallet.coins >= next.feeCoins
+
+    const action: TournamentAction = tournament.registered
+      ? tournament.checkedIn
+        ? 'checked-in'
+        : next.status === 'check-in'
+          ? 'check-in'
+          : 'registered'
+      : tournament.slotsFree === 0
+        ? 'full'
+        : 'register'
+
+    return {
+      tournament,
+      game: db.games.find((g) => g.id === next.gameId) ?? null,
+      action,
+      affordable,
+    }
+  })
 }
 
 export interface RegisterResult {

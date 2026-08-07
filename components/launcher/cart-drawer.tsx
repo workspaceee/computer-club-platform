@@ -1,11 +1,12 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
 import { ProductImage } from '@/components/product-image'
 import { Drawer } from '@/components/ui/drawer'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import { formatEur, mulCents } from '@/lib/money'
 import { cartTotalCents, useStore } from '@/lib/store'
@@ -40,6 +41,25 @@ export function CartDrawer() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const totalCents = cartTotalCents(cart)
 
+  /**
+   * The last door money can leave through (C2.11 / C2.12).
+   *
+   * A cart filled at 23:58 — or filled while the link was still up — is the one
+   * way a purchase could land after sales stopped: the grid's "Add" buttons go off
+   * with the club, but items already in here kept their way to checkout. Both
+   * refusals now arrive as one `canSpend`, so the drawer cannot honour the closing
+   * hour and miss the outage.
+   *
+   * Blocked at the button rather than by emptying the cart. The club will be open
+   * again tomorrow, the link will be back in seconds, and in both cases the
+   * player's picks are worth keeping — clearing them would turn a pause into lost
+   * work. Quantities, removal and the total all stay live for the same reason.
+   *
+   * The line under the button says *which* pause it is, because a disabled primary
+   * action with no explanation reads as a bug.
+   */
+  const sales = useSalesGate()
+
   return (
     <>
       <Drawer
@@ -56,18 +76,30 @@ export function CartDrawer() {
               </span>
             </div>
             <button
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || !sales.canSpend}
               onClick={() => setCheckoutOpen(true)}
               className="w-full rounded-lg bg-primary py-3 font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('shop.checkout')}
             </button>
+            {/* One line, whichever pause is in force — `reason` is exclusive, so
+                the footer never prints two explanations for one dead button. */}
+            {sales.reason === 'closed' && (
+              <p className="text-pretty text-center text-xs leading-relaxed text-text-low">
+                {t('shop.closedCheckoutHint')}
+              </p>
+            )}
+            {sales.reason === 'offline' && (
+              <p className="text-pretty text-center text-xs leading-relaxed text-text-low">
+                {t('realtime.salesHint')}
+              </p>
+            )}
           </div>
         }
       >
         {cart.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <ShoppingCart size={40} className="text-text-low" aria-hidden />
+            <icons.cart size={40} className="text-text-low" aria-hidden />
             <p className="font-display font-bold text-text-high">{t('shop.cartEmpty')}</p>
             <p className="text-sm text-text-medium">{t('shop.cartEmptyBody')}</p>
           </div>
@@ -81,12 +113,13 @@ export function CartDrawer() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, x: 40 }}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-black/20 p-3"
+                  // Line item recessed into the drawer (`well-shallow`, §3.3).
+                  className="well-shallow flex items-center gap-3 rounded-xl border border-border p-3"
                 >
                   <ProductImage
                     src={item.image}
                     alt={item.name}
-                    fallbackIcon={ShoppingCart}
+                    fallbackIcon={icons.shop}
                     className="size-10 shrink-0"
                     sizes="40px"
                   />
@@ -104,7 +137,7 @@ export function CartDrawer() {
                       // tell which line it is on.
                       aria-label={`${t('shop.quantity')} −1: ${item.name}`}
                     >
-                      <Minus size={14} aria-hidden />
+                      <icons.remove size={14} aria-hidden />
                     </button>
                     <span className="w-6 text-center text-sm font-semibold tabular-nums text-text-high">
                       {item.qty}
@@ -114,7 +147,7 @@ export function CartDrawer() {
                       className="rounded-r-lg p-1.5 text-text-medium transition-colors hover:text-text-high focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                       aria-label={`${t('shop.quantity')} +1: ${item.name}`}
                     >
-                      <Plus size={14} aria-hidden />
+                      <icons.add size={14} aria-hidden />
                     </button>
                   </div>
                   <span className="w-16 text-right text-sm font-bold tabular-nums text-text-high">
@@ -125,7 +158,7 @@ export function CartDrawer() {
                     className="rounded-md p-1 text-text-low transition-colors hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                     aria-label={`${t('shop.remove')}: ${item.name}`}
                   >
-                    <Trash2 size={16} aria-hidden />
+                    <icons.delete size={16} aria-hidden />
                   </button>
                 </motion.div>
               ))}

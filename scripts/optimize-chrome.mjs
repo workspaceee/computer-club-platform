@@ -23,7 +23,9 @@
  *    render these with `object-cover` in a 16:9 box, so the browser was already
  *    throwing away the top and bottom of a square frame on every paint. Baking
  *    the same crop ships the pixels that are actually visible and nothing else.
- *    1024 is the generator's native width; asking for more would upscale.
+ *    The target width is per-file and follows the source: 1024 for the square
+ *    attract frames, 1664 for the wide `lock-bg` render. Never above native —
+ *    upscaling adds bytes and no detail.
  *
  *  - **Marks** (`MARKS`) keep their aspect ratio and their alpha, and are only
  *    capped in width to roughly 2x the largest box they render in (§13 of
@@ -45,14 +47,30 @@ import sharp from 'sharp'
 
 const PUBLIC_DIR = path.join(process.cwd(), 'public')
 
-/** Full-bleed art rendered with `object-cover` in a 16:9 box. */
+/**
+ * Full-bleed art rendered with `object-cover` in a 16:9 box.
+ *
+ * The defaults describe the attract frames: 1024 px is their generator's native
+ * width, and asking for more would upscale. A file may override any of them,
+ * because "native width" is a property of the source, not of the family —
+ * `lock-bg` comes from a 1679 px render, and clamping it to 1024 threw away a
+ * third of the detail it actually had. It is also the one backdrop a guest
+ * stares at while typing a PIN on a full-height panel, so it is encoded at its
+ * own native width and a higher quality, and carries a larger ceiling in §13.3
+ * to match. Weight is spent where it is looked at.
+ */
 const BACKDROPS = {
   width: 1024,
   height: 576,
   quality: 82,
   /** Fraction of the leftover height taken off the top (0.5 = centred). */
   bias: 0.5,
-  files: ['attract/frame-1.png', 'attract/frame-2.png', 'attract/frame-3.png', 'lock-bg.png'],
+  files: [
+    'attract/frame-1.png',
+    'attract/frame-2.png',
+    'attract/frame-3.png',
+    { file: 'lock-bg.png', width: 1664, height: 936, quality: 88 },
+  ],
 }
 
 /** Logos: aspect ratio and alpha are load-bearing, width is not. */
@@ -113,7 +131,13 @@ async function main() {
   let skipped = 0
   let missing = 0
 
-  for (const relative of BACKDROPS.files) {
+  for (const entry of BACKDROPS.files) {
+    // A bare string means "family defaults"; an object overrides some of them.
+    const relative = typeof entry === 'string' ? entry : entry.file
+    const width = entry.width ?? BACKDROPS.width
+    const height = entry.height ?? BACKDROPS.height
+    const quality = entry.quality ?? BACKDROPS.quality
+
     const source = await readSource(relative)
     if (source === null) {
       missing++
@@ -127,16 +151,14 @@ async function main() {
     sourceBytes += input.byteLength
 
     const meta = await sharp(input).metadata()
-    const window = cropWindow(
-      meta.width,
-      meta.height,
-      BACKDROPS.width / BACKDROPS.height,
-      BACKDROPS.bias,
-    )
+    const window = cropWindow(meta.width, meta.height, width / height, BACKDROPS.bias)
     const buffer = await sharp(input)
       .extract(window)
-      .resize(BACKDROPS.width, BACKDROPS.height, { fit: 'cover' })
-      .webp({ quality: BACKDROPS.quality, effort: 5 })
+      // `kernel: 'lanczos3'` is sharp's default, spelled out because for these
+      // near-1:1 resizes it is the whole point: the crop is only a few pixels
+      // wider than the target, so the encode must not soften what it resamples.
+      .resize(width, height, { fit: 'cover', kernel: 'lanczos3' })
+      .webp({ quality, effort: 6 })
       .toBuffer()
 
     await writeFile(outPath, buffer)
@@ -145,7 +167,7 @@ async function main() {
     console.log(
       `[chrome] ${relative.padEnd(24)} ${meta.width}x${meta.height} ` +
         `-> crop ${window.width}x${window.height}@${window.left},${window.top} ` +
-        `-> ${BACKDROPS.width}x${BACKDROPS.height} ${(buffer.byteLength / 1024).toFixed(0)} KB`,
+        `-> ${width}x${height} q${quality} ${(buffer.byteLength / 1024).toFixed(0)} KB`,
     )
   }
 

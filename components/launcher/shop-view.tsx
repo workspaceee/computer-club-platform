@@ -1,24 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import {
-  Clock,
-  Coffee,
-  Cookie,
-  Crown,
-  CupSoda,
-  type LucideIcon,
-  Medal,
-  Moon,
-  Pizza,
-  Plus,
-  Shield,
-  Shirt,
-  ShoppingBag,
-  ShoppingCart,
-  Timer,
-  UtensilsCrossed,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
@@ -26,7 +9,10 @@ import { ProductImage } from '@/components/product-image'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
+import { useClubHours } from '@/hooks/use-club-hours'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
+import { useSalesGate } from '@/hooks/use-sales-gate'
+import { runsPastClosing } from '@/lib/club-hours'
 import { useT } from '@/lib/i18n/provider'
 import { fetchShopItems, fetchShopMemberships, fetchShopTime } from '@/lib/mock/api'
 import { formatEur } from '@/lib/money'
@@ -37,9 +23,9 @@ import { cn } from '@/lib/utils'
 type Tab = 'time' | 'memberships' | 'items'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'time', label: 'Gaming Time', icon: Timer },
-  { id: 'memberships', label: 'Memberships', icon: Crown },
-  { id: 'items', label: 'Physical Items', icon: ShoppingBag },
+  { id: 'time', label: 'Gaming Time', icon: icons.timer },
+  { id: 'memberships', label: 'Memberships', icon: icons.premium },
+  { id: 'items', label: 'Physical Items', icon: icons.shop },
 ]
 
 /** One endpoint per tab — the shop grid never slices a single big catalogue. */
@@ -54,35 +40,67 @@ const TAB_ENDPOINTS: Record<Tab, () => Promise<ShopEntry[]>> = {
  * each pass reads as itself. Exact matches first, then the prefix rules below.
  */
 const ICONS: Record<string, LucideIcon> = {
-  'pass-night': Moon,
-  'pass-weekend': Clock,
-  'mem-bronze': Shield,
-  'mem-silver': Medal,
-  'mem-gold': Crown,
+  'pass-night': icons.night,
+  'pass-weekend': icons.calendar,
+  'mem-bronze': icons.tierBase,
+  'mem-silver': icons.tierMid,
+  'mem-gold': icons.premium,
 }
 
 /** Per-category fallback for a product whose image is missing or fails. */
 const CATEGORY_ICONS: Record<ProductCategory, LucideIcon> = {
-  drinks: CupSoda,
-  coffee: Coffee,
-  snacks: Cookie,
-  food: Pizza,
-  combo: UtensilsCrossed,
-  merch: Shirt,
-  time: Timer,
-  membership: Crown,
+  drinks: icons.drinks,
+  coffee: icons.coffee,
+  snacks: icons.snacks,
+  food: icons.food,
+  combo: icons.combo,
+  merch: icons.merch,
+  time: icons.timer,
+  membership: icons.premium,
 }
 
 function iconFor(item: ShopEntry): LucideIcon {
-  return ICONS[item.id] ?? CATEGORY_ICONS[item.category] ?? ShoppingBag
+  return ICONS[item.id] ?? CATEGORY_ICONS[item.category] ?? icons.shop
 }
 
 export function ShopView() {
-  const { t } = useT()
+  const { t, formatTime } = useT()
   const [tab, setTab] = useState<Tab>('time')
   const cart = useStore((s) => s.cart)
   const setCartOpen = useStore((s) => s.setCartOpen)
   const count = cartCount(cart)
+
+  /**
+   * The club's day, read here and handed down (C2.11).
+   *
+   * Read once at the top of the section and passed to the cards rather than each
+   * card calling `useClubHours()` for itself: the hook shares one SWR entry, so
+   * that would work, but nine cards each deriving the same minute is nine chances
+   * for one of them to disagree about it.
+   *
+   * Two different statements come out of it. Closed → nothing can be bought,
+   * because there is nobody to bring it and no counter to collect it (a refusal).
+   * Open but closing sooner than a pass is long → a note on that card only, and
+   * *not* a refusal: the player may legitimately buy minutes that tick next
+   * visit, which is the decision recorded in `runsPastClosing()`.
+   */
+  const club = useClubHours()
+
+  /**
+   * Whether money may be spent at all (C2.12).
+   *
+   * The closed-club check used to be computed right here as `club.ready &&
+   * !club.open`; it now comes from the shared gate, which folds in the second
+   * reason a sale cannot happen — no link to the club server, so no payment can
+   * be confirmed. Both arrive as one `canSpend`, so the grid cannot end up
+   * honouring one refusal and ignoring the other.
+   *
+   * The *catalogue* is untouched by it. Prices, photos, tabs and the cart all keep
+   * working: an outage is not a reason to blank the shop, and a player who spends
+   * the wait deciding what to order is a player served the moment the link is
+   * back.
+   */
+  const sales = useSalesGate()
 
   const catalogue = useApi(['shop', tab], () => TAB_ENDPOINTS[tab]())
   const activeTab = TABS.find((t) => t.id === tab)!
@@ -109,7 +127,7 @@ export function ShopView() {
           onClick={() => setCartOpen(true)}
           className="glass relative flex w-fit items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold text-text-high transition-colors hover:border-border-strong"
         >
-          <ShoppingCart size={16} />
+          <icons.cart size={16} />
           Cart
           {count > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground shadow-[0_0_12px_rgba(229,53,43,0.8)]">
@@ -118,6 +136,60 @@ export function ShopView() {
           )}
         </button>
       </div>
+
+      {/* The refusal, stated once at the top of the section instead of nine times
+          on nine disabled buttons — and it names when it ends, because "closed"
+          without a time is the version a player has to go and ask about.
+          `role="status"`: it is a condition of the screen they just opened, not
+          an error they caused. */}
+      {sales.reason === 'closed' && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/[0.08] px-4 py-3"
+        >
+          <icons.night size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+          <div className="flex flex-col gap-0.5">
+            <p className="font-display text-sm font-bold uppercase text-text-high">
+              {t('shop.closedTitle')}
+            </p>
+            <p className="text-pretty text-xs leading-relaxed text-text-medium">
+              {club.opensAt
+                ? t('shop.closedBody', { time: formatTime(club.opensAt) })
+                : t('shop.closedBodyNoTime')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* The outage refusal (C2.12), in the same slot and the same shape as the
+          closing one — `reason` is exclusive, so the section never stacks two
+          banners saying the shop is shut for two different reasons.
+          
+          It carries the promise the top-of-screen strip cannot: the player is
+          being told they cannot buy, which is precisely the moment they start
+          wondering whether the minutes they already paid for are burning. The body
+          answers that before it is asked, and the hint says the buttons come back
+          on their own — the shell is already retrying, so "try again later" would
+          be asking for work nobody has to do. */}
+      {sales.reason === 'offline' && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/[0.08] px-4 py-3"
+        >
+          <icons.offline size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+          <div className="flex flex-col gap-0.5">
+            <p className="font-display text-sm font-bold uppercase text-text-high">
+              {t('realtime.salesTitle')}
+            </p>
+            <p className="text-pretty text-xs leading-relaxed text-text-medium">
+              {t('realtime.salesBody')}
+            </p>
+            <p className="text-pretty text-xs leading-relaxed text-text-low">
+              {t('realtime.salesHint')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Toggle buttons rather than ARIA tabs: the sections below are fetched
           per tab and swapped in place, so there is no persistent `tabpanel` to
@@ -172,7 +244,12 @@ export function ShopView() {
         {(items) => (
           <Grid ref={gridRef}>
             {items.map((item) => (
-              <ProductCard key={item.id} item={item} />
+              <ProductCard
+                key={item.id}
+                item={item}
+                canSpend={sales.canSpend}
+                minutesUntilClose={club.minutesUntilClose}
+              />
             ))}
           </Grid>
         )}
@@ -196,13 +273,40 @@ function Grid({
   )
 }
 
-function ProductCard({ item }: { item: ShopEntry }) {
+function ProductCard({
+  item,
+  canSpend,
+  minutesUntilClose,
+}: {
+  item: ShopEntry
+  /**
+   * Whether "Add" may take money at all — from `useSalesGate()` in the section
+   * above, not re-derived here. Nine cards each asking the same question is nine
+   * chances for one of them to answer it differently.
+   */
+  canSpend: boolean
+  /** `null` is "nothing closes", never "closing now" — see `lib/club-hours.ts`. */
+  minutesUntilClose: number | null
+}) {
   const { t } = useT()
   const addToCart = useStore((s) => s.addToCart)
   const toast = useStore((s) => s.toast)
   const isBest = item.tag === 'Best Value'
   const isPopular = item.tag === 'Popular'
   const soldOut = !item.inStock
+
+  /**
+   * How much of this pass will not fit into today (C2.11).
+   *
+   * `null` on anything that is not time, on a pass sold to span the club's edge
+   * (a night pass), and while the pass still fits — three different reasons for
+   * the same "say nothing", all of which end up as one absent line rather than a
+   * card explaining itself for no reason.
+   */
+  const spillMinutes =
+    item.time && !item.time.crossesClosing && runsPastClosing(item.time.minutes, minutesUntilClose)
+      ? item.time.minutes - (minutesUntilClose ?? 0)
+      : null
 
   return (
     <motion.div
@@ -247,6 +351,16 @@ function ProductCard({ item }: { item: ShopEntry }) {
         </div>
       </div>
 
+      {/* Not a warning and not a refusal: the pass is still on sale, and the
+          sentence says where the spare minutes go instead of implying they are
+          lost. Above the price rather than under the button so it is read before
+          the decision, not after it. */}
+      {spillMinutes !== null && (
+        <p className="text-pretty rounded-md border border-border bg-surface-sunken px-3 py-2 text-[11px] leading-relaxed text-text-medium">
+          {t('shop.closingPassNote', { n: spillMinutes })}
+        </p>
+      )}
+
       <div className="mt-auto flex items-center justify-between">
         <span className="font-display text-2xl font-bold tabular-nums text-text-high">
           {formatEur(item.priceCents)}
@@ -255,7 +369,11 @@ function ProductCard({ item }: { item: ShopEntry }) {
           )}
         </span>
         <button
-          disabled={soldOut}
+          // A club that is shut or unreachable can neither charge for this nor
+          // bring it, so the button is off rather than raising an error the player
+          // cannot act on. The reason is stated once in the banner above rather
+          // than repeated on nine disabled buttons.
+          disabled={soldOut || !canSpend}
           onClick={() => {
             addToCart(item)
             toast('success', `${item.name} added to cart`)
@@ -271,7 +389,7 @@ function ProductCard({ item }: { item: ShopEntry }) {
             'Sold out'
           ) : (
             <>
-              <Plus size={16} />
+              <icons.add size={16} />
               Add
             </>
           )}

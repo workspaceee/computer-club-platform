@@ -1,6 +1,6 @@
 'use client'
 
-import { Globe } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useCallback } from 'react'
 import { Segmented } from '@/components/ui/segmented'
 import { useT } from '@/lib/i18n/provider'
@@ -74,7 +74,7 @@ export function LangSwitcher({
       <div className={cn('flex flex-col gap-2', className)}>
         {showLabel && (
           <p className="flex items-center gap-1.5 text-sm text-text-high">
-            <Globe size={14} className="text-primary" />
+            <icons.language size={14} className="text-primary" />
             {t('settings.language')}
           </p>
         )}
@@ -122,7 +122,7 @@ export function LangSwitcher({
     <div className={cn('flex items-center gap-2', className)}>
       {showLabel && (
         <span className="hidden items-center gap-1.5 text-text-low sm:flex">
-          <Globe size={13} className="text-primary" />
+          <icons.language size={13} className="text-primary" />
           <span className="label-mono text-[9px]">{t('common.language')}</span>
         </span>
       )}

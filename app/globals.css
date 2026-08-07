@@ -101,6 +101,90 @@
   --zone-vip: #f5c542;
   --zone-standard: #868d95;
   --zone-ps5: #6bb1e4;
+
+  /* ---- Veil ink and floors (F9.2, see DESIGN.md §3) ----
+     The only blacks allowed on top of photography or video. Stored as bare
+     channel triples, not as `#rrggbb` or `rgba()`, because every veil needs the
+     *same* ink at a dozen different alphas — `rgb(var(--veil-ink) / 0.55)` is
+     the one form that lets a single token carry all of them.
+
+     Two inks, deliberately, and neither is `#000`: pure black over a graded
+     frame kills the little colour left in the shadows. `--veil-ink` is the
+     near-neutral one used over the still login backdrop; `--veil-ink-deep` sits
+     two units lower per channel and belongs to the idle screen, where the media
+     is video or a moving slideshow and the scrim has to hold the clock against
+     frames nobody previewed. Their difference is small and intentional — do not
+     collapse them, and do not add a third without a reason written down here.
+
+     The floors are pure black on purpose: they are insurance against a bright
+     upload from the admin panel, not a means of darkening (§3.1), so they must
+     stay colour-neutral. Shaping is the gradients' job. */
+  --veil-ink: 5 6 10;
+  --veil-ink-deep: 3 4 8;
+  --veil-floor: 0.18;
+  --veil-floor-deep: 0.35;
+
+  /* The opaque floor UNDER the media (F9.7b). The translucent floors above sit
+     on top of a loaded frame; this one is what the eye sees while the frame is
+     still decoding, letterboxed, or missing — so it is a full-screen fill, not
+     a veil. It used to be spelled `bg-black` in three files, which is the same
+     hole as `bg-black/NN`: a black chosen in JSX. Pure black is kept verbatim
+     (F9 forbids moving a pixel on the two reference screens) and, like the
+     floors, it must stay colour-neutral. */
+  --veil-base: 0 0 0;
+
+  /* ---- Depth scale (F9.3, see DESIGN.md §3.3) ----
+     Black inside the interface — as opposed to black over media, which is §3's
+     veils — used to be spelled out as `bg-black/NN` at the point of use: 18
+     calls in nine densities (`/20 /25 /30 /35 /40 /55 /60 /70 /85`) doing three
+     unrelated jobs. Nobody chose nine; the ninth simply belonged to whoever
+     wrote the newest screen. Depth is now a decision with three roles:
+
+       --well  a surface recessed INTO a panel — an input frame, a segmented
+               track, a grouped row. It reads as a hole, so it is darker than
+               the panel it sits in and never carries a shadow.
+       --scrim darkening BETWEEN a raised layer and everything under it —
+               modal and drawer backdrops, the blocking session sheet, the
+               band a ticker rides on. Its job is to erase, not to tint.
+       --pill  a plate riding ON TOP of chrome or media — a telemetry chip, a
+               card footer, a close button over cover art. Its job is to buy
+               its own copy a contrast floor without hiding the frame.
+
+     Alphas, not colours: interface depth is neutral black on purpose (the two
+     coloured inks are §3's, and they exist because they sit over graded
+     photography). Bare numbers make the rungs composable — the step below and
+     above `--well` are `calc()`, not two more literals, so a row and a focused
+     field cannot drift apart the way `/20` and `/25` did.
+
+     `--pill-deep` is the one rung off the 0.2 ladder, and deliberately so: it
+     is the idle screen's wake pill, whose media is video or a slideshow nobody
+     previewed — the same argument that gives §3 two inks. F9 forbids moving a
+     pixel on the two reference screens, so this value is carried over verbatim
+     rather than rounded to the ladder. */
+  --depth-step: 0.2;
+  --well: 0.4;
+  --scrim: 0.7;
+  --pill: 0.3;
+  --pill-deep: 0.55;
+
+  /* ---- Frame inset, bottom edge (C2.9) ----
+     The debt taken on by `viewportFit: 'cover'` in layout.tsx. With `cover` the
+     document owns the full display, which is what a kiosk wants — but it also
+     means the bottom edge of the viewport is *behind* the iPhone home indicator
+     on the surface the Companion PWA runs on. Anything fixed to that edge has to
+     buy back the gap itself.
+
+     A token rather than `env()` spelled out per file, for two reasons: `env()`
+     inside an arbitrary Tailwind value is easy to get wrong once and impossible
+     to grep for, and the fallback belongs in exactly one place — every browser
+     that does not know the keyword must read `0px`, not an invalid length that
+     collapses the whole `calc()`.
+
+     Only the two bottom-fixed layers consume it (the launcher's mobile bar and
+     the toast column), plus the main region's reserved space so content still
+     scrolls clear of the bar. Nothing else in the product is bottom-fixed; if
+     something becomes so, it adds this and does not invent its own. */
+  --frame-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @layer base {
@@ -177,6 +261,196 @@
   background-size: 48px 48px;
 }
 
+/* ---------- Media veils (§3) ---------- */
+/* The layered pie that turns a photograph or a clip into a background: floor,
+   shaping gradients, texture. It lives here and not inside two components
+   because §3 requires *every* new medium — including the video the admin panel
+   will let staff upload (A11) — to pass through the same stack. Five inline
+   `style={{ background: 'linear-gradient(...)' }}` strings in JSX cannot be
+   reused by a third screen; they can only be re-eyeballed, and the third set of
+   densities is how a design system stops being one.
+
+   Densities here are a verbatim move from `lock-screen.tsx` / `attract-mode.tsx`
+   — F9.2 is a transfer, not a redesign. `transparent` mid-stops are kept as
+   written rather than "corrected" to a zero-alpha ink: the browser interpolates
+   the two differently, and matching the old pixels outranks tidiness.
+
+   Layer order matters and is the caller's: floor → shaping → texture. Stacked
+   `absolute inset-0` siblings composite in DOM order, so the utilities are
+   applied to separate divs instead of being merged into one multi-background
+   element — that keeps each layer independently tunable from the admin panel
+   later. */
+
+/* The opaque floor under the whole media layer (F9.7b): what shows while the
+   frame decodes or if it never arrives. Not a dimmer — nothing is behind it. */
+@utility veil-base {
+  background-color: rgb(var(--veil-base));
+}
+
+/* Insurance floor, not a dimmer (§3.1). Pure black, colour-neutral. */
+@utility veil-login-floor {
+  background-color: rgb(0 0 0 / var(--veil-floor));
+}
+
+@utility veil-attract-floor {
+  background-color: rgb(0 0 0 / var(--veil-floor-deep));
+}
+
+/* Horizontal veil, login. Directional by design: nearly clear at 42 % where the
+   subject of the photograph sits, dense on the right under the access card and
+   at the left edge under the clock. */
+@utility veil-login-h {
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--veil-ink) / 0.55) 0%,
+    rgb(var(--veil-ink) / 0.05) 42%,
+    rgb(var(--veil-ink) / 0.5) 72%,
+    rgb(var(--veil-ink) / 0.82) 100%
+  );
+}
+
+/* Vertical veil, login: presses the top and bottom edges of the frame. */
+@utility veil-login-v {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--veil-ink) / 0.5) 0%,
+    transparent 22%,
+    transparent 68%,
+    rgb(var(--veil-ink) / 0.72) 100%
+  );
+}
+
+/* Radial scrim, idle screen: a dark egg directly under the centred clock. */
+@utility veil-attract-scrim {
+  background-image: radial-gradient(
+    ellipse 62% 44% at 50% 47%,
+    rgb(var(--veil-ink-deep) / 0.72) 0%,
+    rgb(var(--veil-ink-deep) / 0.35) 55%,
+    transparent 100%
+  );
+}
+
+/* Vertical veil, idle screen. Bottom is heavier than the login's — the ticker
+   rides on it and its copy has to clear a moving frame. */
+@utility veil-attract-v {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--veil-ink-deep) / 0.8) 0%,
+    transparent 26%,
+    transparent 58%,
+    rgb(var(--veil-ink-deep) / 0.92) 100%
+  );
+}
+
+/* ---------- Card and banner veils (F9.7b) ---------- */
+/* The three veils that were still spelled out at the point of use — two as
+   Tailwind `from-black/NN via-black/NN`, one as an arbitrary
+   `bg-[linear-gradient(...)]` — now named after their consumer like the rest of
+   §3. They carry `--veil-ink` rather than the `#000` / `rgba(10,10,12,·)` they
+   were written with: cover art and campaign banners are graded media, so the
+   argument of §3 applies to them too, and a third ink would only be the start
+   of a fourth. The shift is ~2 levels at the densest stop, and these are not
+   the two pixel-frozen reference screens.
+
+   The cover caption and the hero are deliberately NOT one utility: the caption
+   veil is 12–16 rem tall and has to clear a 16 px title inside its own padding,
+   the hero veil covers a 70 vw frame and must leave the middle of the artwork
+   readable. Same job, different scale — collapsing them would darken the hero
+   or wash out the tile. */
+
+/* Under the title of a cover tile (`GameCover`), bottom-heavy. */
+@utility veil-cover-title {
+  background-image: linear-gradient(
+    to top,
+    rgb(var(--veil-ink) / 0.85) 0%,
+    rgb(var(--veil-ink) / 0.45) 50%,
+    transparent 100%
+  );
+}
+
+/* Under the hero cover on Home: denser at the very bottom, clearing sooner. */
+@utility veil-hero-v {
+  background-image: linear-gradient(
+    to top,
+    rgb(var(--veil-ink) / 0.9) 0%,
+    rgb(var(--veil-ink) / 0.25) 50%,
+    transparent 100%
+  );
+}
+
+/* Horizontal veil of the promo strip: copy lives on the left, so the ink is
+   almost solid there and lets the banner art through on the right. */
+@utility veil-promo-h {
+  background-image: linear-gradient(
+    100deg,
+    rgb(var(--veil-ink) / 0.96) 18%,
+    rgb(var(--veil-ink) / 0.7) 52%,
+    rgb(var(--veil-ink) / 0.15)
+  );
+}
+
+/* CRT / broadcast texture: 1 px line every 3 px. Opacity and blend mode are
+   baked in rather than left to the caller — they *are* the effect, and the two
+   times this shipped as loose utility classes in JSX is exactly how a texture
+   ends up at a different strength on the third screen. */
+@utility scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.8) 0px,
+    rgba(255, 255, 255, 0.8) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* ---------- Depth scale (§3.3) ---------- */
+/* Six rungs, three roles, one ladder. The two derived rungs are `calc()` off
+   `--well` so the recessed family stays a scale: change `--well` and the row
+   and the focused field follow it, which is exactly what nine hand-written
+   `bg-black/NN` calls could not do.
+
+   Backgrounds only — never a border, never a shadow. Depth here is a fill; the
+   edge of a well is `--border`, and a scrim has no edge at all. */
+
+/* A row grouped inside an already dark panel: recessed, but not a control. */
+@utility well-shallow {
+  background-color: rgb(0 0 0 / calc(var(--well) - var(--depth-step)));
+}
+
+/* The standard recess: input frames, segmented tracks, tab strips. */
+@utility well {
+  background-color: rgb(0 0 0 / var(--well));
+}
+
+/* The same recess while focus is inside it. Applied by the caller as
+   `focus-within:well-deep` rather than baked into `.well`, because a segmented
+   track and a tab strip are wells too and must NOT darken when a child button
+   takes focus — the sliding pill and the ring already say where focus is. */
+@utility well-deep {
+  background-color: rgb(0 0 0 / calc(var(--well) + var(--depth-step)));
+}
+
+/* Darkening under a raised layer. One depth for every backdrop in the product:
+   a dialog, a drawer and the blocking session sheet are the same event as far
+   as the eye is concerned, and they all pair this with `backdrop-blur-*`. */
+@utility scrim {
+  background-color: rgb(0 0 0 / var(--scrim));
+}
+
+/* A plate on chrome or on a still frame. */
+@utility pill {
+  background-color: rgb(0 0 0 / var(--pill));
+}
+
+/* A plate on moving or unvetted media (video, slideshow), and the hover of a
+   plate that sits directly on artwork. */
+@utility pill-deep {
+  background-color: rgb(0 0 0 / var(--pill-deep));
+}
+
 /* Matte tactical panel with hairline border + top highlight */
 @utility glass {
   background: linear-gradient(
@@ -241,12 +515,41 @@
   }
 }
 
-/* Thin animated border: red and white light traveling around the edge */
-.neon-ring {
+/* Thin neon border: red and white light on the edge of a panel.
+   Two orthogonal choices, spelled into the class name.
+
+   WHO POSITIONS THE ELEMENT (mechanical):
+     …-ring  — element is in normal flow; the utility positions it.
+     …-edge  — element the caller has ALREADY positioned (`absolute inset-0`
+       overlays such as the segmented control's sliding pill). `position:
+       relative` would collapse those, so the edge is offered without it.
+
+   HOW LOUD IT IS — the tier (§4.4, F9.4):
+     T1  .neon-ring / .neon-edge                — light TRAVELS. One element
+         per screen: the thing the visitor is meant to act on.
+     T2  .neon-ring-static / .neon-edge-static  — same tube, frozen. Status
+         plates: they must read as lit, not as the destination.
+     T3  no class at all. Everything else earns attention with border, glass
+         and type.
+
+   Why the tier lives in CSS and not in each screen's head: with T1 handed
+   out per element, the idle screen ended up wearing seven traveling rings at
+   once, and an accent that is everywhere is not an accent. The animation is
+   the scarce resource here, so it is what the tier switches — the gradient,
+   mask, glow and geometry stay one block, and editing the tube edits all
+   four entry points. */
+.neon-ring,
+.neon-ring-static {
   position: relative;
 }
 .neon-ring::before,
-.neon-ring::after {
+.neon-ring::after,
+.neon-edge::before,
+.neon-edge::after,
+.neon-ring-static::before,
+.neon-ring-static::after,
+.neon-edge-static::before,
+.neon-edge-static::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -271,14 +574,44 @@
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  animation: neon-spin 7s linear infinite;
   pointer-events: none;
+}
+/* T1 only: the light travels. This one declaration is the whole difference
+   between the tiers — which is the point of F9.4. */
+.neon-ring::before,
+.neon-ring::after,
+.neon-edge::before,
+.neon-edge::after {
+  animation: neon-spin 7s linear infinite;
+}
+/* T2: the tube is frozen mid-sweep. 135deg puts the white segment on the
+   top-left corner, so a row of status plates catches light from one
+   consistent direction instead of each freezing wherever it happened to be. */
+.neon-ring-static::before,
+.neon-ring-static::after,
+.neon-edge-static::before,
+.neon-edge-static::after {
+  --neon-angle: 135deg;
+}
+/* Above the panel's own inner content (backgrounds, media, highlights). */
+.neon-ring::before,
+.neon-ring::after,
+.neon-ring-static::before,
+.neon-ring-static::after {
   z-index: 3;
 }
-/* Soft glow copy of the ring */
-.neon-ring::after {
+/* Soft glow copy of the ring. T2 halves it: a frozen glow reads as a smudge
+   at full strength, and a status plate is small enough that the bloom would
+   swallow its own label. */
+.neon-ring::after,
+.neon-edge::after {
   filter: blur(6px);
   opacity: 0.55;
+}
+.neon-ring-static::after,
+.neon-edge-static::after {
+  filter: blur(5px);
+  opacity: 0.28;
 }
 
 /* Breathing red/white neon for display text (clocks).
@@ -301,6 +634,58 @@
 }
 .neon-text {
   animation: neon-text-breathe 4.5s ease-in-out infinite;
+}
+
+/* Neon-tube digits: HOLLOW glyphs — the counters stay fully transparent so
+   the backdrop art reads straight through them, and every bit of light lives
+   on the contour. A thin white-hot stroke plays the glass tubing; the red
+   halo is painted with `filter: drop-shadow`, not `text-shadow`, because
+   drop-shadow follows the element's actual alpha (i.e. the stroke) while
+   text-shadow would silhouette the *filled* glyph and fog the hollow
+   interior back in. */
+@keyframes neon-digits-breathe {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.28))
+      drop-shadow(0 0 7px rgba(229, 53, 43, 0.42))
+      drop-shadow(0 0 18px rgba(229, 53, 43, 0.18));
+  }
+  50% {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
+      drop-shadow(0 0 4px rgba(255, 255, 255, 0.4))
+      drop-shadow(0 0 8px rgba(229, 53, 43, 0.55))
+      drop-shadow(0 0 22px rgba(229, 53, 43, 0.26));
+  }
+}
+.neon-digits {
+  /* Transparent fill = the tube is empty glass. `-webkit-text-fill-color`
+     wins over the utility `text-*` colour the caller passes, which is kept
+     so selection / fallback rendering still has a sane colour. */
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* Stroke width is in `em`, not `px`: a fixed rim tuned for 9rem digits
+     turns the smaller breakpoints into a fat slab. Tying it to the font
+     size keeps the tube equally crisp everywhere. */
+  /* Slightly heavier than the first pass: with no fill, the stroke is the
+     only thing carrying the shape, so it has to hold up on its own now that
+     the red bloom no longer does the work of making the digits visible. */
+  -webkit-text-stroke: 0.022em rgba(255, 255, 255, 0.96);
+  paint-order: stroke fill;
+  /* Any inherited text-shadow (e.g. from .neon-text) would fill the hollow
+     centres — the halo is drop-shadow's job here. */
+  text-shadow: none;
+  /* Static fallback so the digits still glow when motion is damped and the
+     keyframes above are switched off. */
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.28))
+    drop-shadow(0 0 7px rgba(229, 53, 43, 0.42))
+    drop-shadow(0 0 18px rgba(229, 53, 43, 0.18));
+  animation: neon-digits-breathe 3.2s ease-in-out infinite;
+  /* Chakra Petch is already narrow; the extra negative tracking pulls the
+     glyphs into one compact block instead of a wide marquee. */
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Breathing red/white neon edge for the brand mark.
@@ -538,13 +923,96 @@
   animation: urgency-pulse 1.4s ease-in-out infinite;
 }
 
+/* The HUD plate answering a time warning (C2.6).
+   Distinct from `urgency-pulse` above, and the difference is what each one
+   means. `urgency-pulse` is a *state*: it runs for the whole danger band on the
+   digits, because under five minutes is continuously true. This is an *event* —
+   a mark was just crossed — so it runs a fixed three beats and stops, on the
+   plate's own halo rather than on the digits, and it borrows `currentColor` so
+   the amber of the 15-minute mark and the red of the 5-minute one need no second
+   rule. A ring that never stopped would be indistinguishable from the state
+   pulse it sits two centimetres away from, and by minute four the player would
+   have stopped seeing either. */
+@keyframes hud-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(from currentColor r g b / 0);
+  }
+  35% {
+    box-shadow: 0 0 0 4px rgb(from currentColor r g b / 0.28);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(from currentColor r g b / 0);
+  }
+}
+.hud-alert-pulse {
+  animation: hud-alert-pulse 1.1s ease-out 3;
+}
+
+/* Idle-screen wake hint ("Move mouse to unlock").
+   It competes with fullscreen banner art, so it can't rely on the old
+   opacity flicker down to 0.45 — that made the one instruction on the
+   screen the dimmest thing on it. Instead the pill keeps full contrast and
+   the *glow* breathes around it: the halo swells, the copy warms up, and a
+   red scan beam crosses the pill so the eye is caught by movement rather
+   than by the text disappearing. */
+@keyframes wake-hint-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.45),
+      0 0 16px rgba(229, 53, 43, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 8px 30px rgba(0, 0, 0, 0.45),
+      0 0 34px rgba(229, 53, 43, 0.34);
+  }
+}
+.wake-hint {
+  animation: wake-hint-breathe 2.8s ease-in-out infinite;
+}
+/* Copy stays legible at the trough (0.82, not 0.45) — this is a nudge in
+   brightness, not a fade-out. */
+@keyframes wake-hint-copy {
+  0%,
+  100% {
+    opacity: 0.82;
+    text-shadow: 0 0 8px rgba(229, 53, 43, 0.16);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 14px rgba(229, 53, 43, 0.45);
+  }
+}
+.wake-hint-copy {
+  animation: wake-hint-copy 2.8s ease-in-out infinite;
+}
+/* Scan beam. Slightly slower than the glow and with a long tail at the end
+   of the cycle, so the sweeps arrive in bursts instead of strobing. */
+@keyframes wake-hint-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  55%,
+  100% {
+    transform: translateX(200%);
+  }
+}
+.wake-hint-scan {
+  animation: wake-hint-scan 3.8s ease-in-out infinite;
+}
+
 /* Global motion damping.
    `data-reduce-motion` is set on <html> from the user's "Reduce animations"
    setting; the media query covers the OS-level preference. Decorative,
    infinite animations stop — functional transitions stay. */
 :root[data-reduce-motion='true'] .neon-ring::before,
 :root[data-reduce-motion='true'] .neon-ring::after,
+:root[data-reduce-motion='true'] .neon-edge::before,
+:root[data-reduce-motion='true'] .neon-edge::after,
 :root[data-reduce-motion='true'] .neon-text,
+:root[data-reduce-motion='true'] .neon-digits,
 :root[data-reduce-motion='true'] .neon-logo,
 :root[data-reduce-motion='true'] .imba-grid,
 :root[data-reduce-motion='true'] .shimmer::after,
@@ -552,14 +1020,40 @@
 :root[data-reduce-motion='true'] .scanline::before,
 :root[data-reduce-motion='true'] .marquee-track,
 :root[data-reduce-motion='true'] .caret-blink,
-:root[data-reduce-motion='true'] .urgency-pulse {
+:root[data-reduce-motion='true'] .wake-hint,
+:root[data-reduce-motion='true'] .wake-hint-copy,
+:root[data-reduce-motion='true'] .wake-hint-scan,
+:root[data-reduce-motion='true'] .urgency-pulse,
+:root[data-reduce-motion='true'] .hud-alert-pulse {
   animation: none !important;
+}
+
+/* When motion is damped, T1 becomes T2 rather than "T1 stopped at 0deg":
+   without this the ring freezes wherever the angle happened to be, which is
+   the one look the tier ladder exists to prevent. Duplicated per selector
+   list because the media query cannot see the data attribute. */
+:root[data-reduce-motion='true'] .neon-ring::before,
+:root[data-reduce-motion='true'] .neon-ring::after,
+:root[data-reduce-motion='true'] .neon-edge::before,
+:root[data-reduce-motion='true'] .neon-edge::after {
+  --neon-angle: 135deg;
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-ring::before,
+  .neon-ring::after,
+  .neon-edge::before,
+  .neon-edge::after {
+    --neon-angle: 135deg;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .neon-ring::before,
   .neon-ring::after,
+  .neon-edge::before,
+  .neon-edge::after,
   .neon-text,
+  .neon-digits,
   .neon-logo,
   .imba-grid,
   .shimmer::after,
@@ -567,7 +1061,11 @@
   .scanline::before,
   .marquee-track,
   .caret-blink,
-  .urgency-pulse {
+  .wake-hint,
+  .wake-hint-copy,
+  .wake-hint-scan,
+  .urgency-pulse,
+  .hud-alert-pulse {
     animation: none !important;
   }
 }

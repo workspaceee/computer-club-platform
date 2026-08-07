@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Gamepad2, Play, Search, Star, Users } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
@@ -117,7 +117,7 @@ export function GamesView() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <IconTile icon={Gamepad2} variant="primary" size="xl" ticks />
+          <IconTile icon={icons.games} variant="primary" size="xl" ticks />
           <div>
             <p className="label-mono text-[10px] text-text-low">Library // 02</p>
             <h2 className="font-display text-2xl font-bold uppercase tracking-tighter text-text-high">
@@ -128,7 +128,7 @@ export function GamesView() {
         </div>
         <div className="flex items-center gap-3">
           <div className="glass flex flex-1 items-center gap-2 rounded-md px-4 py-2.5 sm:w-64">
-            <Search size={16} className="text-text-low" />
+            <icons.search size={16} className="text-text-low" />
             <input
               value={rawQuery}
               onChange={(e) => setRawQuery(e.target.value)}
@@ -183,7 +183,7 @@ export function GamesView() {
         isEmpty={(page) => page.items.length === 0}
         empty={
           <EmptyState
-            icon={Gamepad2}
+            icon={icons.games}
             title={t('games.noResults')}
             description={t('games.noResultsBody')}
             actionLabel={
@@ -250,7 +250,9 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             action on a card — was revealed by hover alone, so a keyboard player
             focused a control they could not see press. The overlay now follows
             focus as well as the pointer. */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        {/* `scrim` (§3.3): the cover is darkened so a raised control on top of it
+            reads — the same job a modal backdrop does, so the same depth. */}
+        <div className="scrim absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             onClick={() => setLaunchGame(game.id)}
             // The card carries the title, but a button announcing just "Play"
@@ -260,7 +262,7 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             data-roving-item
             className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
           >
-            <Play size={15} fill="currentColor" />
+            <icons.play size={15} fill="currentColor" />
             Play
           </button>
         </div>
@@ -272,7 +274,7 @@ function GameCard({ game, players }: { game: Game; players: number }) {
         <h3 className="truncate font-display text-sm font-semibold text-text-high">{game.name}</h3>
         <div className="flex items-center justify-between text-xs">
           <span className="flex items-center gap-1 text-warning">
-            <Star size={12} fill="currentColor" />
+            <icons.rating size={12} fill="currentColor" />
             {game.rating.toFixed(1)}
           </span>
           <motion.span
@@ -282,7 +284,7 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             transition={{ duration: 1 }}
             className="flex items-center gap-1 tabular-nums"
           >
-            <Users size={12} />
+            <icons.community size={12} />
             {players.toLocaleString()}
           </motion.span>
         </div>

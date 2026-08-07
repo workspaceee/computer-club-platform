@@ -7,7 +7,7 @@
 //
 // Domains:
 //   client    transport, `ApiError`, fault injection (`mockFaults`)
-//   auth      sign-in, register, guest, QR handshake
+//   auth      sign-in, register, password recovery, guest, QR handshake
 //   profile   profile, wallet, preferences, privacy
 //   session   the live session: heartbeat, pause, extend, end
 //   catalog   games, club, zones, seats, occupancy
@@ -21,7 +21,12 @@ export {
   ApiError,
   isApiError,
   mockFaults,
+  // C2.12. The two ends of the "no purchases while the link is down" guard: the
+  // realtime provider pushes the banner's delayed `offline` flag in, and registers
+  // the reporter that turns a refused purchase into a translated toast.
+  onPurchaseRefused,
   serverTime,
+  setTransportOffline,
   toApiError,
   type ApiErrorCode,
   type FaultConfig,

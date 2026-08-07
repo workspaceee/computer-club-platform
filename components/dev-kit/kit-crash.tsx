@@ -62,6 +62,11 @@ function BoundaryDemo({ variant }: { variant: 'page' | 'section' }) {
           <CrashScreen
             variant={variant}
             reference="SH-DEMO01"
+            /* The real screen heals itself after five seconds; here that would
+               reset the demo (and reload /dev/kit on the page variant) before a
+               reviewer could read it. The buttons still do exactly what they do
+               in production, which is what this showcase is for. */
+            autoRecover={false}
             onRetry={() => {
               setArmed(false)
               reset()

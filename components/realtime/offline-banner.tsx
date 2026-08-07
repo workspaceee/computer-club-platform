@@ -15,7 +15,7 @@
  */
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { CloudOff, RefreshCw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { useT } from '@/lib/i18n/provider'
 import { overlayZ } from '@/lib/overlay'
@@ -56,7 +56,7 @@ export function OfflineBanner({
           )}
         >
           <div className="flex w-full max-w-3xl items-center gap-3 rounded-lg border border-warning/35 bg-warning/12 px-4 py-3 backdrop-blur-md">
-            <CloudOff
+            <icons.offline
               className={`size-5 shrink-0 text-warning ${retrying ? 'animate-pulse' : ''}`}
               aria-hidden="true"
             />
@@ -93,7 +93,7 @@ export function OfflineBanner({
                 disabled={retrying}
                 aria-label={t('realtime.retryNow')}
               >
-                <RefreshCw className={retrying ? 'animate-spin' : undefined} aria-hidden="true" />
+                <icons.retry className={retrying ? 'animate-spin' : undefined} aria-hidden="true" />
                 {t('realtime.retryNow')}
               </Button>
             </div>

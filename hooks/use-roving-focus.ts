@@ -134,6 +134,28 @@ export function useRovingFocus<T extends HTMLElement = HTMLDivElement>({
     const onFocusIn = () => syncTabStops()
     root.addEventListener('focusin', onFocusIn)
 
+    // A group can also become reachable without changing at all: the launcher
+    // ships two navigation bars and lets a breakpoint decide which one is
+    // `display:none` (C2.1). The hidden one has no items to walk, so the sync
+    // above bails out and its buttons keep the browser's default `tabIndex=0` —
+    // which is harmless while it stays hidden and wrong the instant it is shown.
+    // Rotating a kiosk or a Companion PWA across 640 px did exactly that: the
+    // bottom bar came back with five tab stops instead of one. Nothing mutates
+    // in that transition, so the observer never fires; the viewport is the only
+    // thing that moved.
+    //
+    // Coalesced into a frame because resize fires per pixel of a drag, and the
+    // groups behind this hook include the 60-title library grid.
+    let frame = 0
+    const onResize = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        syncTabStops()
+      })
+    }
+    window.addEventListener('resize', onResize)
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
 
@@ -185,6 +207,8 @@ export function useRovingFocus<T extends HTMLElement = HTMLDivElement>({
     root.addEventListener('keydown', onKeyDown)
     return () => {
       observer.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+      window.removeEventListener('resize', onResize)
       root.removeEventListener('focusin', onFocusIn)
       root.removeEventListener('keydown', onKeyDown)
     }
