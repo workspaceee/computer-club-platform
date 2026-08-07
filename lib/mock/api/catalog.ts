@@ -93,17 +93,10 @@ export function fetchGame(gameId: ID): Promise<Game> {
   return query('catalog.fetchGame', () => required(db.games.find((g) => g.id === gameId)))
 }
 
-/**
- * `GET /api/games/featured` — the curated hero row. Resolved from ids in curator
- * order, and silently skips an id whose title left the catalogue.
- */
-export function fetchFeaturedGames(): Promise<Game[]> {
-  return query('catalog.fetchFeaturedGames', () =>
-    db.featuredGameIds
-      .map((id) => db.games.find((g) => g.id === id))
-      .filter((game): game is Game => game !== undefined),
-  )
-}
+// `GET /api/games/featured` used to live here — the five covers of the old hero
+// row. C3.9 replaced that rail with the club's own deck (`GET /api/hero`), which
+// composes campaigns, brackets and the novelty shelf; nothing reads a curated
+// game list any more, and the shelf it *would* have duplicated is `gameReleases`.
 
 /** `GET /api/games/categories` — with counts, for the filter chips. */
 export function fetchGameCategories(): Promise<{ category: GameCategory; count: number }[]> {

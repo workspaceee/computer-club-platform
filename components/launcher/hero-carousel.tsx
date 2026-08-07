@@ -318,9 +318,16 @@ export function HeroCarousel({ surface = 'launcher' }: { surface?: LauncherSurfa
               rung because it is 70vw of art, not a 12rem caption. */}
           <div aria-hidden className="veil-hero-v absolute inset-0" />
 
-          {/* `pb-16` / `pr-32`: the controls own the bottom-right corner, and a
-              long headline or a CTA must not run underneath them. */}
-          <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 pb-16 md:p-8 md:pb-16">
+          {/* The copy is inset out of every control rather than trusted to be short
+              enough to miss them. This column is bottom-anchored and its height is
+              whatever the club's headline needs, so it grows *upwards* — which is
+              why the room has to be taken out of its box rather than hoped for:
+                `pb-16`     the bottom-right cluster (dots, pause, and below `sm`
+                            the arrows too);
+                `sm:px-16`  the arrows once they centre vertically, so the second
+                            line of a two-line headline and the CTA clear them;
+                `md:pr-32`  the cluster at its widest. */}
+          <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 pb-16 sm:px-16 md:px-20 md:pb-16 md:pr-32">
             <div className="flex flex-wrap items-center gap-3">
               <span className="label-mono flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
                 <view.eyebrowIcon size={12} aria-hidden />
@@ -337,10 +344,13 @@ export function HeroCarousel({ surface = 'launcher' }: { surface?: LauncherSurfa
               )}
             </div>
 
-            <h2 className="max-w-2xl pr-4 font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:pr-32 md:text-5xl">
+            {/* No `pr-*` of their own: the column above is already inset out of
+                every control, and a second inset here would narrow the headline
+                twice over. */}
+            <h2 className="max-w-2xl font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:text-5xl">
               {view.title}
             </h2>
-            <p className="max-w-xl text-sm leading-relaxed text-white/80 text-pretty md:pr-32">
+            <p className="max-w-xl text-sm leading-relaxed text-white/80 text-pretty">
               {view.body}
             </p>
 
@@ -360,21 +370,26 @@ export function HeroCarousel({ surface = 'launcher' }: { surface?: LauncherSurfa
 
       {count > 1 && (
         <>
-          {/* Vertically centred from `sm` up, pinned to the top corners below it
-              (C2.9). The copy column is bottom-anchored and its height is fixed by
-              the type, so as the frame narrows the column climbs and a centred
-              arrow lands straight across the eyebrow and the headline. At the top
-              edge there is nothing but veil at any width. */}
+          {/* Vertically centred from `sm` up — the reach a mouse expects, with the
+              copy column inset out of their gutter (`sm:px-16` above).
+              
+              Below `sm` (C2.9) they drop to the *bottom-left* instead of the top
+              corners. A 390px frame has no width to spare for a side gutter, and
+              the copy column is bottom-anchored and grows upwards, so a top-corner
+              arrow ends up under the eyebrow badge on any slide whose headline
+              runs to two lines. The bottom band is the one strip of this frame
+              already reserved for controls — the dots and the pause button live in
+              it — so that is where the arrows go when there is nowhere else. */}
           <button
             onClick={() => go(index - 1)}
-            className="glass absolute left-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:left-4 sm:top-1/2 sm:-translate-y-1/2"
+            className="glass absolute bottom-4 left-6 rounded-md p-2 text-white transition-colors hover:bg-white/15 sm:bottom-auto sm:left-4 sm:top-1/2 sm:-translate-y-1/2 sm:p-2.5"
             aria-label={t('home.heroPrev')}
           >
             <icons.back size={20} aria-hidden />
           </button>
           <button
             onClick={() => go(index + 1)}
-            className="glass absolute right-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:right-4 sm:top-1/2 sm:-translate-y-1/2"
+            className="glass absolute bottom-4 left-[4.25rem] rounded-md p-2 text-white transition-colors hover:bg-white/15 sm:bottom-auto sm:left-auto sm:right-4 sm:top-1/2 sm:-translate-y-1/2 sm:p-2.5"
             aria-label={t('home.heroNext')}
           >
             <icons.forward size={20} aria-hidden />
