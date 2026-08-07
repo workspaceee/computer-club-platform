@@ -28,6 +28,7 @@ import {
   toAgentError,
 } from '@/lib/agent/bridge'
 import { mockAgent } from '@/lib/agent/mock-agent'
+import type { MachineTelemetry } from '@/lib/types/machine'
 
 /** The bridge in use. Stage 5 points this at the real agent transport. */
 const agent = mockAgent
@@ -112,4 +113,89 @@ export function useAgent(): AgentState {
     recheck,
     rechecking,
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Telemetry
+ * ------------------------------------------------------------------ */
+
+/** Default cadence. Fast enough to look alive, slow enough not to heat the CPU. */
+const TELEMETRY_INTERVAL_MS = 2500
+
+export interface TelemetryState {
+  /** `null` until the first reading lands, and after the agent goes away. */
+  telemetry: MachineTelemetry | null
+  /** `true` while the seat is reporting — the honest gate for every reading. */
+  live: boolean
+}
+
+export interface TelemetryOptions {
+  /** Poll only while the surface that reads it is on screen. Default `true`. */
+  enabled?: boolean
+  intervalMs?: number
+}
+
+/**
+ * Live hardware readings from the seat (F5.1, first used by C1.6).
+ *
+ * The bridge contract says the *caller* owns the interval so there is exactly
+ * one, which is precisely why this is a hook and not five components each
+ * calling `getTelemetry()`. Rules it enforces:
+ *
+ *  - Nothing is polled unless the handshake said `ready` **and** the seat
+ *    reports `telemetry` as a capability. A console seat without it never gets a
+ *    request, so `live` is `false` and the UI renders "unavailable" rather than
+ *    a plausible ping (F5.4).
+ *  - A failed read drops the reading instead of freezing the last one on screen.
+ *    A stale 4 ms next to a dead link is a lie with a number on it.
+ *  - Polling stops while the tab is hidden: an idle kiosk should not keep a
+ *    2.5 s timer alive for a HUD nobody is looking at, and the reading is
+ *    refreshed the moment it comes back.
+ */
+export function useAgentTelemetry({
+  enabled = true,
+  intervalMs = TELEMETRY_INTERVAL_MS,
+}: TelemetryOptions = {}): TelemetryState {
+  const { status, capabilities } = useAgent()
+  const [telemetry, setTelemetry] = useState<MachineTelemetry | null>(null)
+
+  const canPoll = enabled && status === 'ready' && capabilities.telemetry
+
+  useEffect(() => {
+    if (!canPoll) {
+      setTelemetry(null)
+      return
+    }
+
+    let alive = true
+
+    const tick = async () => {
+      if (document.visibilityState === 'hidden') return
+      try {
+        const next = await agent.getTelemetry()
+        if (alive) setTelemetry(next)
+      } catch (error) {
+        if (!alive) return
+        console.log('[v0] telemetry read failed:', toAgentError(error).code)
+        setTelemetry(null)
+      }
+    }
+
+    void tick()
+    const interval = setInterval(() => void tick(), intervalMs)
+    // Coming back to a visible tab must not wait out a whole interval before the
+    // strip stops showing whatever it had when the tab was hidden.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      alive = false
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [canPoll, intervalMs])
+
+  return { telemetry, live: canPoll && telemetry !== null }
 }

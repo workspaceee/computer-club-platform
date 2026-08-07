@@ -44,7 +44,6 @@ import { icons } from '@/lib/icons'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import { fetchGame } from '@/lib/mock/api'
-import { sfx } from '@/lib/sfx'
 import { useStore } from '@/lib/store'
 
 export function InGameStrip() {
@@ -89,23 +88,16 @@ export function InGameStrip() {
         </p>
         <button
           onClick={() => {
-            console.log('[v0] probe notify (decorative) ->', sfx.play('notify'))
-            console.log('[v0] probe time-warning (critical) ->', sfx.play('time-warning'))
-            console.log('[v0] probe snapshot gameRunning ->', sfx.getSnapshot().gameRunning)
-          }}
-          className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] text-text-low"
-        >
-          probe
-        </button>
-        <button
-          onClick={() => {
             setRunningGame(null)
             // Sound is back, and the toast that says so is itself the proof —
             // it is the first cue heard since the launch, so the player learns
             // the state ended by hearing it end.
             toast('info', t('games.backToLauncher'))
           }}
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border-strong bg-black/25 px-3 py-1.5 text-xs font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          // `pill` (§3.3): a plate on the warning-tinted strip. It reads as the
+          // same object as the timer chip in the bar above it, which the old
+          // one-off 25 % black did not.
+          className="pill ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-semibold text-text-high transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         >
           <icons.close size={13} aria-hidden />
           {t('games.backToLauncher')}
