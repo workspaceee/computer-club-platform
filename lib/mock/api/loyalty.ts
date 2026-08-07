@@ -3,7 +3,8 @@
 // `/api/loyalty/*`: coins, quests, the battle pass, the reward shop and the
 // season leaderboard. Progress rules live server-side on purpose — the client
 // asks to claim, it never decides that something *is* claimable.
-import { ApiError, mutate, newId, query, required } from '@/lib/mock/api/client'
+import { lastOpeningMs, nextOpeningMs } from '@/lib/club-hours'
+import { ApiError, mutate, newId, query, required, serverNowMs } from '@/lib/mock/api/client'
 import {
   db,
   getActiveSeason,
@@ -11,7 +12,9 @@ import {
   getLeaderboard,
   getPlayer,
 } from '@/lib/mock/db'
-import type { Coins, ID } from '@/lib/types/common'
+import { persistDb } from '@/lib/mock/persist'
+import { parseTime } from '@/lib/time'
+import type { Coins, ID, ISODateTime } from '@/lib/types/common'
 import type {
   Achievement,
   ActivityEvent,
@@ -60,6 +63,115 @@ export function fetchQuests(type?: Quest['type']): Promise<Quest[]> {
   return query('loyalty.fetchQuests', () =>
     db.quests.filter((q) => q.active && (type ? q.type === type : true)),
   )
+}
+
+/**
+ * Three, from the task — and the server's number, not the card's.
+ *
+ * The seed carries four dailies on purpose, so "which three" is a real decision
+ * and a client that sliced the list would be making it. It is made here, once.
+ */
+export const DAILY_QUEST_SLOTS = 3
+
+export interface DailyQuestBoard {
+  /** The set on screen, at most `DAILY_QUEST_SLOTS`, ordered by what to do next. */
+  quests: Quest[]
+  /**
+   * When this set rolls over, on the server's clock. `null` when the club never
+   * closes — there is no opening to roll over at, so the card says nothing rather
+   * than inventing a midnight.
+   */
+  resetsAt: ISODateTime | null
+  /** Coins and XP still unclaimed across the set — the card's one summary line. */
+  pendingCoins: Coins
+  pendingXp: number
+}
+
+/**
+ * Which quest a player should look at first.
+ *
+ * Three groups, and the order is the order of what can be *done*: a finished
+ * quest waiting to be collected, then one still in progress, then a settled one.
+ * Within a group the club's own order is kept, so the set does not reshuffle
+ * itself under the cursor as progress lands.
+ */
+function questRank(quest: Quest): number {
+  if (quest.progress >= quest.target && !quest.claimedAt) return 0
+  if (!quest.claimedAt) return 1
+  return 2
+}
+
+/**
+ * Rolls back dailies that belong to a club day which has already ended.
+ *
+ * The reset is the club's, not the calendar's (`quests.type`): a member who leaves
+ * at 03:00 is still inside Friday's set, and a set that rolled at midnight would
+ * empty in front of them mid-visit. So the boundary is the opening that issued the
+ * set — `lastOpeningMs()` — and anything settled before it is stale.
+ *
+ * Only *settled* dailies carry a stamp, so only those can be dated. Partial
+ * progress is deliberately left alone: without a "progressed at" column there is
+ * no honest way to tell yesterday's half-finished quest from this evening's, and
+ * wiping it would take away work the player did an hour ago. The seed's stamps are
+ * what the demo shows, and they survive a reload for the same reason.
+ *
+ * Returns `true` when something actually changed, so a read only writes to storage
+ * on the one call per club day that has anything to save.
+ */
+function rolloverDailies(nowMs: number): boolean {
+  const since = lastOpeningMs(db.clubSettings.openHours, nowMs)
+  if (since === null) return false
+
+  let changed = false
+  for (const quest of db.quests) {
+    if (quest.type !== 'daily') continue
+    const settledAt = parseTime(quest.claimedAt ?? quest.completedAt)
+    if (settledAt === null || settledAt >= since) continue
+    quest.progress = 0
+    quest.completedAt = null
+    quest.claimedAt = null
+    changed = true
+  }
+  return changed
+}
+
+/**
+ * `GET /api/loyalty/quests/daily` — the home card's whole payload (C3.4).
+ *
+ * One call rather than the card composing `fetchQuests('daily')` with the club's
+ * schedule, because every decision on that card is the server's: which three of
+ * the four dailies are shown, in what order, what is still owed, and when the set
+ * expires. A client that derived the reset from `/api/club/settings` would be the
+ * second place in the product that interprets opening hours, and the first one to
+ * disagree with the "Club closed" overlay about which day it is.
+ *
+ * The read has a write in it, and that is the point: a set is not "yesterday's"
+ * because a component noticed, it is yesterday's because the club opened again.
+ */
+export function fetchDailyQuests(): Promise<DailyQuestBoard> {
+  return query('loyalty.fetchDailyQuests', () => {
+    const nowMs = serverNowMs()
+    // Persist only when the rollover really moved something — `query()` does not
+    // save by itself, and a read that wrote nothing has nothing to save.
+    if (rolloverDailies(nowMs)) persistDb()
+
+    const dailies = db.quests.filter((q) => q.active && q.type === 'daily')
+    const quests = [...dailies]
+      .sort((a, b) => questRank(a) - questRank(b))
+      .slice(0, DAILY_QUEST_SLOTS)
+
+    // Summed over the *whole* active set, not the three on screen: the number is
+    // "what the day is still worth", and a fourth daily is worth it too.
+    const unclaimed = dailies.filter((q) => !q.claimedAt)
+    const resetsAtMs = nextOpeningMs(db.clubSettings.openHours, nowMs)
+
+    return {
+      quests,
+      resetsAt: resetsAtMs === null ? null : new Date(resetsAtMs).toISOString(),
+      pendingCoins: unclaimed.reduce((sum, q) => sum + q.rewardCoins, 0),
+      pendingXp: unclaimed.reduce((sum, q) => sum + q.rewardXp, 0),
+    }
+  })
 }
 
 export interface ClaimQuestResult {
@@ -122,6 +234,22 @@ export interface BattlePassView {
   xpForNextLevel: number
   /** Levels reached but not yet collected — the "claim all" badge count. */
   claimable: number
+  /**
+   * The rung the member is standing on, and the one above it — both on the free
+   * track, which is the lane every member has.
+   *
+   * Picked here rather than in the caller for the reason `fetchDailyQuests()`
+   * picks its three: "which tier is next" is a product decision, and a home-screen
+   * teaser that scanned `tiers` itself would be a second place deciding it — one
+   * that could disagree with the pass screen about what the next reward is. The
+   * premium lane stays out of this pair on purpose: the teaser promises what
+   * levelling up pays, not what buying the season pays (C8.5 owns both tracks).
+   *
+   * `nextTier` is `null` at the top of the ladder — there is no level above the
+   * last one, and inventing one would promise a reward the season cannot give.
+   */
+  currentTier: BattlePassTier | null
+  nextTier: BattlePassTier | null
 }
 
 /** `GET /api/loyalty/battlepass` — one call for the whole pass screen. */
@@ -136,6 +264,12 @@ export function fetchBattlePass(track?: BattlePassTrack): Promise<BattlePassView
       unlocked: tier.level <= userSeason.level && (tier.track === 'free' || userSeason.paidUnlocked),
     }))
 
+    // Off the full ladder, not off the filtered `tiers`: a caller asking for the
+    // paid lane alone must still be told where the free lane stands, or the pair
+    // would change meaning with the query.
+    const onFreeTrack = (level: number) =>
+      db.battlePassTiers.find((t) => t.level === level && t.track === 'free') ?? null
+
     return {
       season,
       userSeason,
@@ -143,6 +277,8 @@ export function fetchBattlePass(track?: BattlePassTrack): Promise<BattlePassView
       xpIntoLevel: userSeason.xp % XP_PER_LEVEL,
       xpForNextLevel: XP_PER_LEVEL,
       claimable: tiers.filter((t) => t.unlocked && !t.claimed).length,
+      currentTier: onFreeTrack(userSeason.level),
+      nextTier: userSeason.level >= season.levels ? null : onFreeTrack(userSeason.level + 1),
     }
   })
 }

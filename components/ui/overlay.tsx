@@ -104,7 +104,8 @@ export function Overlay({
             aria-hidden
             onClick={onDismiss}
             className={cn(
-              'fixed inset-0 bg-black/70',
+              // `scrim` (§3.3) — the one darkening depth in the product.
+              'scrim fixed inset-0',
               blur === 'md' ? 'backdrop-blur-md' : 'backdrop-blur-sm',
             )}
           />

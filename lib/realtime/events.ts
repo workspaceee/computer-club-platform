@@ -265,6 +265,35 @@ export interface PartyInviteEvent {
   expiresAt: ISODateTime
 }
 
+/**
+ * `login.qr.confirmed` — a phone approved the QR handshake shown on a station
+ * (C1.5).
+ *
+ * The only event in this catalogue addressed to a station that has **nobody
+ * signed in yet**, and that is precisely why it exists: the lock screen cannot
+ * poll for an answer it has no session to poll with, so the confirmation is
+ * pushed to the *seat*. `scope.machineId` is therefore always set and
+ * `scope.userId` never is — filtering by a user id the station does not know yet
+ * would drop the frame that is supposed to give it one.
+ *
+ * It carries a `grantToken`, not a session: the payload of a pushed frame is not
+ * a credential, and the station still has to spend the ticket at
+ * `GET /api/auth/qr/:id` to get a real `AuthResult`. So a frame that arrives
+ * late, twice, or for a code the screen has already replaced logs nobody in.
+ */
+export interface LoginQrConfirmedEvent {
+  challengeId: ID
+  /** The seat the phone approved. Also the address of the frame. */
+  machineId: ID
+  userId: ID
+  /** Who is coming in — shown while the station exchanges the ticket. */
+  nickname: string
+  /** Single-use ticket for `confirmQrChallenge`. Not a session, not a token. */
+  grantToken: string
+  /** Which phone confirmed, when the companion app reports it. */
+  device: string | null
+}
+
 /* ------------------------------------------------------------------ *
  * The map
  * ------------------------------------------------------------------ */
@@ -293,6 +322,7 @@ export interface RealtimeEventMap {
   'booking.reminder': BookingReminderEvent
   'friend.request': FriendRequestEvent
   'party.invite': PartyInviteEvent
+  'login.qr.confirmed': LoginQrConfirmedEvent
 }
 
 export type RealtimeEventName = keyof RealtimeEventMap
@@ -317,6 +347,7 @@ export const REALTIME_EVENT_NAMES = [
   'booking.reminder',
   'friend.request',
   'party.invite',
+  'login.qr.confirmed',
 ] as const satisfies readonly RealtimeEventName[]
 
 export const isRealtimeEventName = (value: unknown): value is RealtimeEventName =>
@@ -406,6 +437,7 @@ export const EVENT_LEVEL: Record<RealtimeEventName, NotificationLevel> = {
   'booking.reminder': 'info',
   'friend.request': 'info',
   'party.invite': 'info',
+  'login.qr.confirmed': 'success',
 }
 
 /**
@@ -422,11 +454,20 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'session.paused': ['session'],
   'session.resumed': ['session'],
   'session.ended': ['session', 'shop', 'wallet'],
-  'session.moved': ['session', 'catalog'],
+  // Also `social`: since C3.7 a card on the home screen names the PC each friend
+  // is sitting at, and a seat move is precisely the event that makes that label
+  // wrong. It travels scoped to the mover, so the only client this reaches is the
+  // one whose own row changed — the rest are covered by that card's poll.
+  'session.moved': ['session', 'catalog', 'social'],
   'order.status': ['shop', 'orders'],
   'tab.updated': ['shop', 'orders', 'wallet'],
   'pass.granted': ['session', 'shop', 'wallet'],
-  'wallet.updated': ['wallet', 'shop', 'profile'],
+  // Also `tournaments`: since C3.8 the home card's "Join" button is enabled by
+  // whether the wallet covers the entry fee, and the server puts that answer in
+  // the board (`affordable`) rather than making the card do wallet arithmetic. A
+  // balance change is therefore exactly the event that makes the button wrong —
+  // in either direction.
+  'wallet.updated': ['wallet', 'shop', 'profile', 'tournaments'],
   'message.received': ['support', 'help'],
   broadcast: ['support'],
   'quest.completed': ['loyalty', 'wallet'],
@@ -434,7 +475,13 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'tournament.call': ['tournaments'],
   'booking.reminder': ['booking'],
   'friend.request': ['social'],
-  'party.invite': ['social'],
+  // Also `support`: since C2.5 an invite is answerable *inside* the inbox, so a
+  // push that refreshed only the social screen would leave the card that asks
+  // the question — and the badge counting it — a revalidation behind.
+  'party.invite': ['social', 'support'],
+  // Nothing to refresh: the station has no data for this player yet, and the
+  // sign-in that follows the ticket exchange loads the first screen anyway.
+  'login.qr.confirmed': [],
 }
 
 /* ------------------------------------------------------------------ *

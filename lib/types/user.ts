@@ -65,6 +65,16 @@ export interface UserProfile {
   xpMax: number
   coins: Coins
   memberSince: string
+  /**
+   * Consecutive days the member has shown up, today included (C3.1).
+   *
+   * Server-owned like every other stat here: "consecutive" depends on the club's
+   * own day boundary — a visit that starts at 01:00 belongs to the night that
+   * opened it, not to the calendar date — and a client that counted it from
+   * session rows would break the streak of every player who stays past midnight.
+   * `0` means the streak is not running (first visit, or a day was missed).
+   */
+  visitStreak: number
   totalHours: number
   gamesPlayed: number
   sessions: number
