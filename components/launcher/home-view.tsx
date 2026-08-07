@@ -1,14 +1,13 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
-import { useEffect, useMemo, useState } from 'react'
-import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
-import { GameCover } from '@/components/game-cover'
+import { DataBoundary } from '@/components/data-boundary'
 import { BarCard } from '@/components/launcher/bar-card'
 import { BattlePassCard } from '@/components/launcher/battle-pass-card'
 import { ClubNowCard } from '@/components/launcher/club-now-card'
 import { ContinueRow } from '@/components/launcher/continue-row'
+import { HeroCarousel } from '@/components/launcher/hero-carousel'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
@@ -18,10 +17,9 @@ import { TournamentCard } from '@/components/launcher/tournament-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
-import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
-import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
+import { fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -76,7 +74,13 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           the club's curated recommendations. It renders nothing on the guest
           surface — the history is keyed to an account, and a walk-in has none. */}
       <ContinueRow />
-      <HeroCarousel />
+      {/* The club's own highlights, not a second games shelf (C3.9): campaigns,
+          the brackets the card below is *not* about, and the novelty shelf — one
+          server-composed deck (`GET /api/hero`), so the hero cannot advertise the
+          tournament `TournamentCard` shows a few blocks down. It asks as this
+          surface's viewer, like the promo strip does, instead of being gated
+          here. */}
+      <HeroCarousel surface={surface} />
       <QuickStats showLoyalty={!isGuest} />
       {/* The strip decides for itself what a guest may see: it asks the server as
           `viewer: 'everyone'`, so members-only coin campaigns never reach it and
@@ -119,175 +123,6 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
         <Leaderboard />
       </div>
     </div>
-  )
-}
-
-function HeroCarousel() {
-  const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const [index, setIndex] = useState(0)
-  const [dir, setDir] = useState(1)
-  // Auto-advance is suspended while the keyboard is inside the hero (F6.7).
-  // Without this, a player tabbing to "Play now" has the slide — and therefore
-  // the game that button launches — swapped under them every five seconds.
-  const [held, setHeld] = useState(false)
-
-  // The slide dots are a composite widget: one tab stop, arrows walk the slides.
-  const dotsRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
-
-  const { t } = useT()
-  // `GET /api/games/featured` — the curated hero row (F3.4).
-  const featured = useApi('games/featured', fetchFeaturedGames)
-  const slides = useMemo(() => featured.data ?? [], [featured.data])
-  const count = slides.length
-
-  const go = (next: number) => {
-    if (count === 0) return
-    setDir(next > index || (index === count - 1 && next === 0) ? 1 : -1)
-    setIndex((next + count) % count)
-  }
-
-  useEffect(() => {
-    if (count === 0 || held) return
-    const t = setInterval(() => {
-      setDir(1)
-      setIndex((i) => (i + 1) % count)
-    }, 5000)
-    return () => clearInterval(t)
-  }, [count, held])
-
-  const game = count > 0 ? slides[index % count] : null
-
-  // The carousel owns slide state above the fetch, so it renders the three
-  // states by hand instead of through <DataBoundary>.
-  if (!game) {
-    return (
-      <section>
-        {/* The heading skeleton went with the heading: the greeting above renders
-            from the store and is never in a loading state, so a placeholder here
-            would reserve space for text that has already arrived. */}
-        {featured.error ? (
-          <ApiErrorState state={featured} className="h-72 md:h-96" />
-        ) : featured.isLoading ? (
-          <Skeleton className="h-72 w-full rounded-xl md:h-96" />
-        ) : (
-          <EmptyState
-            icon={icons.play}
-            title={t('games.noFeatured')}
-            description={t('games.noFeaturedBody')}
-            className="h-72 md:h-96"
-          />
-        )}
-      </section>
-    )
-  }
-
-  return (
-    <section>
-      {/* No header block. The greeting above the carousel is the page heading now,
-          and "Top 5 Live" labelled nothing — the row is curated featured games,
-          not a live top five, so the chip went with the duplicate welcome. */}
-      <div
-        onFocusCapture={() => setHeld(true)}
-        onBlurCapture={(e) => {
-          // `relatedTarget` is where focus is going: still inside the hero means
-          // the player is moving between the arrows and the dots, not leaving.
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false)
-        }}
-        className="glass tick-corners relative h-72 overflow-hidden rounded-xl md:h-96"
-      >
-        <AnimatePresence custom={dir} mode="popLayout">
-          <motion.div
-            key={game.id}
-            custom={dir}
-            initial={{ opacity: 0, x: dir * 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -60 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0"
-          >
-            {/* `hideTitle`: the hero writes the name itself, one line below, so
-                the cover must not anchor a second title to the same bottom edge —
-                that is what put a 60px game name on top of "Play now". */}
-            <GameCover
-              game={game}
-              className="h-full w-full"
-              hideTitle
-              // The hero is the largest cover on screen and the first thing seen
-              // after unlock, so it loads eagerly rather than lazily.
-              priority
-              sizes="(min-width: 1280px) 70vw, 100vw"
-            />
-            {/* §3 veil, not a gradient written here (F9.7b): the hero has its
-                own rung because it is 70vw of art, not a 12rem caption. */}
-            <div className="veil-hero-v absolute inset-0" />
-            <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
-              <div className="flex items-center gap-3">
-                <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
-                  {game.category}
-                </span>
-                <span className="flex items-center gap-1.5 text-sm font-medium text-white/80">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
-                  {game.players.toLocaleString()} playing
-                </span>
-              </div>
-              {/* The hero's own heading. `pr-28` keeps a long name clear of the
-                  slide dots parked in the bottom-right corner. */}
-              <h2 className="max-w-2xl pr-28 font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:text-5xl">
-                {game.name}
-              </h2>
-              <button
-                onClick={() => setLaunchGame(game.id)}
-                className="flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
-              >
-                <icons.play size={17} fill="currentColor" />
-                Play now
-              </button>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Vertically centred from `sm` up, pinned to the top corners below it
-            (C2.9). The copy column is bottom-anchored and its height is fixed by
-            the type, so as the frame narrows the column climbs: measured at
-            320 px the left arrow (314–356) sat straight across the category chip
-            (301–326) and the first line of the game name (338–398). At the top
-            edge there is nothing but veil at any width. */}
-        <button
-          onClick={() => go(index - 1)}
-          className="glass absolute left-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:left-4 sm:top-1/2 sm:-translate-y-1/2"
-          aria-label="Previous game"
-        >
-          <icons.back size={20} />
-        </button>
-        <button
-          onClick={() => go(index + 1)}
-          className="glass absolute right-3 top-3 rounded-md p-2.5 text-white transition-colors hover:bg-white/15 sm:right-4 sm:top-1/2 sm:-translate-y-1/2"
-          aria-label="Next game"
-        >
-          <icons.forward size={20} />
-        </button>
-
-        <div ref={dotsRef} role="group" aria-label="Slides" className="absolute bottom-6 right-8 flex gap-1.5">
-          {slides.map((g, i) => (
-            <button
-              key={g.id}
-              onClick={() => go(i)}
-              aria-label={`Go to slide ${i + 1}: ${g.name}`}
-              aria-current={i === index ? 'true' : undefined}
-              data-roving-item
-              className={cn(
-                // A 1px-tall dot is a 1px-tall focus ring, so the hit and focus
-                // target is padded out to something a keyboard user can see.
-                'h-1 rounded-full transition-all focus-visible:outline-offset-4',
-                i === index
-                  ? 'w-8 bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]'
-                  : 'w-1.5 bg-white/40',
-              )}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
   )
 }
 

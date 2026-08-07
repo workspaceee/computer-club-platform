@@ -674,6 +674,39 @@ export const lt: Dictionary = {
     tournamentEmpty: 'Turnyrų dar nepaskelbta',
     tournamentEmptyBody:
       'Klubas skelbia naujus turnyrus kas savaitę — darbuotojai žinos, kas bus toliau.',
+
+    /* ---------------------------------------------------------------- *
+     * Herojaus karuselė (C3.9)
+     *
+     * Čia tik rėmas, į kurį atsistoja klubo tekstai: akcijų antraštės, turnyrų
+     * pavadinimai ir darbuotojų pastaba apie naujoką — jie administraciniai ir
+     * spausdinami taip, kaip parašyti (F2.2). Žemiau — slaidų *rūšys*,
+     * valdymo elementai ir tai, ką karuselė šiuo metu daro.
+     * ---------------------------------------------------------------- */
+
+    heroLabel: 'Svarbiausia klube',
+    // „Svarbiausia“, o ne „slaidas“: numeris turi prasmę tik kaip vieta klubo
+    // iškeltų dalykų sąraše — „slaidas 3 iš 5“ aprašo valdiklį, ne turinį.
+    heroSlides: 'Svarbiausia',
+    heroPrev: 'Ankstesnis',
+    heroNext: 'Kitas',
+    heroGoTo: 'Rodyti {n}: {title}',
+    // Sukimas nekeičia fokuso, todėl turinio pasikeitimą po ta pačia antrašte
+    // ekrano skaitytuvui reikia pasakyti atskirai.
+    heroAnnounce: '{n} iš {total}. {body}',
+    // Sustabdymas, kuriam nereikia laikyti pelės vietoje (WCAG 2.2.2). Tas pats
+    // mygtukas pasako, kokioje būsenoje karuselė.
+    heroPause: 'Sustabdyti sukimą',
+    heroPlay: 'Tęsti sukimą',
+    heroPaused: 'Sustabdyta',
+
+    heroNewLabel: 'Nauja klube',
+    heroTournamentLabel: 'Turnyras',
+    heroPlayNow: 'Žaisti',
+    heroPlayLabel: 'Paleisti {name}',
+    heroSeeTournaments: 'Visi turnyrai',
+    // plurals lt: one | few | other
+    heroPlayers: 'klube {n} žaidėjas|klube {n} žaidėjai|klube {n} žaidėjų',
   },
 
   games: {
@@ -995,7 +1028,7 @@ export const lt: Dictionary = {
     attempt: '{n} bandymas',
     restored: 'Ryšys atkurtas',
     // formos: vienas | keli | daug
-    pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinimų',
+    pendingUpdates: 'Laukia {n} atnaujinimas|Laukia {n} atnaujinimai|Laukia {n} atnaujinim��',
 
     // Pinigai be ryšio (C2.12): atsisakymas, o ne žaidėjo klaida.
     salesTitle: 'Pirkimai pristabdyti',
