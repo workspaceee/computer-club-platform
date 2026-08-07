@@ -106,7 +106,10 @@ export function LeaderboardCard({ surface = 'launcher' }: { surface?: LauncherSu
   // Keyed by the viewer as well as the metric: a sign-out must not leave the next
   // player with the previous member's row highlighted as "you".
   const board = useApi(
-    ['leaderboard', metric, isGuest ? 'guest' : user.email],
+    // Under the `loyalty/` family so a coin-paying write (a claimed quest, a
+    // finished session) re-reads the board too — a bare `leaderboard` head would
+    // sit outside every invalidation prefix in the app.
+    ['loyalty/leaderboard', metric, isGuest ? 'guest' : user.email],
     () =>
       fetchLeaderboard({
         limit: BOARD_ROWS,
@@ -239,7 +242,12 @@ export function LeaderboardCard({ surface = 'launcher' }: { surface?: LauncherSu
                 {/* The reader, when they are not on the page. A dashed edge for the
                     positions in between, and the same gap said in words. */}
                 {b.viewer && (
-                  <tfoot>
+                  // Tinted, so the pinned row reads as the panel's footer rather
+                  // than as an eleventh row that happened to run out of table.
+                  // Without it the reader's own line sits flush against the
+                  // panel's bottom edge and the dashed break is the only thing
+                  // saying it is not simply next in the order.
+                  <tfoot className="bg-white/[0.02]">
                     <tr>
                       <td colSpan={3} className="px-5 pb-1 pt-2">
                         <div className="flex items-center gap-2">

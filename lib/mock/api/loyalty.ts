@@ -549,7 +549,12 @@ export function fetchLeaderboard(params: LeaderboardQuery = {}): Promise<Leaderb
       viewerId = db.currentUserId,
     } = params
 
-    const ranked = getLeaderboard(viewerId ?? undefined)
+    // `null` means *nobody*, and it has to survive the whole way down. Passing
+    // `viewerId ?? undefined` here would hand `getLeaderboard` an `undefined`,
+    // whose default parameter is `db.currentUserId` — so an unattended kiosk
+    // would flag the previous member's row as "you" and pin their standing under
+    // the board, which is the one thing this endpoint's `null` exists to prevent.
+    const ranked = getLeaderboard(viewerId)
       .filter(
         (row) =>
           !respectPrivacy ||

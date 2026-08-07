@@ -218,6 +218,9 @@ function createMember(nickname: string, email: string, birthday: ISODate): ID {
       sessions: 0,
       seasonHours: 0,
       seasonCoins: 0,
+      // A fresh account joins the wins ordering at zero rather than being absent
+      // from it — the board ranks by three columns now (C3.10).
+      seasonWins: 0,
       achievementsUnlocked: 0,
     },
     online: false,

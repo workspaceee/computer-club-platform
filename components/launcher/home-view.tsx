@@ -10,16 +10,18 @@ import { ContinueRow } from '@/components/launcher/continue-row'
 import { HeroCarousel } from '@/components/launcher/hero-carousel'
 import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
+import { LeaderboardCard } from '@/components/launcher/leaderboard-card'
 import { PromoStrip } from '@/components/launcher/promo-strip'
 import { QuestsCard } from '@/components/launcher/quests-card'
 import { SessionCard } from '@/components/launcher/session-card'
 import { TournamentCard } from '@/components/launcher/tournament-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SectionHeader } from '@/components/ui/section-header'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
-import { fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
+import { fetchFeaturedRewards } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -29,19 +31,6 @@ const PRIZE_ICONS: Record<string, LucideIcon> = {
   clock: icons.timer,
   shirt: icons.merch,
   mouse: icons.mouse,
-}
-
-function SectionHeader({ index, children }: { index: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-4 flex items-center gap-3">
-      <span className="label-mono text-[10px] text-primary tabular-nums">{index}</span>
-      <span className="h-3 w-px bg-border-strong" />
-      <h2 className="font-display text-lg font-bold uppercase tracking-tight text-text-high">
-        {children}
-      </h2>
-      <span className="ml-1 h-px flex-1 bg-border" />
-    </div>
-  )
 }
 
 /**
@@ -192,7 +181,10 @@ function PrizeLadder() {
       {/* 09, not 04: the dailies card (C3.4), the season card (C3.5), the bar card
           (C3.6), "the club now" (C3.7) and the tournament (C3.8) all landed between
           the promo strip and this ladder, and each took a number with it. */}
-      <SectionHeader index="09">Prize Ladder</SectionHeader>
+      {/* Translated, at last: the ladder sat beside a fully localised board
+          reading "PRIZE LADDER" in English on every locale. The key was already
+          there — `loyalty.prizeLadder` — the heading simply never asked for it. */}
+      <SectionHeader index="09" title={t('loyalty.prizeLadder')} />
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}
