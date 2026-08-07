@@ -1,21 +1,26 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { icons, type LucideIcon } from '@/lib/icons'
-import { useEffect, useMemo, useState } from 'react'
-import { ApiErrorState, DataBoundary } from '@/components/data-boundary'
-import { GameCover } from '@/components/game-cover'
+import { DataBoundary } from '@/components/data-boundary'
+import { BarCard } from '@/components/launcher/bar-card'
+import { BattlePassCard } from '@/components/launcher/battle-pass-card'
+import { ClubNowCard } from '@/components/launcher/club-now-card'
+import { ContinueRow } from '@/components/launcher/continue-row'
+import { HeroCarousel } from '@/components/launcher/hero-carousel'
+import { HomeGreeting } from '@/components/launcher/home-greeting'
 import { IconTile } from '@/components/icon-tile'
 import { PromoStrip } from '@/components/launcher/promo-strip'
+import { QuestsCard } from '@/components/launcher/quests-card'
+import { SessionCard } from '@/components/launcher/session-card'
+import { TournamentCard } from '@/components/launcher/tournament-card'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
-import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
-import { fetchFeaturedGames, fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
+import { fetchFeaturedRewards, fetchLeaderboard } from '@/lib/mock/api'
 import { formatCoins } from '@/lib/money'
-import { formatDurationParts } from '@/lib/time'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -52,13 +57,67 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
 
   return (
     <div className="flex flex-col gap-10">
-      <HeroCarousel />
+      {/* The greeting owns the page heading (C3.1). It used to be an ad-hoc
+          "Welcome back // NAME" eyebrow inside the hero, which greeted the player
+          without telling them anything — no level, no streak, no elapsed time —
+          and would have left the surface welcoming twice once a real greeting
+          existed. */}
+      <HomeGreeting />
+      {/* The visit, at the size it can be acted on (C3.3). Above "Continue" and
+          the hero because it is the frame everything else on this screen happens
+          inside: how much of the evening is left, how much is already gone, and
+          the button that buys more. It took the "Time balance" tile's reading with
+          it — see `QuickStats` below. */}
+      <SessionCard />
+      {/* Above the hero, and that is the whole point (C3.2): a player who left a
+          match five minutes ago should meet the way back into it before they meet
+          the club's curated recommendations. It renders nothing on the guest
+          surface — the history is keyed to an account, and a walk-in has none. */}
+      <ContinueRow />
+      {/* The club's own highlights, not a second games shelf (C3.9): campaigns,
+          the brackets the card below is *not* about, and the novelty shelf — one
+          server-composed deck (`GET /api/hero`), so the hero cannot advertise the
+          tournament `TournamentCard` shows a few blocks down. It asks as this
+          surface's viewer, like the promo strip does, instead of being gated
+          here. */}
+      <HeroCarousel surface={surface} />
       <QuickStats showLoyalty={!isGuest} />
       {/* The strip decides for itself what a guest may see: it asks the server as
           `viewer: 'everyone'`, so members-only coin campaigns never reach it and
           an open-to-all one (parties, VIP) still does — which a blanket
           `!isGuest` gate here would have thrown away (F7.3). */}
       <PromoStrip surface={surface} />
+      {/* Dailies (C3.4). Under the promo strip and above the ladder, because the
+          order of the loyalty block is the order of effort: what the club asks for
+          today, then what the coins it pays buys. The card renders nothing for a
+          walk-in on its own — quest progress is keyed to an account — so the gate
+          here is the store's, not this surface's. */}
+      <QuestsCard />
+      {/* The season, under the dailies (C3.5). Same order-of-effort argument the
+          quests card makes about the ladder below it: the club's daily ask, then
+          where the XP those quests pay actually goes. It gates itself on the store
+          for the same reason — season standing is keyed to an account, so a walk-in
+          would be shown the previous member's tier. */}
+      <BattlePassCard />
+      {/* The bar, under the loyalty block (C3.6). It is the one card on this screen
+          that spends money rather than earning it, so it comes after the block that
+          explains what the evening pays — and it is shown to a walk-in too: a guest
+          orders at the counter exactly like a member does. It carries the campaign
+          the promo strip above deliberately never sees (`surface: 'bar'`). */}
+      <BarCard surface={surface} />
+      {/* The room, last of the cards (C3.7): everything above is about this seat —
+          the visit, the games, the evening's economy — and this is the one card
+          about the hall around it and who else is in it. It gates itself on the
+          store like the dailies and the season card do: both halves answer "where
+          can I put my friend", and a walk-in has no friend list to answer it
+          with. */}
+      <ClubNowCard />
+      {/* Tonight's bracket (C3.8), after the room and before the standings: the
+          club now says who is here, this says what they are here *for*, and the
+          ladder below is last night's outcome. It gates itself on the store like
+          the dailies, the season card and "the club now" do — an entry is keyed to
+          an account and the fee comes out of a wallet a walk-in has none of. */}
+      <TournamentCard />
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
         <Leaderboard />
@@ -67,196 +126,8 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
   )
 }
 
-function HeroCarousel() {
-  const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const user = useStore((s) => s.user)
-  const guest = useStore((s) => s.guest)
-  const [index, setIndex] = useState(0)
-  const [dir, setDir] = useState(1)
-  // Auto-advance is suspended while the keyboard is inside the hero (F6.7).
-  // Without this, a player tabbing to "Play now" has the slide — and therefore
-  // the game that button launches — swapped under them every five seconds.
-  const [held, setHeld] = useState(false)
-
-  // The slide dots are a composite widget: one tab stop, arrows walk the slides.
-  const dotsRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
-
-  const { t } = useT()
-  // `GET /api/games/featured` — the curated hero row (F3.4).
-  const featured = useApi('games/featured', fetchFeaturedGames)
-  const slides = useMemo(() => featured.data ?? [], [featured.data])
-  const count = slides.length
-
-  const go = (next: number) => {
-    if (count === 0) return
-    setDir(next > index || (index === count - 1 && next === 0) ? 1 : -1)
-    setIndex((next + count) % count)
-  }
-
-  useEffect(() => {
-    if (count === 0 || held) return
-    const t = setInterval(() => {
-      setDir(1)
-      setIndex((i) => (i + 1) % count)
-    }, 5000)
-    return () => clearInterval(t)
-  }, [count, held])
-
-  const game = count > 0 ? slides[index % count] : null
-
-  // The carousel owns slide state above the fetch, so it renders the three
-  // states by hand instead of through <DataBoundary>.
-  if (!game) {
-    return (
-      <section>
-        <div className="mb-4 flex flex-col gap-2">
-          <Skeleton className="h-3 w-32" radius="sm" />
-          <Skeleton className="h-10 w-72" radius="sm" />
-        </div>
-        {featured.error ? (
-          <ApiErrorState state={featured} className="h-72 md:h-96" />
-        ) : featured.isLoading ? (
-          <Skeleton className="h-72 w-full rounded-xl md:h-96" />
-        ) : (
-          <EmptyState
-            icon={icons.play}
-            title={t('games.noFeatured')}
-            description={t('games.noFeaturedBody')}
-            className="h-72 md:h-96"
-          />
-        )}
-      </section>
-    )
-  }
-
-  return (
-    <section>
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          {/* A guest has no profile to welcome "back", so the shell greets the
-              tab label instead of an empty name (F6.2). */}
-          <p className="label-mono mb-1 text-[10px] text-text-low">
-            {user ? 'Welcome back //' : guest ? `${t('guest.badge')} //` : 'Welcome'}{' '}
-            <span className="text-primary">{user?.nickname ?? guest?.label}</span>
-          </p>
-          <h1 className="font-display text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-text-high md:text-5xl">
-            Ready to <span className="text-primary text-glow">dominate</span>
-          </h1>
-        </div>
-        <span className="label-mono hidden rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-[10px] text-primary sm:inline">
-          Top 5 Live
-        </span>
-      </div>
-
-      <div
-        onFocusCapture={() => setHeld(true)}
-        onBlurCapture={(e) => {
-          // `relatedTarget` is where focus is going: still inside the hero means
-          // the player is moving between the arrows and the dots, not leaving.
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false)
-        }}
-        className="glass tick-corners relative h-72 overflow-hidden rounded-xl md:h-96"
-      >
-        <AnimatePresence custom={dir} mode="popLayout">
-          <motion.div
-            key={game.id}
-            custom={dir}
-            initial={{ opacity: 0, x: dir * 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -60 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0"
-          >
-            {/* `hideTitle`: the hero writes the name itself, one line below, so
-                the cover must not anchor a second title to the same bottom edge —
-                that is what put a 60px game name on top of "Play now". */}
-            <GameCover
-              game={game}
-              className="h-full w-full"
-              hideTitle
-              // The hero is the largest cover on screen and the first thing seen
-              // after unlock, so it loads eagerly rather than lazily.
-              priority
-              sizes="(min-width: 1280px) 70vw, 100vw"
-            />
-            {/* §3 veil, not a gradient written here (F9.7b): the hero has its
-                own rung because it is 70vw of art, not a 12rem caption. */}
-            <div className="veil-hero-v absolute inset-0" />
-            <div className="absolute inset-0 flex flex-col justify-end gap-3 p-6 md:p-8">
-              <div className="flex items-center gap-3">
-                <span className="label-mono rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] text-white backdrop-blur">
-                  {game.category}
-                </span>
-                <span className="flex items-center gap-1.5 text-sm font-medium text-white/80">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
-                  {game.players.toLocaleString()} playing
-                </span>
-              </div>
-              {/* The hero's own heading. `pr-28` keeps a long name clear of the
-                  slide dots parked in the bottom-right corner. */}
-              <h2 className="max-w-2xl pr-28 font-display text-3xl font-extrabold uppercase leading-none tracking-tight text-white text-balance drop-shadow-md md:text-5xl">
-                {game.name}
-              </h2>
-              <button
-                onClick={() => setLaunchGame(game.id)}
-                className="flex w-fit items-center gap-2 rounded-md bg-primary px-7 py-3 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_28px_-4px_rgba(229,53,43,0.8)] transition-all hover:scale-[1.03] hover:bg-primary-hover"
-              >
-                <icons.play size={17} fill="currentColor" />
-                Play now
-              </button>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-
-        <button
-          onClick={() => go(index - 1)}
-          className="glass absolute left-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
-          aria-label="Previous game"
-        >
-          <icons.back size={20} />
-        </button>
-        <button
-          onClick={() => go(index + 1)}
-          className="glass absolute right-4 top-1/2 -translate-y-1/2 rounded-md p-2.5 text-white transition-colors hover:bg-white/15"
-          aria-label="Next game"
-        >
-          <icons.forward size={20} />
-        </button>
-
-        <div ref={dotsRef} role="group" aria-label="Slides" className="absolute bottom-6 right-8 flex gap-1.5">
-          {slides.map((g, i) => (
-            <button
-              key={g.id}
-              onClick={() => go(i)}
-              aria-label={`Go to slide ${i + 1}: ${g.name}`}
-              aria-current={i === index ? 'true' : undefined}
-              data-roving-item
-              className={cn(
-                // A 1px-tall dot is a 1px-tall focus ring, so the hit and focus
-                // target is padded out to something a keyboard user can see.
-                'h-1 rounded-full transition-all focus-visible:outline-offset-4',
-                i === index
-                  ? 'w-8 bg-primary shadow-[0_0_10px_rgba(229,53,43,0.9)]'
-                  : 'w-1.5 bg-white/40',
-              )}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
-  const { t } = useT()
   const coins = useStore((s) => s.coins)
-  // The tile reads the same derived clock as the top bar (F6.3). It used to
-  // render a hardcoded `2h 00m` from the store, which meant the number never
-  // moved — and a walk-in guest was shown a prepaid balance the club had not
-  // sold them.
-  const seconds = useStore((s) => s.sessionSeconds)
-  const postpaid = useStore((s) => s.billingMode) === 'postpaid'
-  const { hours, minutes } = formatDurationParts(seconds)
   // Same SWR key as the prize ladder below, so the row is fetched once.
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
   const ladder = prizes.data ?? []
@@ -264,35 +135,28 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
 
   // A guest has no coin balance and no ladder progress, so those tiles are
   // dropped instead of showing zeros the player can never move.
-  const stats: { icon: LucideIcon; value: string; label: string }[] = [
-    ...(showLoyalty
-      ? [{ icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' }]
-      : []),
-    {
-      icon: icons.timer,
-      value: `${hours}h ${String(minutes).padStart(2, '0')}m`,
-      // Postpaid time is not a balance: it is time already used and billed, so
-      // the tile has to be labelled as such.
-      label: postpaid ? t('session.sessionTime') : t('session.timeBalance'),
-    },
-    ...(showLoyalty
-      ? [
-          {
-            icon: icons.rewards,
-            value: `${prizesUnlocked}/${ladder.length}`,
-            label: 'Prizes unlocked',
-          },
-        ]
-      : []),
-  ]
+  //
+  // The time tile that used to sit between them is gone (C3.3): `SessionCard`
+  // above states the same remainder with the arc of the visit behind it and a
+  // grant button on it, and a tile repeating the number — with no bar, no source
+  // and nothing to press — would have put one reading on the screen twice.
+  const stats: { icon: LucideIcon; value: string; label: string }[] = showLoyalty
+    ? [
+        { icon: icons.coins, value: formatCoins(coins), label: 'IMBA Coins' },
+        {
+          icon: icons.rewards,
+          value: `${prizesUnlocked}/${ladder.length}`,
+          label: 'Prizes unlocked',
+        },
+      ]
+    : []
+
+  // Which leaves a walk-in with nothing in this row at all — so the row itself
+  // goes, rather than reserving vertical space for an empty grid.
+  if (stats.length === 0) return null
 
   return (
-    <section
-      className={cn(
-        'grid grid-cols-1 gap-4',
-        showLoyalty ? 'sm:grid-cols-3' : 'sm:max-w-sm',
-      )}
-    >
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {stats.map((s, i) => (
         <motion.div
           key={s.label}
@@ -321,7 +185,10 @@ function PrizeLadder() {
 
   return (
     <section>
-      <SectionHeader index="04">Prize Ladder</SectionHeader>
+      {/* 09, not 04: the dailies card (C3.4), the season card (C3.5), the bar card
+          (C3.6), "the club now" (C3.7) and the tournament (C3.8) all landed between
+          the promo strip and this ladder, and each took a number with it. */}
+      <SectionHeader index="09">Prize Ladder</SectionHeader>
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}
@@ -396,7 +263,7 @@ function Leaderboard() {
 
   return (
     <section>
-      <SectionHeader index="05">Leaderboard</SectionHeader>
+      <SectionHeader index="10">Leaderboard</SectionHeader>
       <div className="glass overflow-hidden rounded-xl">
         <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
           <span>#</span>

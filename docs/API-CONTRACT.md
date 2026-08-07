@@ -84,7 +84,14 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | Метод | Путь | Запрос | Ответ | Ошибки |
 | --- | --- | --- | --- | --- |
 | POST | `/api/auth/login` | `LoginPayload` | `AuthResult` | `invalidCredentials`, `validation`, `forbidden` (аккаунт заблокирован) |
-| POST | `/api/auth/register` | `RegisterPayload` | `AuthResult` | `validation`, `conflict` (e-mail/ник занят) |
+| GET | `/api/auth/nickname` | `?value=` | `NicknameCheck` | — |
+| POST | `/api/auth/register/start` | `StartRegistrationPayload` | `RegistrationChallenge` | `validation` (`nickname`, `email`, `password`, `confirmPassword`, `acceptedRules`) |
+| POST | `/api/auth/register/resend` | `{ challengeId }` | `RegistrationChallenge` | `notFound`, `rateLimited` |
+| POST | `/api/auth/register/confirm` | `{ challengeId, code }` | `AuthResult` | `notFound`, `timeout` (код истёк), `invalidCode`, `rateLimited` (попытки сожжены), `validation` (ник/e-mail заняли за это время) |
+| POST | `/api/auth/password/reset` | `{ email }` | `PasswordResetChallenge` | `validation`, `rateLimited` |
+| POST | `/api/auth/password/reset/resend` | `{ challengeId }` | `PasswordResetChallenge` | `notFound`, `rateLimited` |
+| POST | `/api/auth/password/reset/verify` | `{ challengeId, code }` | `PasswordResetVerification` | `notFound`, `timeout`, `invalidCode`, `rateLimited` |
+| POST | `/api/auth/password/reset/complete` | `CompletePasswordResetPayload` | `AuthResult` | `notFound`, `unauthorized`, `validation` |
 | POST | `/api/auth/demo` | — | `AuthResult` | — |
 | POST | `/api/auth/guest` | — | `GuestSessionResult` | `conflict` (нет свободных мест) |
 | POST | `/api/auth/qr` | — | `QrChallenge` | — |
@@ -94,6 +101,27 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 `AuthResult` несёт профиль, снапшот сессии и язык интерфейса игрока — вход одним
 запросом, чтобы лаунчер не собирал первый экран из четырёх вызовов.
 `QrChallenge.expiresAt` — 120 секунд.
+
+**Оба одноразовых кода (регистрация C1.4 и восстановление C1.3) живут по одним
+правилам:** 6 цифр, TTL 600 с, кулдаун ресенда 60 с, 5 попыток до сжигания
+челленджа. Челленджи отдают клиенту **длительности** (`expiresInSec`,
+`resendAfterSec`), а не таймстемпы: у ПК в клубе могут быть неверные системные
+час����, и UI обязан считать дедлайн от момента получения ответа. Ни код, ни
+счётчик попыток, ни пароль в ответе не появляются — в моке они лежат в серверной
+`Map`, а поле `devCode` существует **только** потому, что прототип не отправляет
+писем, и реальный API его не возвращает.
+
+**Регистрация — двухфазная, и аккаунт создаёт ровно один вызов.**
+`register/start` открывает челлендж и ничего не пишет; участник появляется
+только в `register/confirm`. Поэтому ушедший со шага кода игрок не оставляет ни
+половинчатой записи, ни занятого ника. `acceptedRules` проверяется **на сервере**:
+галочка правил — запись согласия, и выключенная кнопка на клиенте её не
+доказывает. `GET /api/auth/nickname` — чтение, а не резервация: два игрока,
+набирающие одно имя, оба услышат «свободно», и проигравший узнаёт об этом на
+`register/confirm`, который судит имя заново и возвращает `validation` с полем
+`nickname`, а не общий отказ. Конфликт e-mail, в отличие от восстановления,
+сообщается прямо: форма, принявшая занятый адрес, создала бы аккаунт, которым
+нельзя пользоваться.
 
 ---
 
@@ -121,6 +149,7 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | GET | `/api/session/:id` | — | `Session` | `notFound` |
 | GET | `/api/session/history` | — | `Session[]` | `unauthorized` |
 | POST | `/api/session/heartbeat` | `{ elapsedSeconds }` | `SessionSnapshot` | `sessionExpired` |
+| POST | `/api/session/open` | `{ userId? \| guestId?, billingMode, minutes?, machineId? }` | `SessionSnapshot` | `conflict` (место занято), `validation` (обе личности или ни одной) |
 | POST | `/api/session/pause` | `{ sessionId? }` | `SessionSnapshot` | `conflict` |
 | POST | `/api/session/resume` | `{ sessionId? }` | `SessionSnapshot` | `conflict` |
 | POST | `/api/session/end` | `{ sessionId? }` | `EndSessionResult` | `conflict` |
@@ -139,6 +168,21 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 
 `EndSessionResult` возвращает и закрытую сессию, и незакрытый таб: сессия,
 законченная с долгом, обязана показать игроку счёт, а не просто выкинуть на лок-скрин.
+
+**`POST /api/session/open` — сервер, а не клиент, решает, кто садится (C1.7).**
+Лок-скрин сначала читает `GET /api/club/station/holder`, но это только для того,
+чтобы **назвать** занявшего: два прихода на одно место оба прочитают `null` до
+того, как кто-то из них что-то записал, поэтому отказ обязан приходить с записи.
+Живая строка на месте не всегда отказ — ровно два случая её **перехватывают**:
+тот же участник (после «Lock PC» на паузе остаётся его сессия) и гость после
+гостя (у прихода нет аккаунта для сверки, а открытый таб принадлежит месту,
+MVP §8.2). Всё остальное — `conflict`. Биллинг следует из личности:
+`userId` → `prepaid`, `guestId` → `postpaid` (MVP §3.2), клиент его не выбирает.
+
+Место освобождает только `end`; `pause` его **держит** — это и есть смысл
+«Lock PC», и поэтому `holder` отдаёт `paused` наравне с `active`. Отказ записи на
+выходе (`end`, `pause`) клиент глотает: остаться занятым — безопасная сторона
+ошибки, её снимает админ ключом, а зависший спиннер «выходим…» не снимает никто.
 
 ---
 
@@ -162,8 +206,8 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | GET | `/api/club/accounts` | — | `HouseAccount[]` | `forbidden` |
 
 Поиск, фильтр по категории, сортировка и пагинация — **на сервере**.
-Клиент не фильтрует 60+ игр в памяти, иначе на 600 играх это перестанет работать.
-`OccupancySummary` считается сервером: ни один компонент не пересчитывает места сам.
+Кли��нт не фильтрует 60+ игр в памяти, иначе на 600 играх это перестанет работать.
+`OccupancySummary` считается сервером: ни один компонент не ��ересчитывает места сам.
 
 ---
 
@@ -289,6 +333,7 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | GET | `/api/notifications/unread` | — | `number` | `unauthorized` |
 | POST | `/api/notifications/:id/read` | — | `Notification` | `notFound` |
 | POST | `/api/notifications/read-all` | — | `{ count }` | `unauthorized` |
+| POST | `/api/notifications/:id/action` | `{ outcome, rating? }` | `Notification` | `notFound`, `validation`, `conflict` (уже отвечено) |
 | GET | `/api/help/threads` | — | `HelpThread[]` | `unauthorized` |
 | GET | `/api/help/threads/open` | — | `HelpThread \| null` | — |
 | GET | `/api/help/threads/:id` | — | `HelpThread` | `notFound` |
@@ -297,6 +342,16 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | POST | `/api/help/threads/:id/resolve` | — | `HelpThread` | `conflict` |
 | POST | `/api/help/threads/:id/rate` | `{ rating }` | `HelpThread` | `validation`, `conflict` (тикет не закрыт) |
 | POST | `/api/help/call-staff` | `{ reason? }` | `HelpThread` | — |
+
+**Карточка уведомления отвечается на сервере (C2.5).** `Notification.action`
+описывает, что карточка спрашивает (`party-invite`, `rate-order`), и `outcome`
+живёт рядом с самим уведомлением, а не в состоянии панели: закрытая и снова
+открытая панель обязана показать тот же ответ. `party-invite` пишет тот же
+`party.members[].state`, что и `POST /api/social/parties/:id/respond` — принять
+инвайт из инбокса и из раздела «Друзья» не могут разойтись. Повторный ответ —
+`conflict`, а не второе решение: это устаревшая панель, гонящаяся со свежей.
+Ответ дополнительно помечает карточку прочитанной — игрок, только что нажавший
+«Принять», её точно видел.
 
 **Один открытый тикет на игрока.** Повторный `POST /api/help/threads` возвращает
 существующий тред, а не создаёт второй — иначе кнопка «Позвать администратора»
