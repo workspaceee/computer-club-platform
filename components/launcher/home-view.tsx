@@ -118,9 +118,13 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           the dailies, the season card and "the club now" do — an entry is keyed to
           an account and the fee comes out of a wallet a walk-in has none of. */}
       <TournamentCard />
+      {/* Last night's outcome, after tonight's bracket (C3.10). It is shown to a
+          walk-in too — the standings are a fact about the club rather than about an
+          account — so it asks as this surface's viewer instead of being gated
+          here, the way the promo strip and the hero do. */}
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
         {!isGuest && <PrizeLadder />}
-        <Leaderboard />
+        <LeaderboardCard surface={surface} />
       </div>
     </div>
   )
@@ -241,107 +245,6 @@ function PrizeLadder() {
                 </div>
               )
             })
-          }
-        </DataBoundary>
-      </div>
-    </section>
-  )
-}
-
-const RANK_GRADIENT = [
-  'linear-gradient(116deg, #bc841f, #f9c66c)',
-  'linear-gradient(116deg, #a0a5c5, #cfe0e2)',
-  'linear-gradient(116deg, #874a12, #d3975f)',
-]
-
-function Leaderboard() {
-  const { t } = useT()
-  // Wrapped so SWR's key is not passed through as the query object.
-  const board = useApi('leaderboard', () => fetchLeaderboard({ limit: 10 }), {
-    refreshInterval: 10000,
-  })
-
-  return (
-    <section>
-      <SectionHeader index="10">Leaderboard</SectionHeader>
-      <div className="glass overflow-hidden rounded-xl">
-        <div className="label-mono grid grid-cols-[40px_1fr_70px_80px] gap-2 border-b border-border px-5 py-3 text-[9px] text-text-low">
-          <span>#</span>
-          <span>Player</span>
-          <span className="text-right">Hours</span>
-          <span className="text-right">Coins</span>
-        </div>
-        <DataBoundary
-          state={board}
-          errorBare
-          errorSize="sm"
-          loading={
-            <>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="px-5 py-2.5">
-                  <Skeleton className="h-6 w-full" />
-                </div>
-              ))}
-            </>
-          }
-          isEmpty={(rows) => rows.length === 0}
-          empty={
-            <EmptyState
-              bare
-              size="sm"
-              icon={icons.rewards}
-              title={t('loyalty.noLeaderboard')}
-              description={t('loyalty.noLeaderboardBody')}
-            />
-          }
-        >
-          {(rows) =>
-            rows.map((row) => (
-              <div
-                key={row.rank}
-                className={cn(
-                  'grid grid-cols-[40px_1fr_70px_80px] items-center gap-2 px-5 py-2.5 text-sm transition-colors',
-                  row.isCurrentUser ? 'bg-primary/10' : 'hover:bg-white/[0.03]',
-                )}
-              >
-                {row.rank <= 3 ? (
-                  <span
-                    className="flex h-6 w-6 items-center justify-center rounded-[5px] font-display text-xs font-bold text-black"
-                    style={{ background: RANK_GRADIENT[row.rank - 1] }}
-                  >
-                    {row.rank}
-                  </span>
-                ) : (
-                  <span className="pl-1.5 font-display font-bold text-text-low tabular-nums">
-                    {row.rank}
-                  </span>
-                )}
-                <span className="flex items-center gap-2 truncate">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] bg-white/5 text-[10px] font-bold text-text-medium">
-                    {row.nickname.slice(0, 2).toUpperCase()}
-                  </span>
-                  <span
-                    className={cn(
-                      'truncate font-medium',
-                      row.isCurrentUser ? 'text-primary' : 'text-text-high',
-                    )}
-                  >
-                    {row.nickname}
-                    {row.isCurrentUser && ' (You)'}
-                  </span>
-                </span>
-                <span className="text-right tabular-nums text-text-medium">{row.hours}h</span>
-                <motion.span
-                  key={row.coins}
-                  initial={{ opacity: 0.4 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center justify-end gap-1 text-right tabular-nums text-text-high"
-                >
-                  <icons.energy size={11} className="text-warning" />
-                  {formatCoins(row.coins)}
-                </motion.span>
-              </div>
-            ))
           }
         </DataBoundary>
       </div>

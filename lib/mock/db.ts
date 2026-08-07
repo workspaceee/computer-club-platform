@@ -515,9 +515,16 @@ export interface PlayerStats {
   totalHours: number
   gamesPlayed: number
   sessions: number
-  /** Hours inside the active season — this is what the leaderboard ranks by. */
+  /** Hours inside the active season — the leaderboard's default ranking (C3.10). */
   seasonHours: number
   seasonCoins: Coins
+  /**
+   * Matches won inside the active season — the leaderboard's third ranking
+   * (C3.10). Authored as its own number rather than derived from `gamesPlayed`:
+   * "played" and "won" are different facts about an evening, and a board that
+   * multiplied one by a guessed win-rate would rank players by a constant.
+   */
+  seasonWins: number
   achievementsUnlocked: number
   /**
    * Consecutive visit days, today included (C3.1). Optional because only the
@@ -578,7 +585,7 @@ const playersList: DemoPlayer[] = [
     12,
     6400,
     { moneyCents: 1750, coins: 1250 },
-    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11, visitStreak: 4 },
+    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, seasonWins: 9, achievementsUnlocked: 11, visitStreak: 4 },
     { machineId: CURRENT_MACHINE_ID, playingGameId: 'cs2' },
     { email: 'demo@imba.club' },
   ),
@@ -588,7 +595,7 @@ const playersList: DemoPlayer[] = [
     31,
     24800,
     { moneyCents: 4200, coins: 9876 },
-    { totalHours: 612, gamesPlayed: 41, sessions: 302, seasonHours: 42, seasonCoins: 9876, achievementsUnlocked: 27 },
+    { totalHours: 612, gamesPlayed: 41, sessions: 302, seasonHours: 42, seasonCoins: 9876, seasonWins: 64, achievementsUnlocked: 27 },
     { machineId: 'pc-01', playingGameId: 'cs2' },
   ),
   player(
@@ -597,7 +604,7 @@ const playersList: DemoPlayer[] = [
     28,
     21200,
     { moneyCents: 900, coins: 8765 },
-    { totalHours: 540, gamesPlayed: 36, sessions: 271, seasonHours: 39, seasonCoins: 8765, achievementsUnlocked: 24 },
+    { totalHours: 540, gamesPlayed: 36, sessions: 271, seasonHours: 39, seasonCoins: 8765, seasonWins: 57, achievementsUnlocked: 24 },
     { machineId: 'pc-02', playingGameId: 'valorant' },
   ),
   player(
@@ -606,7 +613,7 @@ const playersList: DemoPlayer[] = [
     25,
     18400,
     { moneyCents: 0, coins: 7654 },
-    { totalHours: 470, gamesPlayed: 33, sessions: 240, seasonHours: 35, seasonCoins: 7654, achievementsUnlocked: 22 },
+    { totalHours: 470, gamesPlayed: 33, sessions: 240, seasonHours: 35, seasonCoins: 7654, seasonWins: 48, achievementsUnlocked: 22 },
     { machineId: 'pc-11', playingGameId: 'r6' },
   ),
   player(
@@ -615,7 +622,7 @@ const playersList: DemoPlayer[] = [
     22,
     15600,
     { moneyCents: 2500, coins: 6543 },
-    { totalHours: 398, gamesPlayed: 29, sessions: 211, seasonHours: 31, seasonCoins: 6543, achievementsUnlocked: 19 },
+    { totalHours: 398, gamesPlayed: 29, sessions: 211, seasonHours: 31, seasonCoins: 6543, seasonWins: 41, achievementsUnlocked: 19 },
     { machineId: 'pc-19', playingGameId: 'cs2' },
   ),
   player(
@@ -624,7 +631,7 @@ const playersList: DemoPlayer[] = [
     20,
     13900,
     { moneyCents: 6100, coins: 4890 },
-    { totalHours: 352, gamesPlayed: 27, sessions: 190, seasonHours: 25, seasonCoins: 4890, achievementsUnlocked: 18 },
+    { totalHours: 352, gamesPlayed: 27, sessions: 190, seasonHours: 25, seasonCoins: 4890, seasonWins: 44, achievementsUnlocked: 18 },
     { machineId: 'pc-24', playingGameId: 'valorant' },
   ),
   player(
@@ -633,7 +640,7 @@ const playersList: DemoPlayer[] = [
     18,
     11700,
     { moneyCents: 350, coins: 4210 },
-    { totalHours: 300, gamesPlayed: 24, sessions: 172, seasonHours: 22, seasonCoins: 4210, achievementsUnlocked: 16 },
+    { totalHours: 300, gamesPlayed: 24, sessions: 172, seasonHours: 22, seasonCoins: 4210, seasonWins: 33, achievementsUnlocked: 16 },
   ),
   player(
     'u-frag',
@@ -641,7 +648,7 @@ const playersList: DemoPlayer[] = [
     17,
     10800,
     { moneyCents: 1200, coins: 3980 },
-    { totalHours: 288, gamesPlayed: 22, sessions: 165, seasonHours: 20, seasonCoins: 3980, achievementsUnlocked: 15 },
+    { totalHours: 288, gamesPlayed: 22, sessions: 165, seasonHours: 20, seasonCoins: 3980, seasonWins: 29, achievementsUnlocked: 15 },
     { machineId: 'pc-27', playingGameId: 'apex' },
   ),
   player(
@@ -650,7 +657,7 @@ const playersList: DemoPlayer[] = [
     15,
     9100,
     { moneyCents: 0, coins: 3540 },
-    { totalHours: 254, gamesPlayed: 20, sessions: 148, seasonHours: 18, seasonCoins: 3540, achievementsUnlocked: 13 },
+    { totalHours: 254, gamesPlayed: 20, sessions: 148, seasonHours: 18, seasonCoins: 3540, seasonWins: 22, achievementsUnlocked: 13 },
   ),
   player(
     'u-wolf',
@@ -658,7 +665,7 @@ const playersList: DemoPlayer[] = [
     14,
     8300,
     { moneyCents: 800, coins: 3120 },
-    { totalHours: 231, gamesPlayed: 19, sessions: 137, seasonHours: 16, seasonCoins: 3120, achievementsUnlocked: 12 },
+    { totalHours: 231, gamesPlayed: 19, sessions: 137, seasonHours: 16, seasonCoins: 3120, seasonWins: 26, achievementsUnlocked: 12 },
     { machineId: 'pc-33', playingGameId: 'dota2' },
   ),
   player(
@@ -667,7 +674,7 @@ const playersList: DemoPlayer[] = [
     13,
     7200,
     { moneyCents: 3300, coins: 2870 },
-    { totalHours: 205, gamesPlayed: 18, sessions: 126, seasonHours: 14, seasonCoins: 2870, achievementsUnlocked: 11 },
+    { totalHours: 205, gamesPlayed: 18, sessions: 126, seasonHours: 14, seasonCoins: 2870, seasonWins: 18, achievementsUnlocked: 11 },
     { machineId: 'pc-09', playingGameId: 'lol' },
   ),
   player(
@@ -676,7 +683,7 @@ const playersList: DemoPlayer[] = [
     11,
     5900,
     { moneyCents: 450, coins: 2410 },
-    { totalHours: 176, gamesPlayed: 16, sessions: 108, seasonHours: 12, seasonCoins: 2410, achievementsUnlocked: 9 },
+    { totalHours: 176, gamesPlayed: 16, sessions: 108, seasonHours: 12, seasonCoins: 2410, seasonWins: 11, achievementsUnlocked: 9 },
   ),
 ]
 
@@ -2330,17 +2337,26 @@ export function getZoneOccupancy() {
   })
 }
 
-/** Season leaderboard, ranked by hours played, with the viewer flagged. */
+/**
+ * Every member's board row, **unranked and unsorted** (C3.10).
+ *
+ * Rank is deliberately not assigned here: the board is ranked by whichever of
+ * three columns the reader picked, and privacy hides rows *before* the numbering
+ * is handed out — a row stamped with a rank in this function would be a second
+ * opinion about position that the endpoint then has to overwrite. `userId` rides
+ * along so `fetchLeaderboard` can check the privacy flag by identity instead of
+ * matching nicknames, and is stripped before the payload leaves the API.
+ */
 export function getLeaderboard(viewerId: ID = db.currentUserId) {
-  return [...db.players.values()]
-    .sort((a, b) => b.stats.seasonHours - a.stats.seasonHours)
-    .map((p, index) => ({
-      rank: index + 1,
-      nickname: p.user.nickname,
-      hours: p.stats.seasonHours,
-      coins: p.stats.seasonCoins,
-      isCurrentUser: p.user.id === viewerId,
-    }))
+  return [...db.players.values()].map((p) => ({
+    userId: p.user.id,
+    nickname: p.user.nickname,
+    level: p.user.level,
+    hours: p.stats.seasonHours,
+    coins: p.stats.seasonCoins,
+    wins: p.stats.seasonWins,
+    isCurrentUser: p.user.id === viewerId,
+  }))
 }
 
 /**

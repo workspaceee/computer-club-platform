@@ -143,9 +143,14 @@ export function useAttractPlaylist(frames: string[]): AttractPlaylist {
     refreshInterval: SLOW_REFRESH_MS,
   })
 
-  const ladder = useApi(['attract', 'ladder'], () => fetchLeaderboard({ limit: LADDER_ROWS }), {
-    refreshInterval: SLOW_REFRESH_MS,
-  })
+  // `viewerId: null` for the same reason the promos ask as `everyone`: nobody is
+  // signed in in front of an idle kiosk, so no row may be flagged "you" and the
+  // board must not chase a member's position down the list (C3.10).
+  const ladder = useApi(
+    ['attract', 'ladder'],
+    () => fetchLeaderboard({ limit: LADDER_ROWS, viewerId: null }),
+    { refreshInterval: SLOW_REFRESH_MS },
+  )
 
   const pass = useApi(['attract', 'battlepass'], () => fetchBattlePass('free'), {
     refreshInterval: SLOW_REFRESH_MS,
@@ -222,7 +227,7 @@ export function useAttractPlaylist(frames: string[]): AttractPlaylist {
     // Under three names the board reads as a private club rather than a ladder
     // worth entering, and the fixture can legitimately return one row once
     // privacy opt-outs (F2.5) are applied.
-    const entries = ladder.data ?? []
+    const entries = ladder.data?.rows ?? []
     if (entries.length >= 3) {
       content.push({ kind: 'ladder', key: 'ladder', src: '', entries })
     }
