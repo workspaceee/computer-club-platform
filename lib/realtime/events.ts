@@ -446,7 +446,7 @@ export const EVENT_LEVEL: Record<RealtimeEventName, NotificationLevel> = {
  * `useRealtimeRevalidation()` reads this, so a screen gets fresh data from one
  * push without every component subscribing by hand. Prefixes are matched against
  * the first segment of the SWR key, which is either the string key itself
- * (`'games/featured'`) or the head of an array key (`['shop', tab]`).
+ * (`'tournaments'`) or the head of an array key (`['shop', tab]`).
  */
 export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'time.added': ['session', 'wallet', 'shop'],
@@ -472,7 +472,14 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   broadcast: ['support'],
   'quest.completed': ['loyalty', 'wallet'],
   'battlepass.tier': ['loyalty'],
-  'tournament.call': ['tournaments'],
+  // Also `hero`: the carousel's deck (C3.9) is composed *against* the bracket the
+  // home card is about — that one is dropped, along with any campaign advertising
+  // it, so one tournament occupies one place on the screen. A call moves that
+  // bracket's status, which moves the card's pick, which makes the exclusion the
+  // server computed the wrong one: without this the hero either keeps advertising
+  // a bracket that has already been called, or keeps hiding the one it should now
+  // be leading with.
+  'tournament.call': ['tournaments', 'hero'],
   'booking.reminder': ['booking'],
   'friend.request': ['social'],
   // Also `support`: since C2.5 an invite is answerable *inside* the inbox, so a

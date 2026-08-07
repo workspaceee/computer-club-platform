@@ -347,9 +347,6 @@ function buildGames(): Game[] {
 
 const games: Game[] = buildGames()
 
-/** Curated hero row. Ids, not indexes, so reordering the catalogue is safe. */
-const FEATURED_GAME_IDS: ID[] = ['cs2', 'valorant', 'fortnite', 'cyberpunk', 'marvelrivals']
-
 /**
  * "New at the club" — the curated novelty shelf behind the hero's third kind of
  * slide (C3.9).
@@ -358,10 +355,11 @@ const FEATURED_GAME_IDS: ID[] = ['cs2', 'valorant', 'fortnite', 'cyberpunk', 'ma
  * run never mutates it, so like `promos` it is deliberately absent from
  * `lib/mock/persist.ts`.
  *
- * Deliberately *not* the featured five above. The hero would otherwise spend two
- * of its slides on the same title — the club's evening headline and its newest
- * arrival are different editorial claims, and a shelf that repeated the front page
- * would say nothing new. `note` is the club's own line, printed as written.
+ * Deliberately *not* the club's headline titles: the hero would otherwise spend
+ * two of its slides on the same game — a campaign the club is running tonight and
+ * its newest arrival are different editorial claims, and a shelf that repeated the
+ * front page would say nothing new. `note` is the club's own line, printed as
+ * written.
  */
 const GAME_RELEASES: GameRelease[] = [
   { gameId: 'pathofexile2', addedAt: atDays(-2), note: 'Installed on every seat in the Main Hall' },
@@ -2241,7 +2239,6 @@ export const db = {
   machines,
   currentMachineId: CURRENT_MACHINE_ID,
   games,
-  featuredGameIds: FEATURED_GAME_IDS,
   gameReleases: GAME_RELEASES,
   houseAccounts,
   gameLaunches,

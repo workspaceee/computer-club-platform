@@ -725,8 +725,6 @@ export const lt: Dictionary = {
     noResults: 'Žaidimų nerasta',
     noResultsBody: 'Pabandykite kitą pavadinimą arba nuimkite kategorijos filtrą.',
     clearFilters: 'Išvalyti filtrus',
-    noFeatured: 'Rekomendacijų kol kas nėra',
-    noFeaturedBody: 'Klubas dar neišrinko favoritų — atidarykite visą biblioteką.',
     openLibrary: 'Atidaryti biblioteką',
     noAccounts: 'Laisvų paskyrų nėra',
     noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',

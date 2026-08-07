@@ -1145,8 +1145,6 @@ export const en = {
     noResults: 'No games found',
     noResultsBody: 'Try a different name or clear the category filter.',
     clearFilters: 'Clear filters',
-    noFeatured: 'No featured games',
-    noFeaturedBody: 'The club has not picked highlights yet — browse the full library.',
     openLibrary: 'Open library',
     noAccounts: 'No accounts available',
     noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
