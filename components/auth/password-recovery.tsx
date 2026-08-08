@@ -14,10 +14,10 @@ import {
   requestPasswordReset,
   resendPasswordResetCode,
   verifyPasswordResetCode,
+  type AuthResult,
   type PasswordResetChallenge,
 } from '@/lib/mock/api'
 import { formatCountdown } from '@/lib/time'
-import type { UserProfile } from '@/lib/types/user'
 
 /**
  * Where the player is in the recovery flow (C1.3).
@@ -66,8 +66,15 @@ interface PasswordRecoveryProps {
   onStateChange: (state: RecoveryState) => void
   /** Back out to the sign-in form. */
   onCancel: () => void
-  /** The flow ends signed in — see `completePasswordReset`. */
-  onSuccess: (profile: UserProfile, name: string) => void
+  /**
+   * The flow ends signed in — see `completePasswordReset`.
+   *
+   * The whole session travels up, not just the profile: the screen has one more
+   * gate to run before the launcher (the seat check, C1.7), and that gate asks
+   * *who* this is — a question `UserProfile` cannot answer, since it carries a
+   * nickname and no id.
+   */
+  onSuccess: (session: AuthResult) => void
   /** Localized toast, so the screen keeps owning the toast voice. */
   onToast: (tone: 'success' | 'info' | 'error', message: string) => void
   /** Shake the card, like a failed sign-in. */
@@ -304,13 +311,13 @@ export function PasswordRecovery({
     setFieldError(null)
     setLoading(true)
     try {
-      const { profile } = await completePasswordReset({
+      const session = await completePasswordReset({
         challengeId: challenge.challengeId,
         resetToken,
         password,
         confirmPassword: confirm,
       })
-      onSuccess(profile, profile.nickname)
+      onSuccess(session)
     } catch (err) {
       report(err)
       onReject()

@@ -83,12 +83,40 @@ export interface Redemption {
   createdAt: ISODateTime
 }
 
+/**
+ * The three columns the week's board can be ranked by (C3.10).
+ *
+ * One union, because it is also the endpoint's parameter: the switcher on the
+ * card cannot offer a fourth ordering the server does not know how to produce.
+ */
+export type LeaderboardMetric = 'hours' | 'coins' | 'wins'
+
 export interface LeaderboardEntry {
+  /** Position **in the requested ordering** — recomputed per metric, server-side. */
   rank: number
   nickname: string
+  /** Loyalty level, so a row wears the same tier ring as everywhere else. */
+  level: number
   hours: number
   coins: Coins
+  wins: number
   isCurrentUser?: boolean
+}
+
+/** `GET /api/loyalty/leaderboard` — one page of the board plus the viewer's place in it. */
+export interface LeaderboardBoard {
+  /** The ordering these rows are in — echoed so a stale page cannot be mislabelled. */
+  metric: LeaderboardMetric
+  /** The top N, ranked by `metric`. */
+  rows: LeaderboardEntry[]
+  /**
+   * The viewer's own row when it falls *outside* `rows` — the whole point of a
+   * top-10 for someone who is twelfth. `null` when they are already on the page,
+   * when they opted out of the board, or when nobody is signed in.
+   */
+  viewer: LeaderboardEntry | null
+  /** Everyone the board ranks, so "10 of 12" can be stated rather than guessed. */
+  total: number
 }
 
 /** Compact reward teaser rendered on the home screen coin ladder. */

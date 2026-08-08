@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CodeInput, type CodeInputHandle } from '@/components/ui/code-input'
+import { DateField } from '@/components/ui/date-field'
 import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { icons } from '@/lib/icons'
@@ -14,25 +15,37 @@ import {
   ApiError,
   checkNickname,
   completeRegistration,
+  judgeBirthday,
+  judgePin,
+  MIN_AGE_YEARS,
   NICKNAME_MAX,
   NICKNAME_MIN,
   resendRegistrationCode,
   startRegistration,
+  verifyRegistrationCode,
+  type AuthResult,
   type NicknameVerdict,
   type RegistrationChallenge,
+  type RegistrationVerification,
 } from '@/lib/mock/api'
 import { formatCountdown } from '@/lib/time'
-import type { UserProfile } from '@/lib/types/user'
 
 /**
- * Where the player is in signing up (C1.4).
+ * Where the player is in signing up (C1.4, C1.11).
  *
- * Two steps, not one form: the details, then the code from the inbox. The split
- * is what makes the code screen honest — the account does not exist until the
- * code lands, so a player who walks away at the second step leaves nothing
- * behind and the nickname they were about to take stays free.
+ * Three steps, not one form: the details, the code from the inbox, then the PIN.
+ * The first split is what makes the code screen honest — the account does not
+ * exist until the code lands, so a player who walks away leaves nothing behind
+ * and the nickname they were about to take stays free.
+ *
+ * The second split exists because **the PIN has to be asked for after the inbox
+ * is proven and before the account exists**. After, because a PIN keypad on the
+ * first screen is a fourth credential asked of somebody who has not yet shown
+ * they own the address; before, because C1.10 and C14.7 both put a member in
+ * front of a keypad with no other way in, and a member without a PIN would be
+ * locked out of their own paused visit.
  */
-export type SignupStep = 'details' | 'code'
+export type SignupStep = 'details' | 'code' | 'pin'
 
 /** What the card header needs to word a live signup. */
 export interface SignupState {
@@ -48,10 +61,14 @@ export interface SignupState {
  * literally the same instruction, but it gets **its own subline**: nothing is
  * being recovered here, an account is being created, and "enter the code to
  * finish signing up" is the sentence that says so.
+ *
+ * The PIN step gets a pair of its own. By then the mail is behind the player and
+ * a headline still about email would describe the wrong screen.
  */
 export const SIGNUP_COPY: Record<SignupStep, { lead: TKey; accent: TKey; sub: TKey }> = {
   details: { lead: 'auth.join', accent: 'auth.joinHi', sub: 'auth.registerSub' },
   code: { lead: 'auth.codeStep', accent: 'auth.codeStepHi', sub: 'auth.signupCodeSub' },
+  pin: { lead: 'auth.pinStep', accent: 'auth.pinStepHi', sub: 'auth.pinStepSub' },
 }
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -65,8 +82,12 @@ interface RegistrationProps {
   onStateChange: (state: SignupState) => void
   /** Back out to the sign-in form. */
   onCancel: () => void
-  /** The flow ends signed in — `completeRegistration` returns a session. */
-  onSuccess: (profile: UserProfile) => void
+  /**
+   * The flow ends signed in — `completeRegistration` returns a session, and the
+   * whole session goes up: the screen still has the seat check to run (C1.7),
+   * which asks for an account id the profile does not carry.
+   */
+  onSuccess: (session: AuthResult) => void
   /** Localized toast, so the screen keeps owning the toast voice. */
   onToast: (tone: 'success' | 'info' | 'error', message: string) => void
   /** Shake the card, like a failed sign-in. */
@@ -112,6 +133,8 @@ export function Registration({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  /** `YYYY-MM-DD`, straight out of a native date input (C1.11). */
+  const [birthday, setBirthday] = useState('')
   const [acceptedRules, setAcceptedRules] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
@@ -126,6 +149,19 @@ export function Registration({
   const [codeError, setCodeError] = useState<string | null>(null)
 
   /**
+   * The ticket the code bought (C1.11).
+   *
+   * It carries the `pinToken`, the number of cells to draw and the birthday the
+   * PIN may not repeat — so the keypad can refuse the obvious PINs *before*
+   * spending a round trip, with the same verdicts the server would answer.
+   */
+  const [verification, setVerification] = useState<RegistrationVerification | null>(null)
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [pinError, setPinError] = useState<string | null>(null)
+  const [confirmPinError, setConfirmPinError] = useState<string | null>(null)
+
+  /**
    * Both timers are **deadlines in epoch ms**, never counters that get
    * decremented — a backgrounded tab or a stuttering station would freeze a
    * counter and unfreeze the cooldown with it (same rule as C1.3 and F3.7).
@@ -135,7 +171,9 @@ export function Registration({
   const [, setTick] = useState(0)
 
   useEffect(() => {
-    if (step !== 'code') return
+    // The PIN step lives inside the same deadline: the ticket dies with the code
+    // it came from, so the clock has to keep running while the keypad is up.
+    if (step !== 'code' && step !== 'pin') return
     const id = setInterval(() => setTick((n) => n + 1), 1000)
     return () => clearInterval(id)
   }, [step])
@@ -249,8 +287,28 @@ export function Registration({
     if (email && !emailOk(email)) e.email = t('errors.invalidEmail')
     if (password && password.length < MIN_PASSWORD) e.password = t('errors.tooShort', { min: MIN_PASSWORD })
     if (confirm && confirm !== password) e.confirm = t('errors.passwordsMismatch')
+    // The same `judgeBirthday` the server runs, so the field cannot say "fine"
+    // to a date `startRegistration` would refuse.
+    if (birthday) {
+      const verdict = judgeBirthday(birthday)
+      if (verdict === 'invalidDate') e.birthday = t('auth.birthdayInvalid')
+      if (verdict === 'tooYoung') e.birthday = t('auth.birthdayTooYoung', { n: MIN_AGE_YEARS })
+    }
     return e
-  }, [email, password, confirm, t])
+  }, [email, password, confirm, birthday, t])
+
+  /**
+   * Bounds for the native picker: no future dates, nothing before 1900, and the
+   * upper bound is the *youngest allowed* birthday rather than today — the club's
+   * age rule belongs on the control, not only in a red line under it.
+   */
+  const birthdayBounds = useMemo(() => {
+    const today = new Date()
+    const oldest = new Date(
+      Date.UTC(today.getUTCFullYear() - MIN_AGE_YEARS, today.getUTCMonth(), today.getUTCDate()),
+    )
+    return { min: '1900-01-01', max: oldest.toISOString().slice(0, 10) }
+  }, [])
 
   const passStrength = useMemo(() => {
     let s = 0
@@ -285,6 +343,7 @@ export function Registration({
       !nickname.trim() ||
       !email ||
       !password ||
+      !birthday ||
       confirm !== password ||
       nickTaken ||
       Object.keys(detailErrors).length > 0
@@ -300,6 +359,7 @@ export function Registration({
         email,
         password,
         confirmPassword: confirm,
+        birthday,
         acceptedRules,
       })
       accept(next)
@@ -346,8 +406,16 @@ export function Registration({
       setCodeError(null)
       setLoading(true)
       try {
-        const { profile } = await completeRegistration(challenge.challengeId, entered)
-        onSuccess(profile)
+        // The code buys a ticket, not an account: `verifyRegistrationCode` proves
+        // the inbox and the member row is still written by exactly one call — the
+        // PIN step's.
+        const ticket = await verifyRegistrationCode(challenge.challengeId, entered)
+        setVerification(ticket)
+        setPin('')
+        setConfirmPin('')
+        setPinError(null)
+        setConfirmPinError(null)
+        onStateChange({ step: 'pin' })
       } catch (err) {
         // Losing the nickname race between the code being sent and typed is a
         // *details* problem, so the flow walks back to the field that owns it
@@ -377,7 +445,7 @@ export function Registration({
         setLoading(false)
       }
     },
-    [challenge, nickname, onReject, onStateChange, onSuccess, onToast, report, t],
+    [challenge, nickname, onReject, onStateChange, onToast, report, t],
   )
 
   const resend = async () => {
@@ -388,6 +456,9 @@ export function Registration({
       const next = await resendRegistrationCode(challenge.challengeId)
       accept(next)
       setCode('')
+      // A new code invalidates the ticket the old one bought, server-side. The
+      // client drops it too, or the PIN step would keep a token nothing honours.
+      setVerification(null)
       setRefocus((n) => n + 1)
       onToast('info', t('auth.codeResentToast'))
     } catch (err) {
@@ -404,9 +475,95 @@ export function Registration({
     setChallenge(null)
     setCode('')
     setCodeError(null)
+    setVerification(null)
+    setPin('')
+    setConfirmPin('')
+    setPinError(null)
+    setConfirmPinError(null)
     setResendAt(null)
     setExpiresAt(null)
     onStateChange({ step: 'details' })
+  }
+
+  /* ---------------------------------------------------------------- *
+   * PIN step (C1.11)
+   * ---------------------------------------------------------------- */
+
+  /** Verdict → the sentence that names the one rule that was broken. */
+  const pinCopy = useCallback(
+    (verdict: string, length: number): string => {
+      switch (verdict) {
+        case 'pinLength':
+          return t('auth.pinTooShort', { n: length })
+        case 'pinRepeated':
+          return t('auth.pinAllSame')
+        case 'pinBirthday':
+          return t('auth.pinIsBirthday')
+        default:
+          return t('errors.validation')
+      }
+    },
+    [t],
+  )
+
+  const submitPin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!challenge || !verification || loading) return
+
+    // Judged locally with the *same* function the server runs, so an obvious PIN
+    // is refused without a round trip and hears the same sentence either way.
+    const verdict = judgePin(pin, verification.birthday)
+    if (verdict !== 'ok') {
+      setPinError(pinCopy(verdict, verification.pinLength))
+      onReject()
+      return
+    }
+    if (pin !== confirmPin) {
+      setConfirmPinError(t('auth.pinMismatch'))
+      onReject()
+      return
+    }
+
+    setPinError(null)
+    setConfirmPinError(null)
+    setLoading(true)
+    try {
+      const session = await completeRegistration({
+        challengeId: challenge.challengeId,
+        pinToken: verification.pinToken,
+        pin,
+        confirmPin,
+      })
+      onSuccess(session)
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'validation' && err.fields) {
+        const fields = err.fields as Record<string, string>
+        // A PIN problem stays on the keypad; anything else (the nickname race
+        // that only `completeRegistration` can lose) is a *details* problem, so
+        // the flow walks back to the field that owns it with the rest intact.
+        if (fields.pin || fields.confirmPin) {
+          if (fields.pin) setPinError(pinCopy(fields.pin, verification.pinLength))
+          if (fields.confirmPin) setConfirmPinError(t('auth.pinMismatch'))
+          onReject()
+          return
+        }
+        setServerErrors(mapFieldErrors(fields, t, nickname.trim()))
+        onToast('error', t('errors.validation'))
+        editDetails()
+        onReject()
+        return
+      }
+      const failed = report(err)
+      // The ticket died with the code behind it: there is nothing on this screen
+      // to repair, so the flow goes back to the form rather than leaving the
+      // player tapping a keypad that can no longer create an account.
+      if (failed === 'timeout' || failed === 'notFound' || failed === 'unauthorized') {
+        editDetails()
+      }
+      onReject()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -480,6 +637,29 @@ export function Registration({
             placeholder={t('auth.emailPlaceholder')}
             error={serverErrors.email ?? (touched ? detailErrors.email : undefined)}
             autoComplete="email"
+          />
+
+          {/* Asked for here and not on the PIN screen: the hint explains both
+              features that read it (the birthday bonus and the PIN rule), and a
+              date field that appears *next to* a keypad reads as a hoop.
+
+              `DateField` rather than `Field type="date"`: the native dropdown is
+              drawn by the browser in the OS palette, which on this dark card is
+              a grey rectangle from another product, and it opens on *today* —
+              the wrong end of a birthday. `openAt` sends the calendar to the
+              youngest allowed year instead, the first year that can be one. */}
+          <DateField
+            label={t('auth.birthday')}
+            value={birthday}
+            onValueChange={(v) => {
+              setBirthday(v)
+              setServerErrors(({ birthday: _drop, ...rest }) => rest)
+            }}
+            min={birthdayBounds.min}
+            max={birthdayBounds.max}
+            openAt={birthdayBounds.max}
+            error={serverErrors.birthday ?? (touched ? detailErrors.birthday : undefined)}
+            hint={t('auth.birthdayHint')}
           />
 
           <div>
@@ -615,8 +795,11 @@ export function Registration({
             </div>
           )}
 
+          {/* Not "Create account" any more: this step *confirms the address* and
+              the PIN screen is what creates the member (C1.11). A button that
+              promised an account and then asked for a PIN would be a lie. */}
           <Button type="submit" size="lg" block cut loading={loading} disabled={codeDead}>
-            {t('auth.createAccount')}
+            {t('common.confirm')}
           </Button>
 
           <div className="flex flex-col items-center gap-1">
@@ -645,6 +828,51 @@ export function Registration({
               {t('auth.editDetails')}
             </Button>
           </div>
+        </form>
+      )}
+
+      {step === 'pin' && verification && (
+        <form onSubmit={submitPin} className="flex flex-col gap-4">
+          {/* Masked on both rows: the station is a public surface and the second
+              row is a *confirmation*, not a place to read the first one back. */}
+          <CodeInput
+            label={t('auth.choosePin')}
+            length={verification.pinLength}
+            value={pin}
+            onValueChange={(v) => {
+              setPin(v)
+              setPinError(null)
+              setConfirmPinError(null)
+            }}
+            error={pinError ?? undefined}
+            mask
+            disabled={loading}
+            autoFocus
+          />
+
+          <CodeInput
+            label={t('auth.repeatPin')}
+            length={verification.pinLength}
+            value={confirmPin}
+            onValueChange={(v) => {
+              setConfirmPin(v)
+              setConfirmPinError(null)
+            }}
+            error={confirmPinError ?? undefined}
+            mask
+            disabled={loading}
+          />
+
+          {/* The one rule the player has to carry out of the club with them. */}
+          <p className="text-pretty text-[11px] leading-relaxed text-text-low">
+            {t('auth.pinNote')}
+          </p>
+
+          <Button type="submit" size="lg" block cut loading={loading} disabled={codeDead}>
+            {t('auth.createAccount')}
+          </Button>
+
+          <BackButton label={t('auth.editDetails')} onClick={editDetails} disabled={loading} />
         </form>
       )}
     </motion.div>
@@ -694,6 +922,12 @@ function mapFieldErrors(
         break
       case 'passwordsMismatch':
         out[field] = t('errors.passwordsMismatch')
+        break
+      case 'invalidDate':
+        out[field] = t('auth.birthdayInvalid')
+        break
+      case 'tooYoung':
+        out[field] = t('auth.birthdayTooYoung', { n: MIN_AGE_YEARS })
         break
       case 'required':
         out[field] = field === 'acceptedRules' ? t('auth.rulesRequired') : t('errors.required')

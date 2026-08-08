@@ -25,6 +25,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Award,
+  Bell,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -66,6 +67,7 @@ import {
   Moon,
   Mouse,
   MousePointer2,
+  Pause,
   Pizza,
   PlugZap,
   Play,
@@ -157,9 +159,11 @@ export const icons = {
   volume: Volume2,
   controls: MousePointer2, // раздел «Управление», курсор, «подвигай мышью»
   empty: Inbox, // пусто по данным
+  notifications: Bell, // входящие клуба: колокольчик и панель уведомлений
   support: LifeBuoy, // помощь, поддержка
   home: Home,
-  play: Play, // запустить игру
+  play: Play, // запустить игру; возобновить автопрокрутку карусели
+  pause: Pause, // остановить автопрокрутку (карусель героя, C3.9)
   demo: Rocket, // быстрый вход в демо-сессию
 
   // ── доступ и защита

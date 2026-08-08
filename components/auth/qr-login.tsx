@@ -9,13 +9,18 @@ import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
-import { ApiError, confirmQrChallenge, requestQrChallenge, type QrChallenge } from '@/lib/mock/api'
+import {
+  ApiError,
+  confirmQrChallenge,
+  requestQrChallenge,
+  type AuthResult,
+  type QrChallenge,
+} from '@/lib/mock/api'
 // MOCK ONLY — the companion app the prototype does not have. Goes away with
 // `lib/mock/*` and `lib/realtime/admin-sim` in Stage 4, together with the demo
 // plate at the bottom of this dialog; nothing above it imports this.
 import { confirmQrLogin } from '@/lib/realtime/admin-sim'
 import { formatCountdown } from '@/lib/time'
-import type { UserProfile } from '@/lib/types/user'
 
 /**
  * Where the handshake is. `confirmed` carries the nickname because the frame
@@ -34,8 +39,12 @@ interface QrLoginProps {
   open: boolean
   /** Back out of the handshake. */
   onCancel: () => void
-  /** The flow ends signed in — the exchanged ticket returns a session. */
-  onSuccess: (profile: UserProfile) => void
+  /**
+   * The flow ends signed in — the exchanged ticket returns a session, which
+   * travels up whole: the screen runs the seat check after this (C1.7) and that
+   * needs the account id, not just the profile.
+   */
+  onSuccess: (session: AuthResult) => void
   /** Localized toast, so the screen keeps owning the toast voice. */
   onToast: (tone: 'success' | 'info' | 'error', message: string) => void
 }
@@ -150,10 +159,10 @@ export function QrLogin({ open, onCancel, onSuccess, onToast }: QrLoginProps) {
       setPhase({ kind: 'confirmed', nickname })
 
       void confirmQrChallenge(challengeId, grantToken)
-        .then(({ profile }) => {
+        .then((session) => {
           if (run.current !== mine) return
           onToast('success', t('auth.qrVerified'))
-          onSuccess(profile)
+          onSuccess(session)
         })
         .catch((err) => {
           if (run.current !== mine) return

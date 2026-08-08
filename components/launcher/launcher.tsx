@@ -12,6 +12,7 @@ import { ProfileView } from '@/components/launcher/profile-view'
 import { PendingView } from '@/components/launcher/pending-view'
 import { useNavShortcuts } from '@/hooks/use-nav-shortcuts'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useSeatOverride } from '@/hooks/use-seat-override'
 
 /**
  * Section router of the launcher (F6.2).
@@ -35,6 +36,12 @@ export function Launcher({ surface = 'launcher' }: { surface?: LauncherSurface }
   // reach `04` from anywhere. Registered once per surface, so the guest set is
   // exactly the guest navigation.
   useNavShortcuts(surface)
+
+  // `?seat=pause` — dev only, dropped from a production build. Here rather than
+  // in the shell because the state it creates is "paused *with the launcher up*",
+  // and this component is the first place in the tree where that is true
+  // (`hooks/use-seat-override.ts`, C3.3).
+  useSeatOverride()
 
   // A guest arriving on a member-only section is folded back to home rather
   // than shown an empty frame.
