@@ -54,14 +54,21 @@ export function Segmented<T extends string>({
   const pad = size === 'sm' ? 'p-0.5' : 'p-1'
   const seg =
     size === 'sm' ? 'px-3 py-1 text-[11px]' : 'px-3.5 py-2 text-xs'
+  // The radius follows the size, one rung apart, so the pill stays concentric
+  // inside its track: `md` is a form-level control and matches `Field`'s 10 px
+  // frame (§3.3 wells share an edge language), `sm` is compact chrome.
+  const trackRadius = round ? 'rounded-full' : size === 'sm' ? 'rounded-md' : 'rounded-lg'
+  const segRadius = round ? 'rounded-full' : size === 'sm' ? 'rounded-sm' : 'rounded-md'
 
   return (
     <div
       role="radiogroup"
       aria-label={label}
       className={cn(
-        'relative flex border border-border bg-black/40',
-        round ? 'rounded-full' : 'rounded-md',
+        // A track is a well (§3.3): the pill slides inside a recess, not on top
+        // of the panel. No `focus-within` rung here — see `.well-deep`.
+        'well relative flex border border-border',
+        trackRadius,
         pad,
         className,
       )}
@@ -79,7 +86,7 @@ export function Segmented<T extends string>({
             className={cn(
               'relative flex items-center justify-center gap-1.5 font-display font-semibold uppercase tracking-widest transition-colors',
               'outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
-              round ? 'rounded-full' : 'rounded-sm',
+              segRadius,
               seg,
               fill && 'flex-1',
               active
@@ -96,15 +103,17 @@ export function Segmented<T extends string>({
                 aria-hidden
                 className={cn(
                   'absolute inset-0',
-                  round ? 'rounded-full' : 'rounded-sm',
+                  segRadius,
                   variant === 'pill'
                     ? // Translucent instead of a solid red fill, so the pill
                       // reads as lit glass over the track: the shell's shared
-                      // neon (`.neon-edge` — same paint as `.neon-ring`, minus
-                      // the `position: relative` that would collapse this
-                      // `absolute inset-0` overlay) is what marks the active
-                      // segment now, not a block of colour.
-                      'neon-edge bg-primary/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_20px_rgba(229,53,43,0.32)] backdrop-blur-sm'
+                      // neon edge is what marks the active segment now, not a
+                      // block of colour. `-edge` and not `-ring` because this
+                      // overlay is already positioned and `position: relative`
+                      // would collapse it; `-static` because a selection
+                      // marker is a status plate — T2 (§4.2). It already moves
+                      // when you switch tabs, and that motion is the signal.
+                      'neon-edge-static bg-primary/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_20px_rgba(229,53,43,0.32)] backdrop-blur-sm'
                     : 'border border-primary/40 bg-primary/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_18px_rgba(229,53,43,0.18)]',
                 )}
                 transition={
