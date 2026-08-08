@@ -11,9 +11,17 @@
 //  * every money movement writes a `Transaction`, so the wallet history is a
 //    ledger rather than a number the UI decremented.
 import { mutate, newId, query, required, ApiError } from '@/lib/mock/api/client'
-import { db, getOpenTab, getPlayer, getProduct, getTransactions } from '@/lib/mock/db'
+import {
+  db,
+  getActivePromos,
+  getOpenTab,
+  getPlayer,
+  getProduct,
+  getTransactions,
+} from '@/lib/mock/db'
 import type { Product, ProductCategory, ShopEntry } from '@/lib/types/catalog'
 import type { Cents, ID } from '@/lib/types/common'
+import type { Promo, PromoAudience } from '@/lib/types/promo'
 import type { Order, OrderItem, OrderPaymentMethod, OrderStatus } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
 import type { Tab, TabItem, Transaction } from '@/lib/types/tab'
@@ -95,6 +103,18 @@ export function fetchShopTime(): Promise<ShopEntry[]> {
         priceCents: pass.priceCents,
         tag: pass.id === 'pass-5h' ? 'Popular' : undefined,
         description: describePass(pass),
+        /**
+         * What the closing notice is decided from (C2.11).
+         *
+         * Derived here, from the pass row, rather than in the grid: whether a
+         * pass is *meant* to span the club's edge is a property of the product,
+         * and a UI that inferred it from `id === 'pass-night'` would start
+         * lying the day an admin adds a second night pass.
+         */
+        time: {
+          minutes: pass.hours * 60 + pass.bonusMinutes,
+          crossesClosing: pass.timeWindow !== null || pass.unlimitedInWindow,
+        },
         // A pass is always purchasable while it is active; there is nothing to
         // run out of.
         inStock: true,
@@ -112,6 +132,108 @@ export function fetchShopMemberships(): Promise<Product[]> {
       // name just makes three cards read "… Membership".
       .map((product) => ({ ...product, name: product.name.replace(' Membership', '') })),
   )
+}
+
+/* ------------------------------------------------------------------ *
+ * The bar board (C3.6)
+ * ------------------------------------------------------------------ */
+
+/** How many popular rows the home card has room for. Owned here, with the sort. */
+export const BAR_POPULAR_SLOTS = 3
+
+/**
+ * What "the bar" means when the home card asks for it.
+ *
+ * Merch is deliberately out: a hoodie is not something a seated player orders
+ * mid-match, and it would win the popularity sort on a slow evening purely
+ * because one was sold. Memberships and time passes are not bar rows at all —
+ * they have their own tabs in the shop and their own cards on this screen.
+ */
+const BAR_CATEGORIES: readonly ProductCategory[] = ['drinks', 'coffee', 'snacks', 'food', 'combo']
+
+export interface BarBoard {
+  /** The popular rows, most-ordered first, already trimmed to the card's slots. */
+  items: Product[]
+  /** The one live bar campaign, or `null` when the club is running none. */
+  promo: Promo | null
+  /**
+   * The product that campaign sells, priced by the server. `null` for a campaign
+   * that advertises no single row — the banner is then copy with no "Add".
+   */
+  promoProduct: Product | null
+}
+
+/** Units of each product the club has actually served. Cancelled orders sold nothing. */
+function unitsSold(): Map<ID, number> {
+  const sold = new Map<ID, number>()
+  for (const order of db.orders) {
+    if (order.status === 'cancelled') continue
+    for (const line of order.items) {
+      sold.set(line.productId, (sold.get(line.productId) ?? 0) + line.qty)
+    }
+  }
+  return sold
+}
+
+/**
+ * `GET /api/shop/bar` — the three most popular bar rows plus tonight's campaign.
+ *
+ * Everything the home card is not allowed to decide for itself lives here:
+ *
+ *  * **Which three are "popular".** Counted from the club's own order lines, all
+ *    members' and not this player's — popularity is the club's fact, and a card
+ *    ranking by the viewer's history would be a "recently ordered" list wearing
+ *    the wrong label. `tag === 'Popular'` only breaks ties, so an admin's badge
+ *    still decides between two drinks nobody has ordered yet.
+ *  * **Out of stock never reaches the card.** The whole point of the card is a
+ *    basket in one click, and a row that cannot be added is a row that should not
+ *    be offered; the shop screen is where the full menu, sold-out rows included,
+ *    is browsed.
+ *  * **The campaign and the three cannot be the same drink.** The promoted row is
+ *    removed from the popular list — it is the most likely thing to be *both*
+ *    (that is why it is being pushed), and one card offering one tray twice, at
+ *    the same price, reads as a bug.
+ *  * **A campaign whose product ran out is not a campaign.** It is dropped whole
+ *    rather than rendered as a banner with a dead button.
+ */
+export function fetchBarBoard(
+  viewer: PromoAudience = 'members',
+  limit = BAR_POPULAR_SLOTS,
+): Promise<BarBoard> {
+  return query('shop.fetchBarBoard', () => {
+    // Priority-ordered by `getActivePromos`, so "the campaign" is the club's
+    // first choice and never a scan the client repeats.
+    const campaign = getActivePromos('bar', viewer)[0] ?? null
+
+    const promoProduct =
+      campaign?.refType === 'product' && campaign.refId
+        ? (db.products.find(
+            (p) => p.id === campaign.refId && p.inStock && BAR_CATEGORIES.includes(p.category),
+          ) ?? null)
+        : null
+
+    // Both `null` together: either the campaign sells something orderable, or a
+    // campaign that named a product the counter has run out of is not shown.
+    const promo = campaign === null || (campaign.refType === 'product' && promoProduct === null)
+      ? null
+      : campaign
+
+    const sold = unitsSold()
+    const items = db.products
+      .filter(
+        (p) =>
+          BAR_CATEGORIES.includes(p.category) && p.inStock && p.id !== promoProduct?.id,
+      )
+      .sort(
+        (a, b) =>
+          (sold.get(b.id) ?? 0) - (sold.get(a.id) ?? 0) ||
+          Number(b.tag === 'Popular') - Number(a.tag === 'Popular') ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, Math.max(0, limit))
+
+    return { items, promo, promoProduct: promo === null ? null : promoProduct }
+  })
 }
 
 /** `GET /api/shop/passes` — the full pass definitions, for the buy-time sheet. */

@@ -138,14 +138,18 @@ export function Toaster() {
       // very chip it was talking about ("+150 coins" landing on the coin
       // balance); moving it down fixed that, and moving it left also keeps it
       // clear of the right-hand column (slide dots, action buttons, drawers).
-      // `bottom-24` clears the fixed mobile bar on narrow screens, where
-      // covering the navigation would be worse than covering content.
+      // The 6rem rung clears the fixed mobile bar on narrow screens, where
+      // covering the navigation would be worse than covering content; both rungs
+      // then add `--frame-inset-bottom` because the column is bottom-fixed under
+      // `viewportFit: 'cover'` (C2.9) — the bar moved up by the device inset, so
+      // the toasts above it must move with it, and the desktop rung carries it
+      // too for a landscape PWA. Resolves to plain 6rem/1rem on a kiosk display.
       //
       // Newest last in the column: the queue is oldest → newest, so with a
       // bottom anchor the freshest message is the one nearest the corner the
       // eye is drawn to, and older ones drift upward out of the way.
       className={cn(
-        'pointer-events-none fixed bottom-24 left-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 sm:bottom-4',
+        'pointer-events-none fixed bottom-[calc(6rem+var(--frame-inset-bottom))] left-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 sm:bottom-[calc(1rem+var(--frame-inset-bottom))]',
         overlayZ.toast,
       )}
     >

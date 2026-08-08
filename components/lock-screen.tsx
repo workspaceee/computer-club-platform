@@ -1,32 +1,51 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { icons, type LucideIcon } from '@/lib/icons'
+import { icons } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AttractMode } from '@/components/attract-mode'
+import {
+  PasswordRecovery,
+  RECOVERY_COPY,
+  type RecoveryState,
+} from '@/components/auth/password-recovery'
+import {
+  Registration,
+  SIGNUP_COPY,
+  type SignupState,
+} from '@/components/auth/registration'
+import { ActiveElsewhere } from '@/components/auth/active-elsewhere'
+import { SeatTaken, seatTakenBody } from '@/components/auth/seat-taken'
+import { SessionPaused, formatRemainder } from '@/components/auth/session-paused'
 import { BrandLabel } from '@/components/brand-label'
 import { IconTile } from '@/components/icon-tile'
 import { Button, IconButton } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
-import { HudChip } from '@/components/ui/hud-chip'
 import { LangSwitcher } from '@/components/lang-switcher'
-import { MockQr } from '@/components/mock-qr'
-import { Modal } from '@/components/ui/modal'
+import { StationBadge, StationPanel } from '@/components/station-panel'
+import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
+import { DEV_SHORTCUTS } from '@/lib/dev-flags'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import {
   ApiError,
-  confirmQrChallenge,
   continueAsGuest,
+  fetchPausedVisit,
+  fetchStationHolder,
   login,
   loginAsDemo,
-  register,
-  requestQrChallenge,
+  type AuthResult,
+  type PausedVisit,
+  type StationHolder,
 } from '@/lib/mock/api'
+import type { SessionSnapshot } from '@/lib/types/session'
+import { claimSeat, type Arrival } from '@/lib/seat'
 import { useStore } from '@/lib/store'
+import type { ID } from '@/lib/types/common'
+import type { UserProfile } from '@/lib/types/user'
 
 /**
  * The three doors of the terminal (C1.2).
@@ -35,13 +54,28 @@ import { useStore } from '@/lib/store'
  * an admin opens the visit, the clock runs *up* and the money lands on an open
  * tab settled at the counter. Stage 2 owns the machinery, so the tab ships as an
  * explained stub: it teaches the model and names its state ("soon") instead of
- * pretending to check anyone in. `C1.9` swaps the disabled CTA for the real
- * call, when the option row below the sign-in form is reworked.
+ * pretending to check anyone in.
+ *
+ * It stays a stub after C1.9, and that is the honest reading of MVP §8.1: the
+ * *admin* hands a walk-in their time, so a client that could check itself in
+ * would be inventing a product feature. The working check-in this prototype
+ * needs to be demonstrable therefore moved where the demo account already
+ * lives — behind `DEV_SHORTCUTS`, below the sign-in form.
  */
 type Mode = 'login' | 'register' | 'guest'
 
 /** Idle time before the attract mode kicks in (ms). */
 const IDLE_TIMEOUT_MS = 30_000
+
+/**
+ * How long the screen keeps asking whether a paused visit is parked here (C1.10).
+ *
+ * Six tries, ~800 ms apart — about five seconds. Long enough to outlast the pause
+ * write that "Lock PC" fires as this screen mounts (and a slow club link on top of
+ * it), short enough that a genuinely free station is not polled all night.
+ */
+const PAUSED_READ_ATTEMPTS = 6
+const PAUSED_READ_GAP_MS = 800
 
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -58,6 +92,10 @@ function useClock() {
 export function LockScreen() {
   const loginSuccess = useStore((s) => s.loginSuccess)
   const guestSuccess = useStore((s) => s.guestSuccess)
+  // The clock adopts server truth after a PIN unlock (C1.10) — the same write
+  // path the heartbeat and `time.added` use, so a resumed visit cannot end up
+  // with a remainder the club does not agree with (F6.3).
+  const applySnapshot = useStore((s) => s.applySnapshot)
   const toast = useStore((s) => s.toast)
   const now = useClock()
   const idle = useIdle(IDLE_TIMEOUT_MS)
@@ -65,6 +103,97 @@ export function LockScreen() {
   const { t, lang, formatTime, formatFullDate } = useT()
 
   const [mode, setMode] = useState<Mode>('login')
+  /**
+   * Password recovery (C1.3) is a *state of the sign-in door*, not a fourth
+   * segment: it is the repair path for one of the three, and putting it in the
+   * switcher would advertise "forgot my password" as a way to enter the club.
+   * `null` means the normal form; anything else takes the card body over and the
+   * switcher hides, so the screen still offers exactly one committing action.
+   */
+  const [recovery, setRecovery] = useState<RecoveryState | null>(null)
+  /**
+   * Signup (C1.4) *is* a segment, so unlike recovery it does not need a null to
+   * mean "not here" — but it still needs a step, because the second one (the
+   * emailed code) rewords the header and takes the switcher away. `null`
+   * outside the register tab keeps the two facts in one place: whether the flow
+   * is live, and where it is.
+   */
+  const [signup, setSignup] = useState<SignupState | null>(null)
+  /**
+   * An arrival that authenticated fine and cannot have the chair (C1.7).
+   *
+   * It holds both halves of the situation: **who** is sitting here, and **what**
+   * was about to happen. Keeping the pending entry as a closure is what makes
+   * the gate work for all five doors — sign-in, demo, QR, signup and recovery
+   * each end differently (their own toast, profile or guest label), and none of
+   * them has to know that a seat check exists between them and the launcher.
+   */
+  const [blocked, setBlocked] = useState<{
+    holder: StationHolder
+    /**
+     * The *arrival*, not the holder — a walk-in carries a `guestId` and no
+     * account. The re-check has to ask the same question the gate asked and then
+     * claim the seat as the same person, and both answers depend on who is
+     * standing here.
+     */
+    arrival: Arrival
+    /**
+     * Takes the claimed row, like every other entry closure on this screen: a
+     * player walking back from the counter re-runs the gate, and the visit they
+     * finally sit down in is whatever the *second* claim adopted.
+     */
+    enter: (snapshot: SessionSnapshot | null) => void
+  } | null>(null)
+  /**
+   * The arrival's *own* visit, running on another machine (C1.12).
+   *
+   * A second piece of state rather than a variant of `blocked`, because the two
+   * refusals have opposite repairs: that one waits for an admin's key on a chair
+   * that is not the player's, this one asks for a session that is. Collapsing
+   * them would put "ask the shift admin for the key" over a visit the player owns
+   * — or, worse, offer a transfer of somebody else's.
+   *
+   * It carries the same pending entry as `blocked`, and for the same reason: once
+   * the move is approved the arrival goes back through the gate, and the launcher
+   * it lands in has to be the one their own door was opening.
+   */
+  const [elsewhere, setElsewhere] = useState<{
+    machineLabel: string
+    sessionId: ID
+    arrival: Arrival
+    enter: (snapshot: SessionSnapshot | null) => void
+  } | null>(null)
+  /**
+   * The paused visit this station is holding for its own player (C1.10).
+   *
+   * Read once per lock screen rather than subscribed to: the row is *this*
+   * station's, so the only thing that can change it while the screen is up is an
+   * admin's key or the PIN typed on this keyboard — and both of those come back
+   * as the answer to a request the screen already makes.
+   *
+   * `null` covers every seat this door cannot open: an empty station, a live
+   * (unpaused) session, a walk-in with no account, a member with no PIN on file.
+   * All of them get the ordinary sign-in form, and the seat check of C1.7 still
+   * stands behind it.
+   */
+  const [paused, setPaused] = useState<PausedVisit | null>(null)
+  /**
+   * The player would rather use their password — or the PIN budget is spent.
+   *
+   * A separate flag instead of clearing `paused`, because the visit is still
+   * there: whoever signs in has to be admitted against it (C1.7), and forgetting
+   * it here would let the screen believe the chair is free.
+   */
+  const [pinDismissed, setPinDismissed] = useState(false)
+  /**
+   * The PIN budget is spent, as reported by the card that owns it.
+   *
+   * Kept here for one reason: the header lives on this screen, and once the
+   * keypad is gone the subline must stop asking for four digits. It is a mirror
+   * of the card's verdict, never a second source of truth — nothing on this
+   * screen decides it, and the only way in is `onLockedChange`.
+   */
+  const [pinLocked, setPinLocked] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
@@ -73,12 +202,6 @@ export function LockScreen() {
   // login fields
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
-
-  // register fields
-  const [rUser, setRUser] = useState('')
-  const [rEmail, setREmail] = useState('')
-  const [rPass, setRPass] = useState('')
-  const [rConfirm, setRConfirm] = useState('')
 
   const [touched, setTouched] = useState(false)
 
@@ -90,26 +213,198 @@ export function LockScreen() {
     return e
   }, [identifier, password, t])
 
-  const registerErrors = useMemo(() => {
-    const e: Record<string, string> = {}
-    if (rEmail && !emailOk(rEmail)) e.email = t('errors.invalidEmail')
-    if (rPass && rPass.length < 6) e.password = t('errors.tooShort', { min: 6 })
-    if (rConfirm && rConfirm !== rPass) e.confirm = t('errors.passwordsMismatch')
-    return e
-  }, [rEmail, rPass, rConfirm, t])
-
-  const passStrength = useMemo(() => {
-    let s = 0
-    if (rPass.length >= 6) s++
-    if (/[A-Z]/.test(rPass)) s++
-    if (/[0-9]/.test(rPass)) s++
-    if (/[^A-Za-z0-9]/.test(rPass)) s++
-    return s
-  }, [rPass])
-
   const triggerShake = () => {
     setShake(true)
     setTimeout(() => setShake(false), 500)
+  }
+
+  /**
+   * Who is holding this seat *against this arrival* — `null` when nobody is.
+   *
+   * The one place that decides admission (C1.7). `StationInfo.status` cannot
+   * answer this: `occupied` is an aggregate for the floor map and names nobody,
+   * so the question "is the live session on this machine mine?" needs the
+   * session row itself.
+   *
+   * Two `null`s that are not "the seat is empty":
+   *  - **The holder is the arrival.** A paused visit is exactly what "Lock PC"
+   *    leaves behind, so its owner walks straight back into it. `C1.10` adds the
+   *    PIN in front of that door; today the account match is the proof.
+   *  - **The read failed.** A timeout is not evidence of a hold, and refusing
+   *    entry on it would lock a paying member out of their own seat because one
+   *    request dropped. The launcher opens its own session guard behind this one.
+   */
+  const heldBy = async (userId: ID | null): Promise<StationHolder | null> => {
+    try {
+      const holder = await fetchStationHolder()
+      if (!holder) return null
+      return userId && holder.userId === userId ? null : holder
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * The last gate before the launcher: every door runs its arrival through this.
+   *
+   * Two steps, and both are needed. The read above names the occupant, which is
+   * the only thing that can be *shown*; the write below is what actually decides
+   * — `claimSeat` opens (or adopts) the session row on this machine, and the
+   * server refuses when somebody else is on it. Without the write, "occupied"
+   * would be a fixture the client politely believed and two arrivals could win
+   * the same chair by reading it at the same moment.
+   *
+   * `enter` is only called once the seat is *ours*, so the welcome toast and the
+   * screen swap stay together — a player told "Welcome back" and then shown a
+   * "station is in use" panel would read the second screen as a bug.
+   *
+   * It is called **with the row the write returned** (C1.10). The claim is what
+   * adopts a paused visit, so it is also the only thing that knows the clock the
+   * arrival is inheriting: without threading it through, every door except the
+   * PIN would open the launcher on whatever the store had banked — a full two
+   * hours on a station that was reloaded, or the pre-pause remainder that the
+   * club has since disagreed with.
+   */
+  const admit = async (arrival: Arrival, enter: (snapshot: SessionSnapshot | null) => void) => {
+    const holder = await heldBy(arrival.userId)
+    if (holder) {
+      // The card stops spinning: nothing else is in flight, and the panel that
+      // replaces the form has its own action.
+      setLoading(false)
+      setBlocked({ holder, arrival, enter })
+      return
+    }
+
+    const claim = await claimSeat(arrival)
+    if (!claim.granted) {
+      setLoading(false)
+      /**
+       * One PC, one session (C1.12). Not the seat refusing — the *account* is
+       * already playing somewhere else — so the card becomes the transfer panel
+       * instead of the "station is in use" one, and the pending entry rides along
+       * so an approved move lands in the launcher this door was opening.
+       */
+      if ('activeElsewhere' in claim) {
+        setElsewhere({
+          machineLabel: claim.machineLabel,
+          sessionId: claim.sessionId,
+          arrival,
+          enter,
+        })
+        return
+      }
+      // Lost the race in the gap between the read and the write. With a name it
+      // is the same dead end as before, so it gets the same panel; without one
+      // there is nothing honest to print on a card whose whole job is to say
+      // *whose* session this is, so the refusal stays a toast over the form.
+      if (claim.holder) setBlocked({ holder: claim.holder, arrival, enter })
+      else {
+        triggerShake()
+        toast('error', t('errors.conflict'))
+      }
+      return
+    }
+
+    enter(claim.snapshot)
+  }
+
+  /**
+   * Ask the station, once per lock screen, whether it is holding a visit for
+   * somebody who can come back (C1.10).
+   *
+   * Deliberately *not* read from the store. The store still remembers the member
+   * who locked the machine — `lockPc` keeps the visit — and trusting that would
+   * make the PIN door appear on a client that merely has a stale player in
+   * memory. The seat's own row is the only thing that can say a paid visit is
+   * really parked here, and it is also the only thing that knows the remainder:
+   * the same read is what a *second* client (an admin's tablet, a reopened tab)
+   * would get, and both have to agree about whose time is on this machine.
+   *
+   * A failed read is not a paused visit: the form stays, which is the same
+   * fallback the seat check uses when the club cannot be reached.
+   *
+   * Why it asks more than once. "Lock PC" swaps the screen *immediately* and
+   * reports the pause in the background (`holdSeat`, deliberately not awaited —
+   * the player is waiting to see the station lock, not a spinner), so this screen
+   * mounts while the seat is still settling and the very first read can honestly
+   * answer "active". A single attempt would therefore lose the PIN door on the
+   * one path that matters most. The window is short and bounded: it closes as
+   * soon as a visit appears, and a station that is simply free stops asking
+   * instead of polling the club forever.
+   */
+  useEffect(() => {
+    let alive = true
+    let attempts = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const read = async () => {
+      attempts += 1
+      const visit = await fetchPausedVisit().catch(() => null)
+      if (!alive) return
+      if (visit) {
+        setPaused(visit)
+        return
+      }
+      if (attempts < PAUSED_READ_ATTEMPTS) timer = setTimeout(() => void read(), PAUSED_READ_GAP_MS)
+    }
+
+    void read()
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
+
+  /**
+   * The PIN was right: the account and the *restarted* visit arrive together.
+   *
+   * Both writes are needed and in this order. `loginSuccess` is the one door
+   * every arrival goes through — it swaps the screen, restores the wallet and
+   * decides whether this is a returning player — and `applySnapshot` then hands
+   * the clock the server's anchors, so the launcher counts the club's remainder
+   * rather than whatever the store happened to have banked. Without the
+   * snapshot, a station whose store was reset (a reload while paused) would open
+   * the launcher with a fresh two hours nobody paid for.
+   */
+  const finishPin = (session: AuthResult, snapshot: SessionSnapshot) => {
+    setPaused(null)
+    setPinLocked(false)
+    enterAsMember(session.profile, snapshot)
+  }
+
+  /**
+   * Sign a member in and let the club's row set the clock — the one receiver
+   * every member door ends in (C1.10).
+   *
+   * It exists because the PIN used to be the only door that did the second half.
+   * The others called `loginSuccess` alone, and `loginSuccess` can only ask the
+   * *store* what a resumed visit has left — which is why the bug it hides is
+   * exactly the one this screen was built to prevent: type five wrong PINs, sign
+   * in with the password instead, and the launcher opened on the store's banked
+   * hours (a fresh 01:23:38) while the paused card had just promised 00:47. Same
+   * player, same seat, two different clocks, and the club agreed with neither.
+   *
+   * Order is load-bearing. `loginSuccess` decides whether this is a returning
+   * player and starts or resumes a clock of its own, so the snapshot has to land
+   * *after* it — it is the correction, not the input. And it stays optional: a
+   * claim that was granted because the request dropped has no row, and a
+   * `null` there means "keep what you had", never "reset to two hours".
+   */
+  const enterAsMember = (profile: UserProfile, snapshot: SessionSnapshot | null) => {
+    loginSuccess(profile)
+    if (snapshot) applySnapshot(snapshot)
+  }
+
+  /**
+   * The walk-in half of the same rule.
+   *
+   * A guest seat adopts too — `openSession` hands a second walk-in the tab the
+   * first one left open (MVP §8.2) — so the tab a guest sits down to is the
+   * server's `debtSeconds`, not a counter this client happened to keep.
+   */
+  const enterAsGuest = (guest: { guestId: ID; label: string }, snapshot: SessionSnapshot | null) => {
+    guestSuccess(guest)
+    if (snapshot) applySnapshot(snapshot)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -121,11 +416,15 @@ export function LockScreen() {
     }
     setLoading(true)
     try {
-      // The endpoint returns a session (`profile` + token + role); the shell only
-      // needs the profile.
-      const { profile } = await login({ identifier, password })
-      toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
-      loginSuccess(profile)
+      // The endpoint returns a session (`profile` + `userId` + token + role): the
+      // shell needs the profile, the seat check needs the id.
+      const { profile, userId } = await login({ identifier, password })
+      await admit({ userId, guestId: null }, (snapshot) => {
+        toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
+        // The claim above may have adopted the paused visit this screen was just
+        // offering a PIN for, so the remainder comes from it (C1.10).
+        enterAsMember(profile, snapshot)
+      })
     } catch (err) {
       setLoading(false)
       triggerShake()
@@ -139,111 +438,211 @@ export function LockScreen() {
     toast('error', t(`errors.${code}` as TKey))
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setTouched(true)
-    if (!rUser || !rEmail || !rPass || Object.keys(registerErrors).length > 0) {
-      triggerShake()
-      return
-    }
-    setLoading(true)
-    try {
-      const { profile } = await register({
-        nickname: rUser,
-        email: rEmail,
-        password: rPass,
-        confirmPassword: rConfirm,
-      })
-      toast('success', t('auth.accountCreated'))
+  /**
+   * Signup ends *signed in* (C1.4), the same way recovery does:
+   * `completeRegistration` returns a session, and telling somebody who is
+   * standing at the station "account created, now log in" would be theatre.
+   *
+   * `signup` is cleared before the shell swaps the screen, so the card cannot
+   * paint a code-step header over a login form for one frame.
+   */
+  const finishSignup = async ({ profile, userId }: AuthResult) => {
+    setSignup(null)
+    // The chair is checked for a brand-new member too (C1.7): an account created
+    // at an occupied station is a real account, and it still cannot sit down.
+    await admit({ userId, guestId: null }, (snapshot) => {
+      toast('success', t('auth.accountCreatedToast', { name: profile.nickname }))
       // A brand-new profile keeps the language picked on this station.
-      loginSuccess({ ...profile, lang })
-    } catch (err) {
-      setLoading(false)
-      triggerShake()
-      reportError(err)
-    }
+      enterAsMember({ ...profile, lang }, snapshot)
+    })
   }
 
+  /**
+   * The demo account (dev only, C1.9).
+   *
+   * A password-less way into a seeded member profile, which is a review tool and
+   * not a door of the club: on a station standing in a real club it would be an
+   * account anybody can take. `DEV_SHORTCUTS` keeps the button — and this call
+   * with it — out of a production build.
+   */
   const demoLogin = async () => {
     setLoading(true)
     try {
-      const { profile } = await loginAsDemo()
-      toast('info', t('auth.enteringDemo'))
-      loginSuccess(profile)
+      const { profile, userId } = await loginAsDemo()
+      await admit({ userId, guestId: null }, (snapshot) => {
+        toast('info', t('auth.enteringDemo'))
+        enterAsMember(profile, snapshot)
+      })
     } catch (err) {
       setLoading(false)
       reportError(err)
     }
   }
 
-  const demoAdmin = () => {
-    toast('info', t('auth.adminSeparateApp'))
-  }
-
-  // Walk-in check-in. `guestCheckoutEnabled` can be off, so the failure path is
-  // a normal API error, not a silently dead button.
+  /**
+   * Walk-in check-in (dev only, C1.9).
+   *
+   * The admin panel is a separate application, so the client used to carry an
+   * "Admin" tile that only ever explained its own absence — a door painted on a
+   * wall. It is gone; nothing here replaces it, because the way a walk-in gets
+   * time is an admin at the counter (MVP §8.1) and stage 2 delivers that as a
+   * pushed `session.started` event rather than a button on this screen.
+   *
+   * Until then the prototype still has to be walkable end to end, so this call
+   * survives as a dev shortcut: it opens a real guest visit and lands on the
+   * guest surface of the launcher. `guestCheckoutEnabled` can be off, so the
+   * failure path is a normal API error, not a silently dead button.
+   */
   const startGuest = async () => {
     setLoading(true)
     try {
       const { guestId, label } = await continueAsGuest()
-      toast('info', t('guest.startedToast', { label }))
-      guestSuccess({ guestId, label })
+      // A walk-in has no account, so nothing can match the holder: `null` means
+      // *any* live session on this seat blocks them (C1.7). Which is the point —
+      // the visit they were handed is exactly the second one nobody wants opened
+      // on top of the first.
+      await admit({ userId: null, guestId }, (snapshot) => {
+        toast('info', t('guest.startedToast', { label }))
+        enterAsGuest({ guestId, label }, snapshot)
+      })
     } catch (err) {
       setLoading(false)
       reportError(err)
     }
   }
 
-  // Cancelling the QR handshake has to *outrank* the in-flight promise, or a
-  // guest who backs out and starts typing their password gets signed in as
-  // whoever the phone confirmed a second later. The generation counter is the
-  // guard: `cancelQr` bumps it, and a resolved challenge from an older
-  // generation is discarded instead of logging anyone in.
-  const qrRun = useRef(0)
-
-  const cancelQr = () => {
-    qrRun.current += 1
+  /**
+   * QR sign-in (C1.5) lives in `QrLogin`, which owns the whole handshake: the
+   * station code, its deadline, the `login.qr.confirmed` subscription and the
+   * ticket exchange. The screen keeps only the two things that are its own — the
+   * dialog's open state and what "signed in" means here.
+   *
+   * The generation guard that used to sit on this screen moved into the flow with
+   * the promises it was guarding: cancelling has to outrank an in-flight
+   * exchange, or a guest who backs out and starts typing their password gets
+   * signed in as whoever the phone confirmed a second later.
+   */
+  const finishQr = async ({ profile, userId }: AuthResult) => {
     setQrOpen(false)
-  }
-
-  const startQr = async () => {
-    const run = ++qrRun.current
-    setQrOpen(true)
-    try {
-      const challenge = await requestQrChallenge()
-      // The mock confirms immediately, but the real handshake waits for the phone —
-      // so the pending state stays up for a beat before polling.
-      await new Promise((resolve) => setTimeout(resolve, 2500))
-      const { profile } = await confirmQrChallenge(challenge.challengeId)
-      if (qrRun.current !== run) return
-      setQrOpen(false)
-      toast('success', t('auth.qrVerified'))
-      loginSuccess(profile)
-    } catch (err) {
-      if (qrRun.current !== run) return
-      setQrOpen(false)
-      reportError(err)
-    }
+    await admit({ userId, guestId: null }, (snapshot) => enterAsMember(profile, snapshot))
   }
 
   const switchMode = (m: Mode) => {
     setMode(m)
     setTouched(false)
+    // Leaving the register tab drops the pending signup on purpose: the account
+    // does not exist until the code is confirmed, so nothing is lost and the
+    // nickname that was about to be claimed stays free. Coming back opens a
+    // fresh form rather than a stale challenge whose code has since expired.
+    setSignup(m === 'register' ? { step: 'details' } : null)
   }
+
+  /**
+   * Enter the repair path (C1.3).
+   *
+   * The typed identifier is carried over only when it is an address — half of
+   * the players sign in with a nickname, and prefilling `dan_v` into a field
+   * labelled "Account email" would look like the club already knows it is wrong.
+   */
+  const startRecovery = () => {
+    setRecovery({ step: 'email' })
+    setTouched(false)
+  }
+
+  /**
+   * The flow ends *signed in*, not back at the form: `completePasswordReset`
+   * returns a session, so the same welcome toast and `loginSuccess` as a normal
+   * unlock run here. Clearing `recovery` first keeps the card from painting a
+   * recovery header for the frame before the shell swaps the screen out.
+   */
+  const finishRecovery = async ({ profile, userId }: AuthResult) => {
+    setRecovery(null)
+    await admit({ userId, guestId: null }, (snapshot) => {
+      toast('success', t('auth.welcomeBackToast', { name: profile.nickname }))
+      enterAsMember(profile, snapshot)
+    })
+  }
+
+  /**
+   * Is the card the PIN door right now?
+   *
+   * One expression, read by the header, the switcher and the body, because the
+   * three must never disagree: a "Session on pause" headline over a password form
+   * would tell the player the wrong thing about what the keyboard does next.
+   *
+   * A held seat outranks it — `blocked` only happens *after* somebody signed in,
+   * and at that point the card is about the chair.
+   */
+  const pinCard = paused !== null && !pinDismissed && !blocked && !elsewhere
 
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
+  // A live recovery outranks the mode: the card body belongs to the flow, so the
+  // one headline over it has to name the *step*, not the door it came from.
   const headline = useMemo(() => {
+    // A held seat outranks everything, including a live flow: the player is past
+    // authentication and the card is now about the *chair*, not the door (C1.7).
+    if (blocked) return { lead: t('auth.seatTaken'), accent: t('auth.seatTakenHi') }
+    // The account is playing on another machine (C1.12). Same rank as a held
+    // seat — the player is past authentication — but the card is about the
+    // *session*, not the chair, so the headline says so.
+    if (elsewhere)
+      return { lead: t('auth.activeElsewhere'), accent: t('auth.activeElsewhereHi') }
+    // The seat is holding *this* player's own paused visit, so the card is not a
+    // login at all: it names the state of the visit and asks for a PIN (C1.10).
+    if (pinCard) return { lead: t('auth.sessionPaused'), accent: t('auth.sessionPausedHi') }
+    if (recovery) {
+      const copy = RECOVERY_COPY[recovery.step]
+      return { lead: t(copy.lead), accent: t(copy.accent) }
+    }
     if (mode === 'login') return { lead: t('auth.welcome'), accent: t('auth.welcomeHi') }
+    // Signup's second step borrows the recovery headline — "check your email" is
+    // the same instruction — so the header follows the *step*, not the tab.
+    if (mode === 'register' && signup) {
+      const copy = SIGNUP_COPY[signup.step]
+      return { lead: t(copy.lead), accent: t(copy.accent) }
+    }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [mode, t])
+  }, [blocked, elsewhere, pinCard, mode, recovery, signup, t])
 
-  const subline =
-    mode === 'login'
+  const subline = blocked
+    ? // The whole sentence, holder's name included, lives in the subline: the
+      // panel below states *who and since when*, and printing the instruction
+      // twice on one card would make the second copy look like a different rule.
+      t(seatTakenBody(blocked.holder), { name: blocked.holder.holder })
+    : elsewhere
+    ? // Same division as above: the sentence names the seat and offers the move,
+      // the panel below states the visit as a fact and carries the button.
+      t('auth.activeElsewhereBody', { machine: elsewhere.machineLabel })
+    : pinCard && paused
+    ? // The remainder is stated here, in words, and *again* as a clock in the
+      // panel below — the one place in this screen where a fact is printed twice
+      // on purpose: the sentence is what a player reads, the clock is what they
+      // check. Both come from the same server number, so they cannot disagree.
+      //
+      // Once the budget is spent the *instruction* drops out and the fact stays:
+      // the card below no longer draws a keypad, and a subline still asking for a
+      // PIN would make a closed door look like a broken screen.
+      t(pinLocked ? 'auth.sessionPausedSubLocked' : 'auth.sessionPausedSub', {
+        name: paused.holder,
+        time: formatRemainder(paused.secondsLeft),
+      })
+    : recovery
+    ? // Only the code step reads these, and it is the step that has them: the
+      // masked address and the code length travel up from the endpoint's answer
+      // rather than being guessed here.
+      t(RECOVERY_COPY[recovery.step].sub, {
+        email: recovery.maskedEmail ?? '',
+        n: recovery.codeLength ?? 6,
+      })
+    : mode === 'login'
       ? t('auth.loginSub')
       : mode === 'register'
-        ? t('auth.registerSub')
+        ? t(SIGNUP_COPY[signup?.step ?? 'details'].sub, {
+            email: signup?.maskedEmail ?? '',
+            n: signup?.codeLength ?? 6,
+          })
         : t('guest.lockSub')
 
   // Clock and date follow the active language's locale (F2.4).
@@ -330,23 +729,16 @@ export function LockScreen() {
           </span>
         </motion.div>
 
-        {/* telemetry strip */}
+        {/* Station strip (C1.6) — the seat's own readout. The five hardcoded
+            chips that used to sit here are now one component reading the club
+            (`GET /api/club/station`) and the station agent, so this screen can
+            no longer claim a seat is free while an admin has it in maintenance. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
-          className="flex flex-wrap items-center gap-3"
         >
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
-          <HudChip icon={<icons.network size={13} />} label={t('auth.ping')} value="4 ms" />
-          <HudChip icon={<icons.display size={13} />} label={t('auth.display')} value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label={t('auth.gpu')} value="RTX 4080" />
-          <HudChip
-            icon={<icons.status size={13} />}
-            label={t('auth.status')}
-            value={t('auth.optimal')}
-            tone="accent"
-          />
+          <StationPanel />
         </motion.div>
       </div>
 
@@ -395,15 +787,28 @@ export function LockScreen() {
                 <icons.secure size={12} />
                 {t('auth.accessTerminal')}
               </span>
-              <span className="label-mono flex items-center gap-1.5 text-[10px] text-text-low">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                PC-17 · {t('common.online')}
-              </span>
+              {/* Was `PC-17 · Online` with a hardcoded green dot — the header
+                  stating a fact the strip below it now reads from the club, and
+                  free to contradict it. `StationBadge` reads the same
+                  `useSeatStatus` the chip does, so the two lines cannot disagree. */}
+              <StationBadge />
             </div>
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={mode}
+                key={
+                  blocked
+                    ? 'seat-taken'
+                    : elsewhere
+                    ? 'active-elsewhere'
+                    : pinCard
+                    ? 'session-paused'
+                    : recovery
+                    ? `recovery-${recovery.step}`
+                    : mode === 'register' && signup
+                      ? `register-${signup.step}`
+                      : mode
+                }
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -438,24 +843,141 @@ export function LockScreen() {
                 the pair as "Prisijungti / Registracija", and at 12 px with
                 0.14em tracking three uppercase segments wrapped inside a
                 448 px card (F2.6 again). */}
-            <Segmented<Mode>
-              className="mt-6"
-              size="sm"
-              label={t('auth.accessTerminal')}
-              options={[
-                { value: 'login', label: t('auth.signIn') },
-                { value: 'register', label: t('auth.register') },
-                { value: 'guest', label: t('guest.badge') },
-              ]}
-              value={mode}
-              onChange={switchMode}
-            />
+            {/* Hidden while recovering (C1.3): the flow owns the card, and a live
+                switcher would offer two committing paths at once — tapping
+                "Register" mid-code would drop a challenge the player is halfway
+                through without ever saying so. The way back is the flow's own
+                "Back to sign in". */}
+            {/* Same reasoning for the signup code step (C1.4): a live challenge
+                is halfway through, and tapping "Sign in" mid-code would throw it
+                away silently. The way back is the flow's own "Change details" /
+                "Back to sign in". The PIN step (C1.11) is the same challenge one
+                screen further in — the inbox is already proven and the ticket
+                dies with the tab, so it hides the switcher too. */}
+            {/* And gone entirely while the seat is held (C1.7): the three doors
+                all lead to the same chair, so offering them would invite the
+                player to try the other two against the same hold. */}
+            {/* And gone while the PIN door is up (C1.10): the visit parked on this
+                seat is one player's, so offering "Register" or the walk-in door
+                next to it would invite somebody to open a second visit on top of
+                paid time that is still running out. The way past it is the PIN,
+                or the panel's own "Use password instead". */}
+            {/* And gone while the transfer panel is up (C1.12): the player is
+                past authentication, the card is about their session, and the
+                other two doors could only open a *second* visit on top of it. */}
+            {!blocked &&
+              !elsewhere &&
+              !pinCard &&
+              !recovery &&
+              signup?.step !== 'code' &&
+              signup?.step !== 'pin' && (
+              <Segmented<Mode>
+                className="mt-6"
+                size="sm"
+                label={t('auth.accessTerminal')}
+                options={[
+                  { value: 'login', label: t('auth.signIn') },
+                  { value: 'register', label: t('auth.register') },
+                  { value: 'guest', label: t('guest.badge') },
+                ]}
+                value={mode}
+                onChange={switchMode}
+              />
+            )}
           </div>
 
           {/* ------- form body ------- */}
           <div className="relative z-[2] p-7 pt-5">
             <AnimatePresence mode="wait">
-              {mode === 'login' ? (
+              {blocked ? (
+                /* The seat is held by somebody else's live session (C1.7). The
+                   panel names the occupant and re-checks; the way past it is an
+                   admin with a key, which is why there is no third button. */
+                <SeatTaken
+                  key="seat-taken"
+                  holder={blocked.holder}
+                  onRecheck={() => heldBy(blocked.arrival.userId)}
+                  /* Not `blocked.enter` directly: the chair being empty is not
+                     the same as it being *ours*, and between the two there is a
+                     write. Going back through the gate is what claims it — and
+                     what re-blocks the panel, with the new name, if somebody
+                     took the seat while this player was walking back from the
+                     counter. */
+                  onFreed={() => void admit(blocked.arrival, blocked.enter)}
+                  onStillHeld={(holder) => setBlocked({ ...blocked, holder })}
+                  onCancel={() => setBlocked(null)}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : elsewhere ? (
+                /* The arrival's own visit is running on another machine (C1.12).
+                   The panel names that seat and asks the shift admin to move the
+                   session here; unlike C1.7 there *is* a repair, because this
+                   visit belongs to the person standing at the keyboard. */
+                <ActiveElsewhere
+                  key="active-elsewhere"
+                  machineLabel={elsewhere.machineLabel}
+                  sessionId={elsewhere.sessionId}
+                  /* The row being on this machine is not the same as it being
+                     *ours*: between the two there is a write. Going back through
+                     the gate is what claims it — as an adoption, so the used
+                     seconds and the tab come with it — and what refuses again if
+                     somebody took this chair in the meantime. */
+                  onMoved={() => {
+                    const pending = elsewhere
+                    setElsewhere(null)
+                    void admit(pending.arrival, pending.enter)
+                  }}
+                  /* Nothing left to move. The card goes back to being an ordinary
+                     lock screen, with the toast that says why — the panel the
+                     player was acting on is about to disappear under them. */
+                  onGone={(message) => {
+                    setElsewhere(null)
+                    toast('info', t(message))
+                  }}
+                  onCancel={() => setElsewhere(null)}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : pinCard && paused ? (
+                /* This station is holding its own player's paused visit (C1.10).
+                   Not a login: the card states whose time is parked here and how
+                   much of it is left, and asks for four digits. */
+                <SessionPaused
+                  key="session-paused"
+                  visit={paused}
+                  onSuccess={finishPin}
+                  /* The visit ended or somebody else picked it up while this
+                     screen was open. The PIN has nothing left to unlock, so the
+                     door closes and the screen becomes an ordinary lock screen —
+                     with the toast that says why, because the card the player was
+                     typing into is about to disappear under them. */
+                  onGone={(message) => {
+                    setPaused(null)
+                    setPinDismissed(false)
+                    // The budget belonged to *that* visit. Leaving the mirror set
+                    // would put a "still on this station" subline over the next
+                    // one — or over the password form, which has no visit at all.
+                    setPinLocked(false)
+                    toast('info', t(message))
+                  }}
+                  onUsePassword={() => setPinDismissed(true)}
+                  onLockedChange={setPinLocked}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : recovery ? (
+                <PasswordRecovery
+                  key="recovery"
+                  initialEmail={identifier.includes('@') ? identifier : ''}
+                  step={recovery.step}
+                  onStateChange={setRecovery}
+                  onCancel={() => setRecovery(null)}
+                  onSuccess={finishRecovery}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
+              ) : mode === 'login' ? (
                 <motion.form
                   key="login"
                   initial={{ opacity: 0, x: -24 }}
@@ -497,129 +1019,121 @@ export function LockScreen() {
                     }
                   />
 
+                  {/* Assist row — the two things a player can reach for *without*
+                      leaving the password pair, kept on one hairline-separated
+                      line directly under the fields.
+
+                      QR sits left (an alternative way in, so it leads the row and
+                      carries the only tinted glyph here) and recovery sits right,
+                      still a footnote to the field above it. Both are ghost/plain:
+                      the bevelled CTA below is the one action that commits (§4).
+
+                      This replaces the "or continue with" divider plus a
+                      full-width QR row. With the admin tile gone and demo fenced
+                      off (C1.9), a divider announced a section of one and the row
+                      under it read as a second CTA competing with Unlock — while
+                      costing ~70 px on a 720p station. Folded into the line that
+                      already existed, QR reads as part of the card. */}
+                  <div className="-mt-1 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      voice="plain"
+                      onClick={() => setQrOpen(true)}
+                      disabled={loading}
+                      iconLeft={<icons.qr size={14} className="text-primary" />}
+                      className="px-0 text-text-medium hover:bg-transparent hover:text-text-high"
+                    >
+                      {t('auth.qrLogin')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      voice="plain"
+                      onClick={startRecovery}
+                      disabled={loading}
+                      className="px-0 text-text-low hover:bg-transparent hover:text-text-high"
+                    >
+                      {t('auth.forgotPassword')}
+                    </Button>
+                  </div>
+
                   {/* The one bevelled CTA of the screen (§4) — `cut` is reserved
                       for the single action that commits. */}
                   <Button type="submit" size="lg" block cut loading={loading}>
                     {t('auth.unlock')}
                   </Button>
 
-                  <div className="my-1 flex items-center gap-3 text-text-low">
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="label-mono text-[10px]">{t('auth.orContinue')}</span>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
+                  {/*
+                    Prototype shortcuts, fenced off (C1.9).
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <OptionButton
-                      onClick={startQr}
-                      icon={icons.qr}
-                      label={t('auth.qrLogin')}
-                      disabled={loading}
-                    />
-                    <OptionButton
-                      onClick={demoLogin}
-                      icon={icons.demo}
-                      label={t('auth.demo')}
-                      disabled={loading}
-                    />
-                    <OptionButton
-                      onClick={demoAdmin}
-                      icon={icons.staff}
-                      label={t('auth.admin')}
-                      disabled={loading}
-                    />
-                  </div>
+                    Both of these skip something the product does not let anyone
+                    skip — a password, or the admin who opens a walk-in's visit —
+                    so they are review tools standing next to the real doors, and
+                    a reviewer has to be able to tell which is which at a glance.
+                    Hence the dashed hairline and the "dev only" plate. The
+                    shortcuts share the ghost/plain shape of the assist row
+                    above, so the *dashed* rule and the warning plate — not the
+                    button style — are what separate a review tool from a real
+                    door. The label stays untranslated on purpose: this block
+                    never reaches a player, so it never reaches the dictionaries
+                    either.
 
-                  {/* Walk-in check-in — opens the guest surface of the same
-                      launcher shell, not a separate app (F6.2 / F6.8). */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    voice="plain"
-                    onClick={startGuest}
-                    disabled={loading}
-                    iconLeft={<icons.guest size={14} />}
-                    className="mt-1 self-center text-text-low hover:bg-transparent hover:text-text-high"
-                  >
-                    {t('guest.continueAsGuest')}
-                  </Button>
-                </motion.form>
-              ) : mode === 'register' ? (
-                <motion.form
-                  key="register"
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 24 }}
-                  transition={{ duration: 0.25 }}
-                  onSubmit={handleRegister}
-                  className="flex flex-col gap-4"
-                >
-                  <Field
-                    label={t('auth.username')}
-                    icon={<icons.player size={15} />}
-                    value={rUser}
-                    onValueChange={setRUser}
-                    placeholder={t('auth.usernamePlaceholder')}
-                    autoComplete="username"
-                    autoFocus
-                  />
-                  <Field
-                    label={t('auth.email')}
-                    icon={<icons.email size={15} />}
-                    type="email"
-                    value={rEmail}
-                    onValueChange={setREmail}
-                    placeholder={t('auth.emailPlaceholder')}
-                    error={touched ? registerErrors.email : undefined}
-                    autoComplete="email"
-                  />
-                  <div>
-                    <Field
-                      label={t('auth.password')}
-                      icon={<icons.lock size={15} />}
-                      type="password"
-                      value={rPass}
-                      onValueChange={setRPass}
-                      placeholder={t('auth.minChars')}
-                      error={touched ? registerErrors.password : undefined}
-                      autoComplete="new-password"
-                    />
-                    {rPass && (
-                      <div className="mt-2 flex gap-1">
-                        {[0, 1, 2, 3].map((i) => (
-                          <span
-                            key={i}
-                            className="h-1 flex-1 rounded-full transition-colors"
-                            style={{
-                              background:
-                                i < passStrength
-                                  ? passStrength <= 1
-                                    ? 'var(--danger)'
-                                    : passStrength === 2
-                                      ? 'var(--warning)'
-                                      : 'var(--success)'
-                                  : 'rgba(255,255,255,0.1)',
-                            }}
-                          />
-                        ))}
+                    A hairline and not a box: a card that already runs long on a
+                    720p station cannot spend 24 px of padding on scaffolding.
+
+                    `DEV_SHORTCUTS` is a build-time constant, so production drops
+                    the branch instead of hiding it.
+                  */}
+                  {DEV_SHORTCUTS && (
+                    <div className="mt-1 flex flex-col gap-1.5 border-t border-dashed border-border pt-3">
+                      <span className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
+                        <icons.warning size={11} className="text-warning" />
+                        dev only
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          voice="plain"
+                          onClick={demoLogin}
+                          disabled={loading}
+                          iconLeft={<icons.demo size={14} />}
+                          className="text-text-low hover:bg-transparent hover:text-text-high"
+                        >
+                          {t('auth.demo')}
+                        </Button>
+                        {/* Opens the guest surface of the same launcher shell,
+                            not a separate app (F6.2 / F6.8). */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          voice="plain"
+                          onClick={startGuest}
+                          disabled={loading}
+                          iconLeft={<icons.guest size={14} />}
+                          className="text-text-low hover:bg-transparent hover:text-text-high"
+                        >
+                          {t('guest.continueAsGuest')}
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                  <Field
-                    label={t('auth.confirmPassword')}
-                    icon={<icons.biometry size={15} />}
-                    type="password"
-                    value={rConfirm}
-                    onValueChange={setRConfirm}
-                    placeholder={t('auth.repeat')}
-                    error={touched ? registerErrors.confirm : undefined}
-                    autoComplete="new-password"
-                  />
-
-                  <Button type="submit" size="lg" block cut loading={loading}>
-                    {t('auth.createAccount')}
-                  </Button>
+                    </div>
+                  )}
                 </motion.form>
+              ) : mode === 'register' && signup ? (
+                /* The whole signup, including the emailed code step, lives in
+                   `Registration` (C1.4): the card keeps the header and the
+                   shake, the flow keeps the fields, the challenge and the two
+                   deadlines. */
+                <Registration
+                  key="register"
+                  step={signup.step}
+                  onStateChange={setSignup}
+                  onCancel={() => switchMode('login')}
+                  onSuccess={finishSignup}
+                  onToast={toast}
+                  onReject={triggerShake}
+                />
               ) : (
                 <GuestPanel key="guest" />
               )}
@@ -638,14 +1152,22 @@ export function LockScreen() {
         {/* mobile clock + station */}
         <div className="mt-8 flex items-center gap-4 lg:hidden">
           <span className="font-clock text-3xl font-semibold tabular-nums text-text-high">{timeStr}</span>
-          <HudChip dot variant="station" label="PC #17" value={t('auth.stationReady')} />
+          {/* `compact`: on a phone the six-chip strip wraps into three lines of
+              noise, and the one fact a player needs there is whether the seat is
+              theirs to take. */}
+          <StationPanel variant="compact" />
         </div>
       </div>
 
       {/* Idle attract mode overlay */}
       <AnimatePresence>{idle && <AttractMode />}</AnimatePresence>
 
-      <QrDialog open={qrOpen} onCancel={cancelQr} />
+      <QrLogin
+        open={qrOpen}
+        onCancel={() => setQrOpen(false)}
+        onSuccess={finishQr}
+        onToast={toast}
+      />
     </div>
   )
 }
@@ -661,8 +1183,11 @@ export function LockScreen() {
  * at a guest who tapped it: an error toast would blame the guest for a feature
  * that does not exist yet.
  *
- * The live walk-in check-in still hangs under the sign-in form as a quiet ghost
- * button until `C1.9` reworks that row and moves the real call up here.
+ * C1.9 deliberately left the CTA dead rather than wiring the working check-in
+ * into it: per MVP §8.1 the admin is the one who opens a walk-in's visit, so a
+ * live "Start a guest visit" here would advertise self check-in as a product
+ * feature — and `soonNote`, which sends the guest to the admin on shift, would
+ * become a lie printed above a button that does the job itself.
  */
 function GuestPanel() {
   const { t } = useT()
@@ -713,7 +1238,8 @@ function GuestPanel() {
       {/* Same slot and height as the two forms' CTA, but *not* `cut` and not
           primary: the bevel is the screen's one committing action (§4), and a
           45 %-opacity red slab still reads as pressable. A dead control should
-          look dead. `C1.9` promotes this to `primary cut` with the real call. */}
+          look dead. Stage 2 turns it live, when the visit arrives as a pushed
+          `session.started` from the admin rather than as a tap on this card. */}
       <Button
         size="lg"
         variant="secondary"
@@ -724,89 +1250,6 @@ function GuestPanel() {
         {t('guest.startVisit')}
       </Button>
     </motion.div>
-  )
-}
-
-/**
- * Sign-in-by-phone dialog (F6.4).
- *
- * Was the last hand-rolled overlay in the product: `absolute inset-0` inside
- * the lock-screen root (so it centred against the page and overflowed on a
- * short window), a hard-coded `z-50` fighting the banner rung, and no way out
- * at all — the guest who opened it by mistake watched a spinner until the
- * handshake timed out.
- *
- * C1.1 hands all of that to `Modal` (F1.8): portalled layer, the `modal` rung
- * of the ladder, `svh`-based height, focus trap, Escape and scrim click. The
- * explicit cancel button stays in the pinned footer, because a scrim click
- * alone is not a discoverable exit for a first-time walk-in guest.
- */
-function QrDialog({ open, onCancel }: { open: boolean; onCancel: () => void }) {
-  const { t } = useT()
-
-  return (
-    <Modal
-      open={open}
-      onClose={onCancel}
-      size="sm"
-      eyebrow="QR"
-      title={t('auth.qrLogin')}
-      footer={
-        <Button variant="secondary" size="md" block onClick={onCancel}>
-          {t('common.cancel')}
-        </Button>
-      }
-    >
-      <div className="flex flex-col items-center gap-4 py-2">
-        <MockQr />
-        <p className="font-display text-lg font-bold text-text-high text-balance">
-          {t('auth.scanWithApp')}
-        </p>
-        <p className="flex items-center gap-2 text-sm text-text-medium">
-          <icons.pending size={14} className="animate-spin text-primary" aria-hidden />
-          {t('auth.waitingConfirmation')}
-        </p>
-      </div>
-    </Modal>
-  )
-}
-
-/**
- * Tertiary way-in tile — icon over label, three to a row under the CTA.
- *
- * A composition, not a component: `Button` supplies the frame, the focus ring
- * and the `stack` layout, `IconTile` the framed glyph. `voice="plain"` is the
- * F2.6 fix — LT renders `admin` as "Administratorius", and tracked uppercase
- * made that three lines in a ~90 px cell.
- */
-function OptionButton({
-  onClick,
-  icon,
-  label,
-  disabled,
-}: {
-  onClick: () => void
-  icon: LucideIcon
-  label: string
-  disabled?: boolean
-}) {
-  return (
-    <Button
-      variant="secondary"
-      voice="plain"
-      stack
-      onClick={onClick}
-      disabled={disabled}
-      className="h-auto px-2 text-[11px] leading-tight text-text-medium hover:text-text-high"
-    >
-      <IconTile
-        icon={icon}
-        variant="primary"
-        size="sm"
-        className="transition-all group-hover/button:border-primary/60 group-hover/button:bg-primary/20"
-      />
-      {label}
-    </Button>
   )
 }
 

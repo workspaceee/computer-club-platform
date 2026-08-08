@@ -24,8 +24,17 @@ export type PromoKind = 'sale' | 'tournament' | 'battlepass' | 'event'
 /** `members` hides the campaign from the walk-in guest surface. */
 export type PromoAudience = 'everyone' | 'members'
 
-/** Where a campaign is allowed to appear. */
-export type PromoSurface = 'home' | 'attract'
+/**
+ * Where a campaign is allowed to appear.
+ *
+ * `bar` is the third one and it exists to keep one screen from advertising the
+ * same offer twice (C3.6): the promo strip on Home asks for `home`, and the bar
+ * card a few blocks below it asks for `bar`. A campaign listed on both would be
+ * shouted once in a full-width banner and once inside the card that can actually
+ * put it in the basket — so the *placement* is a club decision in the data, not a
+ * de-duplication rule two components have to agree on.
+ */
+export type PromoSurface = 'home' | 'bar' | 'attract'
 
 /**
  * Deep link for the CTA. The server ships a destination rather than a URL, and
@@ -60,7 +69,14 @@ export interface Promo {
   endsAt: ISODateTime | null
   surfaces: PromoSurface[]
   audience: PromoAudience
-  /** The row this campaign advertises, when it advertises one. */
-  refType: 'tournament' | 'season' | 'pass' | null
+  /**
+   * The row this campaign advertises, when it advertises one.
+   *
+   * `product` is what makes a bar campaign *orderable* rather than merely
+   * readable (C3.6): the server resolves `refId` against the catalogue and hands
+   * the priced row to the card, so the banner's "Add" adds the club's product at
+   * the club's price instead of a name the UI matched out of the headline.
+   */
+  refType: 'tournament' | 'season' | 'pass' | 'product' | null
   refId: ID | null
 }

@@ -1,14 +1,17 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { icons, type LucideIcon } from '@/lib/icons'
+import { icons } from '@/lib/icons'
 import { AssetImage } from '@/components/ui/asset-image'
+import { AttractShowcase } from '@/components/attract/showcase'
 import { BrandLabel } from '@/components/brand-label'
-import { HudChip } from '@/components/ui/hud-chip'
+import { StationPanel } from '@/components/station-panel'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
-import { fetchActivePromos, fetchPromoTicker } from '@/lib/mock/api'
-import type { Promo, PromoKind } from '@/lib/types/promo'
+import { useAttractPlaylist, type AttractSlide } from '@/hooks/use-attract-playlist'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { useT } from '@/lib/i18n/provider'
+import { fetchPromoTicker } from '@/lib/mock/api'
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                             */
@@ -26,65 +29,21 @@ const ATTRACT_VIDEOS: string[] = [
 
 const ATTRACT_FRAMES = ['/attract/frame-1.webp', '/attract/frame-2.webp', '/attract/frame-3.webp']
 
-const SLIDE_DURATION_MS = 9000
-
 /**
- * Ticker copy of last resort (F7.3).
+ * How long one slide holds (C1.8).
  *
- * Used only while `/api/promos/ticker` is loading or failed: the crawl is the one
- * part of this screen that must never be empty, because an empty strip at the
- * bottom of a kiosk reads as a broken screen from across the room. Everything
- * here is evergreen club fact, not a dated offer — a stale "prize pool tonight"
- * is worse than no line at all.
+ * Two values, not one: a room photograph is understood the moment it appears,
+ * while a slide that lists four zones with their free-seat counts is a small
+ * table — and a table that leaves before it has been read is worse than no
+ * table, because the walk-in now knows the club is hiding something from them.
+ * So anything carrying data gets a third more time, and the bare frames keep the
+ * rotation moving.
  */
-const TICKER_FALLBACK = [
-  'NOW OPEN · 24/7',
-  'RTX 4080 + 240HZ ON EVERY STATION',
-  'ASK THE COUNTER ABOUT MEMBERSHIP',
-]
+const SLIDE_MS = 9000
+const DATA_SLIDE_MS = 12_000
 
-/**
- * Fallback mark per campaign type, mirroring the promo strip on Home so the same
- * campaign is recognisable on both screens.
- */
-const KIND_ICONS: Record<PromoKind, LucideIcon> = {
-  sale: icons.sale,
-  tournament: icons.tournament,
-  battlepass: icons.season,
-  event: icons.calendar,
-}
-
-/** One Ken Burns frame: either a room shot or a campaign banner. */
-interface AttractSlide {
-  key: string
-  src: string
-  /** Set when the frame is advertising something — drives the caption. */
-  promo: Promo | null
-}
-
-/**
- * Room shots and campaign banners, interleaved (F7.3).
- *
- * Interleaved rather than appended so the club itself stays on screen between
- * offers: six banners in a row would turn the idle screen into an ad break. A
- * campaign with no art (`image: ''`) is skipped here and still reaches the
- * ticker — the crawl needs a sentence, not a picture.
- */
-function buildSlides(promos: Promo[]): AttractSlide[] {
-  const art = promos.filter((p) => p.image !== '')
-  const frames: AttractSlide[] = ATTRACT_FRAMES.map((src, i) => ({
-    key: `frame-${i}`,
-    src,
-    promo: null,
-  }))
-  if (art.length === 0) return frames
-
-  const slides: AttractSlide[] = []
-  for (let i = 0; i < Math.max(frames.length, art.length); i++) {
-    if (i < frames.length) slides.push(frames[i])
-    if (i < art.length) slides.push({ key: art[i].id, src: art[i].image, promo: art[i] })
-  }
-  return slides
+function slideDuration(slide: AttractSlide | undefined): number {
+  return slide === undefined || slide.kind === 'frame' ? SLIDE_MS : DATA_SLIDE_MS
 }
 
 /* ------------------------------------------------------------------ */
@@ -92,31 +51,59 @@ function buildSlides(promos: Promo[]): AttractSlide[] {
 /* ------------------------------------------------------------------ */
 
 /**
- * Idle screen.
+ * Idle screen (C1.8).
  *
- * The campaigns shown here come from `GET /api/promos/active?surface=attract` and
- * the crawl from `GET /api/promos/ticker` — the same rows the promo strip on Home
- * reads (F7.3). Before that both were hardcoded here, so the idle screen could
- * advertise a Friday tournament on a Sunday while Home advertised tonight's.
+ * This used to be three room photographs, marketing's banners and a clock — a
+ * screensaver that said the club exists. It now sells: tonight's tournament, the
+ * free seats per zone, the bar's promoted items, the season ladder and the
+ * battle pass, rotating with the campaign art. Every number comes from the mock
+ * API through `useAttractPlaylist`, so the doorway sees the same rows the
+ * counter does; the crawl at the bottom still reads `GET /api/promos/ticker`.
  *
- * It asks as `viewer: 'everyone'`: nobody is signed in in front of an idle kiosk,
- * so the coin-economy campaigns are filtered out server-side.
+ * Everything asks as `viewer: 'everyone'` and no slide reads a viewer-specific
+ * field: nobody is signed in in front of an idle kiosk, so the coin-economy
+ * campaigns are filtered out server-side and "level 12" is never shown to an
+ * empty chair.
  */
 export function AttractMode() {
+  const { t, formatFullDate } = useT()
   const now = useClock()
-  const ping = useLivePing()
   const [slide, setSlide] = useState(0)
+  /**
+   * Reduced motion (§4.5).
+   *
+   * The rotation itself stays: it is the content of the screen, not decoration —
+   * a walk-in who dislikes movement still needs to learn there is a cup at
+   * 21:00. What goes is the *decorative* motion layered on top of it: the Ken
+   * Burns push, the blinking status dot and colon, and the hint's nudge. The CSS
+   * loops (`.wake-hint*`, `.marquee-track`, `.neon-digits`) are already damped
+   * by `globals.css` through `data-reduce-motion`.
+   */
+  const reduced = useReducedMotion()
 
   const useVideo = ATTRACT_VIDEOS.length > 0
 
-  const promos = useApi(['promos/active', 'attract', 'everyone'], () =>
-    fetchActivePromos('attract', 'everyone'),
-  )
+  const { slides } = useAttractPlaylist(ATTRACT_FRAMES)
   const ticker = useApi(['promos/ticker', 'everyone'], () => fetchPromoTicker('everyone'))
 
-  const slides = useMemo(() => buildSlides(promos.data ?? []), [promos.data])
-  // A failed or empty fetch must not blank the crawl (see TICKER_FALLBACK).
-  const tickerItems = ticker.data?.length ? ticker.data : TICKER_FALLBACK
+  /**
+   * Crawl copy of last resort (F7.3).
+   *
+   * Used only while `/api/promos/ticker` is loading or failed: the crawl is the
+   * one part of this screen that must never be empty, because an empty strip at
+   * the bottom of a kiosk reads as a broken screen from across the room.
+   * Evergreen club fact only, never a dated offer — a stale "prize pool tonight"
+   * is worse than no line at all.
+   */
+  const tickerFallback = useMemo(
+    () => [
+      t('attract.fallbackHours'),
+      t('attract.fallbackSpecs'),
+      t('attract.fallbackMembership'),
+    ],
+    [t],
+  )
+  const tickerItems = ticker.data?.length ? ticker.data : tickerFallback
 
   // The rotation is built from data that arrives after the first paint, so the
   // list grows under the timer — clamp instead of pointing past the end.
@@ -124,19 +111,26 @@ export function AttractMode() {
     if (slide >= slides.length) setSlide(0)
   }, [slide, slides.length])
 
-  useEffect(() => {
-    if (useVideo) return
-    const t = setInterval(() => setSlide((i) => (i + 1) % slides.length), SLIDE_DURATION_MS)
-    return () => clearInterval(t)
-  }, [useVideo, slides.length])
-
   const current = slides[Math.min(slide, slides.length - 1)]
+
+  // A timeout keyed on the current slide rather than one interval for all of
+  // them: the hold now depends on what is on screen (see `slideDuration`), and
+  // an interval would give the tournament panel the photograph's nine seconds.
+  useEffect(() => {
+    if (useVideo || slides.length <= 1) return
+    const timer = setTimeout(
+      () => setSlide((i) => (i + 1) % slides.length),
+      slideDuration(current),
+    )
+    return () => clearTimeout(timer)
+  }, [useVideo, slides.length, current])
 
   const hh = now ? String(now.getHours()).padStart(2, '0') : '--'
   const mm = now ? String(now.getMinutes()).padStart(2, '0') : '--'
-  const dateStr = now
-    ? now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-    : ''
+  // The same formatter the lock screen's clock uses, so the two screens do not
+  // disagree about what day it is in Russian (F2.4) — this was `en-US`, hard
+  // coded, on a screen the club can run in three languages.
+  const dateStr = now ? formatFullDate(now) : ''
 
   return (
     <motion.div
@@ -146,10 +140,18 @@ export function AttractMode() {
       // `veil-base` (§3), not `bg-black`: the opaque floor under the media is
       // still a black picked for a screen, so it comes from a token (F9.7b).
       className="veil-base absolute inset-0 z-40 overflow-hidden"
-      aria-label="Idle screen. Move the mouse or press any key to unlock."
+      aria-label={t('attract.screenLabel')}
     >
       {/* ---------- media layer: video playlist or ken burns slideshow ---------- */}
-      {useVideo ? <VideoPlaylist sources={ATTRACT_VIDEOS} /> : <KenBurnsSlideshow slide={current} />}
+      {useVideo ? (
+        <VideoPlaylist sources={ATTRACT_VIDEOS} />
+      ) : (
+        <KenBurnsSlideshow
+          slide={current}
+          durationMs={slideDuration(current)}
+          reduced={reduced}
+        />
+      )}
 
       {/* Readability veils (§3.2): floor, radial scrim under the clock, edge
           gradient, CRT texture. The densities live in `globals.css`
@@ -167,13 +169,17 @@ export function AttractMode() {
             the bottom-right corner (see `BrandLabel`), mirroring the promo
             caption's corner and leaving the clock uncontested. */}
         <div className="flex w-full flex-col items-center gap-2.5">
-          <span className="label-mono flex items-center gap-2 text-[10px] tracking-[0.35em] text-text-low">
+          <span className="label-mono flex items-center gap-2 text-[10px] uppercase tracking-[0.35em] text-text-low">
             <motion.span
-              animate={{ opacity: [1, 0.25, 1] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { opacity: 1 } : { opacity: [1, 0.25, 1] }}
+              transition={
+                reduced
+                  ? { duration: 0 }
+                  : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="h-1.5 w-1.5 rounded-full bg-primary"
             />
-            NOW OPEN · 24/7
+            {t('attract.nowOpen')}
           </span>
         </div>
 
@@ -192,8 +198,10 @@ export function AttractMode() {
                 clock read from across the room). */}
             <span className="text-[4.5rem] md:text-[6.4rem] xl:text-[7.6rem]">{hh}</span>
             <motion.span
-              animate={{ opacity: [1, 0.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { opacity: 1 } : { opacity: [1, 0.2, 1] }}
+              transition={
+                reduced ? { duration: 0 } : { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="mx-0.5 -translate-y-[0.06em] text-[3.75rem] font-normal text-primary md:mx-1 md:text-[5.4rem] xl:text-[6.4rem]"
               // The hollow treatment inherits (`-webkit-text-fill-color` /
               // `-webkit-text-stroke` both cascade), and an outlined colon at
@@ -257,51 +265,67 @@ export function AttractMode() {
             {/* The mark mimes the gesture it is asking for — a small horizontal
                 nudge reads as "move", which a static mouse icon does not. */}
             <motion.span
-              animate={{ x: [0, 5, 0] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              animate={reduced ? { x: 0 } : { x: [0, 5, 0] }}
+              transition={
+                reduced ? { duration: 0 } : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
+              }
               className="relative flex"
             >
               <icons.controls size={13} className="text-primary" />
             </motion.span>
-            <span className="wake-hint-copy relative">Move mouse to unlock</span>
+            <span className="wake-hint-copy relative">{t('attract.unlockHint')}</span>
           </motion.span>
         </motion.div>
 
-        {/* bottom HUD: live station telemetry */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 px-4">
-          <HudChip dot variant="station" label="PC #17" value="READY" />
-          <HudChip icon={<icons.network size={13} />} label="Ping" value={`${ping} ms`} />
-          <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
-          <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
-          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
-        </div>
+        {/* Bottom HUD — the same station strip as the lock screen (C1.6), which
+            is the point: this is the seam that makes the two screens one product
+            (docs/DESIGN.md §5.3), so it is one component and not a twin.
+
+            The ping here used to be `3 + Math.random() * 4` refreshed every
+            2.2 s — a number invented by the screen advertising the club's
+            network. It now comes from the agent or reads as a dash. */}
+        <StationPanel className="justify-center px-4" />
       </div>
 
-      {/* ---------- campaign caption for the current banner ---------- */}
+      {/* ---------- what the club is selling right now ---------- */}
       {/* The copy is DOM text over the art, never baked into the file: it has to
           survive translation, a screen reader and a price change (F7.3). It sits
           in the lower-left corner the banners reserve for it, clear of the
-          centred clock and above the crawl. */}
+          centred clock and above the crawl — the one place on the screen a
+          walk-in learns to look, which is why all six kinds of slide render into
+          the same corner at the same width instead of moving per kind. */}
       <AnimatePresence mode="wait">
-        {current?.promo && (
+        {current && current.kind !== 'frame' && (
           <motion.div
-            key={current.promo.id}
+            key={current.key}
             initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="absolute bottom-16 left-5 z-20 max-w-md md:bottom-20 md:left-7"
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }}
+            // Faster out than in (`mode="wait"` holds the enter until the exit
+            // finishes): at 0.6 s each the corner sat empty for a fifth of a
+            // second longer than reads as a transition, which on a kiosk looks
+            // like the panel failed to load rather than changed.
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.3, ease: 'easeIn' } }}
+            // Clear of the station strip, which shares the column's `pb-16/20`:
+            // at the same offset the panel covered the seat's own chip, so the
+            // screen was advertising the club over the top of the club's status.
+            className="absolute bottom-28 left-5 z-20 w-[22rem] max-w-[calc(100vw-2.5rem)] md:bottom-32 md:left-7 md:w-[26rem]"
           >
-            <PromoCaption promo={current.promo} />
+            <AttractShowcase slide={current} />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ---------- corner signature ---------- */}
-      {/* Mirrors the promo caption's band on the opposite side, above the crawl. */}
+      {/* Mirrors the showcase panel on the opposite side, at the same height.
+          It used to sit at `bottom-16/20` — the station strip's own row — which
+          is invisible on wide glass, where the strip is narrow and centred, but
+          on a portrait kiosk (1080×1920) the strip fills the width and the
+          lockup landed on top of the seat's `STATUS Optimal` chip. The club's
+          logo covering the club's own telemetry is the same fault the panel was
+          already raised to avoid, so it clears the strip the same way. */}
       <BrandLabel
         named={false}
-        className="absolute bottom-16 right-5 z-20 md:bottom-20 md:right-7"
+        className="absolute bottom-28 right-5 z-20 md:bottom-32 md:right-7"
       />
 
       {/* ---------- promo ticker ---------- */}
@@ -444,18 +468,36 @@ function VideoPlaylist({ sources }: { sources: string[] }) {
  * banner (F7.3) — identical treatment on purpose: the banners were generated
  * text-free precisely so they could be scrimmed and cropped like a photograph.
  */
-function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
+function KenBurnsSlideshow({
+  slide,
+  durationMs,
+  reduced,
+}: {
+  slide: AttractSlide | undefined
+  /** How long this slide holds, so the zoom is still moving when it leaves. */
+  durationMs: number
+  /**
+   * Reduced motion (§4.5): the slow push is the decorative half of this layer, so
+   * it is dropped — but the cross-fade stays, because cutting hard between two
+   * full-bleed photographs is a bigger jolt than the zoom ever was. The frame
+   * sits at a fixed 1.06 rather than 1: the art was composed for a cropped
+   * frame, and snapping to un-zoomed would show its edges.
+   */
+  reduced: boolean
+}) {
   if (!slide) return null
   return (
     <AnimatePresence>
       <motion.div
         key={slide.key}
-        initial={{ opacity: 0, scale: 1 }}
-        animate={{ opacity: 1, scale: 1.12 }}
+        initial={{ opacity: 0, scale: reduced ? 1.06 : 1 }}
+        animate={{ opacity: 1, scale: reduced ? 1.06 : 1.12 }}
         exit={{ opacity: 0 }}
         transition={{
-          opacity: { duration: 1.6, ease: 'easeInOut' },
-          scale: { duration: (SLIDE_DURATION_MS + 2000) / 1000, ease: 'linear' },
+          opacity: { duration: reduced ? 0.8 : 1.6, ease: 'easeInOut' },
+          scale: reduced
+            ? { duration: 0 }
+            : { duration: (durationMs + 2000) / 1000, ease: 'linear' },
         }}
         className="absolute inset-0"
       >
@@ -477,32 +519,6 @@ function KenBurnsSlideshow({ slide }: { slide: AttractSlide | undefined }) {
   )
 }
 
-/**
- * Campaign copy over the current banner.
- *
- * `aria-hidden`: the crawl below already carries every live campaign as text and
- * an idle screen has no reader in front of it — announcing the same offer twice,
- * once per rotation, would make the wake-up hint impossible to hear.
- */
-function PromoCaption({ promo }: { promo: Promo }) {
-  const Icon = KIND_ICONS[promo.kind]
-  return (
-    // T3 (§4.2): no neon. This panel is already the largest, brightest thing
-    // on the banner and it carries a red spine of its own — the ring was
-    // spending the screen's one animated accent on copy nobody has to act on.
-    <div aria-hidden className="glass rounded-xl border-l-2 border-l-primary p-5 md:p-6">
-      <span className="label-mono flex items-center gap-1.5 text-[10px] tracking-[0.28em] text-primary">
-        <Icon size={12} />
-        {promo.badge}
-      </span>
-      <h2 className="mt-2 font-display text-xl font-bold uppercase tracking-tight text-text-high text-balance md:text-2xl">
-        {promo.title}
-      </h2>
-      <p className="mt-1.5 text-sm leading-relaxed text-text-medium text-pretty">{promo.subtitle}</p>
-    </div>
-  )
-}
-
 /* ------------------------------------------------------------------ */
 /*  Hooks                                                              */
 /* ------------------------------------------------------------------ */
@@ -515,16 +531,4 @@ function useClock() {
     return () => clearInterval(t)
   }, [])
   return now
-}
-
-/** Ping that gently drifts between 3–6 ms to feel like live monitoring. */
-function useLivePing() {
-  const [ping, setPing] = useState(4)
-  useEffect(() => {
-    const t = setInterval(() => {
-      setPing(() => 3 + Math.floor(Math.random() * 4))
-    }, 2200)
-    return () => clearInterval(t)
-  }, [])
-  return ping
 }

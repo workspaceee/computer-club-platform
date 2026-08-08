@@ -94,21 +94,64 @@ export function remainingSeconds({
 }
 
 /**
- * When a `serverTime` value was first observed on this client, in client ms.
+ * The snapshot currently being counted against: the server stamp it carried, and
+ * the client instant it landed at.
  *
- * The map is tiny and keyed by the server timestamp itself, so the heartbeat
- * (one new stamp every 10 s) cannot grow it without bound — old entries for a
- * replaced stamp are dropped on write.
+ * One slot, not a map keyed by stamp value. Keying by value made "when did this
+ * arrive" a property of the *number* rather than of the arrival, so a second
+ * snapshot carrying a stamp the client had seen before inherited the first one's
+ * arrival time and was treated as minutes old the moment it landed — the skew
+ * correction then subtracted those minutes from a freshly granted deadline. A real
+ * server can legitimately answer twice within the same second, and a mock with a
+ * frozen clock answers with the same stamp every time, so identical values must
+ * still count as separate observations.
+ *
+ * `markSnapshotObserved` is therefore the honest signal, called once per snapshot
+ * as it is adopted. The lazy fallback below only covers callers that never mark —
+ * tests and server renders — and must keep returning a *stable* instant across
+ * ticks, or the 1 Hz clock would re-anchor every second and stop counting down.
  */
-const observed = new Map<number, number>()
+let observed: { serverMs: number; at: number } | null = null
+
+/**
+ * Records that a snapshot with this `serverTime` has just been adopted, so the
+ * countdown measures from *now* rather than from whenever that stamp was last
+ * seen. Call it from the one place snapshots enter the store.
+ */
+export function markSnapshotObserved(
+  serverTime: ISODateTime | null | undefined,
+  atMs: number = Date.now(),
+): void {
+  const serverMs = parseTime(serverTime)
+  observed = serverMs === null ? null : { serverMs, at: atMs }
+}
 
 function snapshotTakenAt(serverMs: number): number {
-  const existing = observed.get(serverMs)
-  if (existing !== undefined) return existing
+  if (observed !== null && observed.serverMs === serverMs) return observed.at
   const now = Date.now()
-  observed.clear()
-  observed.set(serverMs, now)
+  observed = { serverMs, at: now }
   return now
+}
+
+/**
+ * "Now" on the **server's** timeline: the last stamp the server sent, plus how
+ * long this client has been holding it.
+ *
+ * Same correction `remainingSeconds()` applies, exposed for the places that need
+ * an instant rather than a remainder — the notification centre's "Today" /
+ * "Yesterday" headings being the first (C2.5). Deciding which calendar day a
+ * server-stamped message belongs to from `Date.now()` makes the heading a fact
+ * about the kiosk's system clock: a machine an hour off files this evening's
+ * messages under yesterday, and the mock's fixed anchor puts every one of them
+ * under a full date because the branch can never match.
+ *
+ * Falls back to the client clock until a snapshot has been observed — a guest at
+ * the lock screen has no session and therefore no server stamp, and the local
+ * clock is then the only clock there is.
+ */
+export function serverNowMs(nowMs: number = Date.now()): number {
+  if (observed === null) return nowMs
+  return observed.serverMs + (nowMs - observed.at)
 }
 
 /** `true` once the deadline has passed. */

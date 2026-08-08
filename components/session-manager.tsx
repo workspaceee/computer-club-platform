@@ -29,6 +29,7 @@ import { useEffect } from 'react'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
 import { overlayZ } from '@/lib/overlay'
+import { releaseSeat } from '@/lib/seat'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -75,7 +76,15 @@ export function SessionManager() {
 
   useEffect(() => {
     if (!sessionExpired) return
-    const t = setTimeout(() => clearExpired(), 3000)
+    const t = setTimeout(() => {
+      // A spent clock ends the visit, so it hands the chair back like every
+      // other exit does (C1.7). Without this the third way a session can end —
+      // not sign-out, not "end guest session", but running out — would leave the
+      // seat reading "occupied" with nobody on it, and the next player would be
+      // sent to the counter for a key they do not need.
+      void releaseSeat()
+      clearExpired()
+    }, 3000)
     return () => clearTimeout(t)
   }, [sessionExpired, clearExpired])
 
