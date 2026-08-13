@@ -904,6 +904,31 @@ export const lt: Dictionary = {
     reportIssue: 'Pranešti apie problemą',
     issueSent: 'Dėkojame! Pranešimas išsiųstas administratoriui.',
     describeIssue: 'Aprašykite problemą',
+
+    // Pirmojo apsilankymo apžvalga (C3.12). Gyvena `help`, ne `home`: tai tas
+    // pats, ką pagalbos skyrius siūlo kaip „Kaip visa tai veikia“.
+    tourTitle: 'Kaip visa tai veikia',
+    tourLabel: 'Trumpas pasivaikščiojimas po paleidyklę',
+    tourStep: '{step} žingsnis iš {total}',
+    tourSkip: 'Praleisti',
+    tourBack: 'Atgal',
+    tourNext: 'Toliau',
+    tourDone: 'Supratau',
+    tourTimeTitle: 'Čia tavo laikas',
+    tourTimeBody:
+      'Plokštelė skaičiuoja, kiek liko šios vietos. Paspausk — pamatysi, kas tiksliai išleidžiama ir kaip pridėti daugiau.',
+    tourGamesTitle: 'Žaidimai startuoja iš čia',
+    tourGamesBody:
+      'Bibliotekoje viskas, kas jau įdiegta šioje stotyje. Vienas spustelėjimas paleidžia žaidimą — nieko nereikia siųstis ar prisijungti antrą kartą.',
+    tourBarTitle: 'Gėrimai atkeliauja į vietą',
+    tourBarBody:
+      'Pasirink iš baro lentos — prekė atsiras krepšelyje viršuje. Sumoki vieną kartą, o užsakymą atneša prie šio kompiuterio.',
+    tourLoyaltyTitle: 'Žaidimas atsiperka',
+    tourLoyaltyBody:
+      'Užduotys moka monetomis ir XP, o sezono leidimas tą XP verčia apdovanojimais. Abu yra šiame ekrane — prie kasos eiti nereikia.',
+    tourHelpTitle: 'Darbuotojas — vienu paspaudimu',
+    tourHelpBody:
+      'Kai kas nors ne taip su vieta — neveikia ausinės, nestartuoja žaidimas — rašyk per „Pagalbą“: administratorius mato, iš kurios stoties atėjo.',
   },
 
   inbox: {

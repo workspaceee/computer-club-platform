@@ -1407,6 +1407,42 @@ export const en = {
     reportIssue: 'Report an issue',
     issueSent: 'Thanks! Your report has been sent to the admin.',
     describeIssue: 'Describe the issue',
+
+    /**
+     * The first-run tour (C3.12).
+     *
+     * It lives in `help` rather than in `home` because it is the same thing the
+     * Help section offers as "How this works": the walk is offered once by itself
+     * and stays available on demand, and one namespace is what keeps both doors
+     * saying the same five things.
+     *
+     * Each step names a *place* and then the one thing that place is for — a
+     * caption that only repeated the label under the spotlight would be a tour
+     * that teaches nothing.
+     */
+    tourTitle: 'How this works',
+    /** The dialog's own name, read before the first step's heading. */
+    tourLabel: 'A quick walk around the launcher',
+    tourStep: 'Step {step} of {total}',
+    tourSkip: 'Skip',
+    tourBack: 'Back',
+    tourNext: 'Next',
+    tourDone: 'Got it',
+    tourTimeTitle: 'Your time lives here',
+    tourTimeBody:
+      'The plate counts down what is left of this seat. Press it for the whole picture — what is being spent, and how to add more.',
+    tourGamesTitle: 'Games start here',
+    tourGamesBody:
+      'The library holds everything installed on this station. One click launches a title — nothing to download, nothing to log into twice.',
+    tourBarTitle: 'Drinks come to your seat',
+    tourBarBody:
+      'Pick from the bar board and it lands in the basket up here. Pay once, and staff bring the order to this PC.',
+    tourLoyaltyTitle: 'Playing earns something',
+    tourLoyaltyBody:
+      'Daily tasks pay coins and XP, and the season pass turns that XP into rewards. Both are on this screen — nothing has to be claimed at the counter.',
+    tourHelpTitle: 'Staff are one press away',
+    tourHelpBody:
+      'Anything wrong with the seat — a dead headset, a game that will not start — goes through Help, and the admin sees which station it came from.',
   },
 
   /**

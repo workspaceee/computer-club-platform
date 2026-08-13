@@ -49,6 +49,10 @@ export function CartButton() {
       active={cartOpen}
       aria-haspopup="dialog"
       aria-expanded={cartOpen}
+      // Second anchor of the tour's bar step (C3.12) — see the note beside
+      // `data-tour="bar"` on the board. The overlay measures one box around both,
+      // so the spotlight travels from the card up to the basket it fills.
+      data-tour="cart"
       onClick={() => setCartOpen(true)}
     />
   )
