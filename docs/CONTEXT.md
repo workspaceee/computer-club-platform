@@ -4,6 +4,7 @@
 > `PLAN.md` (1129 строк) и `DESIGN.md` (~1000) **не читаются целиком** — только нужный блок
 > поиском по номеру пункта (`C3.11`) или по имени раздела (`§3.3`, `§4.2`).
 > Этот файл обновляется, когда меняется структура или закрывается блок плана.
+> Стартовый промт нового чата: [`tasks/_PROMPT.md`](./tasks/_PROMPT.md).
 
 ---
 
@@ -102,7 +103,7 @@ primary `#e5352b`, анимации `framer-motion` 0.25–0.7s ease-out и от
 ## 6. Данные, деньги, время
 
 - Ни одной цифры в JSX. Всё через `lib/mock/api/*` → `useApi` → компонент.
-- Деньги — **в центах**, тип `Cents`. Форматирование `formatEur` / `formatEurSigned` /
+- Деньги — **в центах**, тип `Cents`. Форматировани�� `formatEur` / `formatEurSigned` /
   `formatCoins` из `lib/money.ts`. Арифметика — тоже оттуда (`sumCents`, `mulCents`, `discountCents`).
 - Время — `lib/time.ts`: `formatCountdown` (`HH:MM:SS`), `formatDuration`, `remainingSeconds`,
   `secondsUntil`, `serverNowMs`.
