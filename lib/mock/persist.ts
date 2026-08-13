@@ -35,8 +35,14 @@ const STORAGE_KEY = 'imba.mock.state'
  * seats were re-counted against the entry list. A v3 snapshot would restore the
  * old rows over both, so the card would either count down to a start that has
  * already passed or contradict its own "slots left".
+ *
+ * `5` adds `onboardingCompletedAt` to `userPreferences` (C3.12). A v4 snapshot
+ * restores those rows without the field, and `undefined` is not the same answer
+ * as `null`: every browser that had ever opened the demo would be treated as a
+ * first arrival again, and the row the tour writes its own dismissal into would
+ * be the one field the restore quietly dropped.
  */
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from

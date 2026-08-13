@@ -141,7 +141,10 @@ export function QuestsCard({ index }: { index: string }) {
       : undefined
 
   return (
-    <section aria-labelledby="quests-heading">
+    // `data-tour` is the first-run tour's anchor (C3.12): one step lights this
+    // card together with the season card below it, because "what the club asks of
+    // you today" and "where the XP it pays goes" are one answer in two panels.
+    <section data-tour="quests" aria-labelledby="quests-heading">
       <SectionHeader
         index={index}
         title={t('home.questsTitle')}

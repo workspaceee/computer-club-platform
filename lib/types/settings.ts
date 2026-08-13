@@ -37,6 +37,19 @@ export interface UserPreferences {
   sounds: boolean
   privacy: PrivacySettings
   overlay: OverlaySettings
+  /**
+   * When the player finished (or skipped) the first-run tour, or `null` if they
+   * never have (C3.12).
+   *
+   * A **preference**, not a client flag: the tour explains the shell to a person,
+   * and a person who has already seen it at PC #07 must not be walked through it
+   * again at PC #19 — which is exactly what `localStorage` would do, since a club
+   * launcher is a shared machine and this row is what follows a member between
+   * them. Stored as the moment rather than as a boolean because "seen" is an
+   * event with a date: the admin surface will want to know whether a member was
+   * shown the *current* tour, and a `true` cannot answer that.
+   */
+  onboardingCompletedAt: string | null
 }
 
 /** Club-wide low-time thresholds, in minutes before the session ends. */
