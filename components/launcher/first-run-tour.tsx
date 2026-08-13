@@ -506,20 +506,33 @@ function TourCard({
 
       <p className="text-sm leading-relaxed text-text-medium text-pretty">{t(step.bodyKey)}</p>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
         {/* Skip is the tour's escape hatch and stays in the same place on every
-            step — a player who wants out should not have to read the row again. */}
-        <Button variant="ghost" size="sm" onClick={onSkip}>
+            step — a player who wants out should not have to read the row again.
+            `voice="plain"` on all three, same reason the tile options got it
+            (F2.6): tracked uppercase is the product's *commit* voice, and three
+            of those in a 340 px row is what overflowed — "ПРОПУСТИТЬ" alone is
+            wider than the card at 0.14em tracking. Sentence case is the quiet
+            voice reserved for exactly this: several small actions sharing one
+            tight cell. */}
+        <Button variant="ghost" size="sm" voice="plain" onClick={onSkip}>
           {t('help.tourSkip')}
         </Button>
         <div className="flex items-center gap-2">
           {index > 0 && (
-            <Button variant="secondary" size="sm" onClick={onBack} iconLeft={<icons.back aria-hidden />}>
+            <Button
+              variant="secondary"
+              size="sm"
+              voice="plain"
+              onClick={onBack}
+              iconLeft={<icons.back aria-hidden />}
+            >
               {t('help.tourBack')}
             </Button>
           )}
           <Button
             size="sm"
+            voice="plain"
             onClick={onNext}
             iconRight={last ? undefined : <icons.forward aria-hidden />}
           >
