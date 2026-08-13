@@ -35,6 +35,9 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
   const lockPc = useStore((s) => s.lockPc)
   const logout = useStore((s) => s.logout)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
+  // The re-entry door for the first-run walk (C3.12): the overlay itself listens
+  // to this flag, so the menu only has to raise it.
+  const setTourOpen = useStore((s) => s.setTourOpen)
   const toast = useStore((s) => s.toast)
 
   const [open, setOpen] = useState(false)
@@ -206,7 +209,10 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
                   away. */}
               {user && (
                 <MenuItem
-                  icon={<icons.support size={16} />}
+                  // `info`, not `support`: the row above it is the Help *section*
+                  // and already wears the support glyph — two identical icons in
+                  // one list read as one item rendered twice.
+                  icon={<icons.info size={16} />}
                   label={t('help.tourTitle')}
                   onClick={() => {
                     setTourOpen(true)

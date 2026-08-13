@@ -62,6 +62,17 @@ const CARD_GAP = 16
 const CARD_W = 340
 /** Below this the card stops being placed beside the hole and docks instead. */
 const CARD_MIN_SPACE = 200
+/**
+ * How much of the viewport a lit region may take before the union is abandoned.
+ *
+ * The two-anchor steps ("the bar board *and* the basket it fills") only read as
+ * one answer while both boxes are near each other. When the second anchor lives
+ * in the fixed top bar and the first is a card below the fold, their union is the
+ * whole screen — nothing is dimmed, and the step points at everything, which is
+ * the same as pointing at nothing. Past this share the walk keeps the first
+ * anchor it found and drops the rest.
+ */
+const SPOT_MAX_RATIO = 0.55
 
 interface TourStep {
   id: string
@@ -144,24 +155,53 @@ function isVisible(el: Element): boolean {
  * answer, and two separate holes would read as two unrelated instructions.
  */
 function measure(targets: string[]): Box | null {
-  const rects: DOMRect[] = []
-  for (const selector of targets) {
-    for (const el of Array.from(document.querySelectorAll(selector))) {
-      if (isVisible(el)) rects.push(el.getBoundingClientRect())
-    }
+  /** The visible boxes of one selector, in document order. */
+  const rectsOf = (selector: string) =>
+    Array.from(document.querySelectorAll(selector))
+      .filter(isVisible)
+      .map((el) => el.getBoundingClientRect())
+
+  const groups = targets.map(rectsOf).filter((rects) => rects.length > 0)
+  if (groups.length === 0) return null
+
+  const hull = (rects: DOMRect[]): Box => {
+    const top = Math.max(0, Math.min(...rects.map((r) => r.top)) - SPOT_PAD)
+    const left = Math.max(0, Math.min(...rects.map((r) => r.left)) - SPOT_PAD)
+    const bottom = Math.min(window.innerHeight, Math.max(...rects.map((r) => r.bottom)) + SPOT_PAD)
+    const right = Math.min(window.innerWidth, Math.max(...rects.map((r) => r.right)) + SPOT_PAD)
+    return { top, left, width: right - left, height: bottom - top }
   }
-  if (rects.length === 0) return null
 
-  const top = Math.min(...rects.map((r) => r.top))
-  const left = Math.min(...rects.map((r) => r.left))
-  const bottom = Math.max(...rects.map((r) => r.bottom))
-  const right = Math.max(...rects.map((r) => r.right))
+  const union = hull(groups.flat())
+  // Too much of the screen lit means the union spans a scroll distance (a card
+  // below the fold plus its counterpart in the fixed bar). Fall back to the
+  // step's primary anchor, which is the one the caption is written about.
+  if (groups.length > 1 && union.height > window.innerHeight * SPOT_MAX_RATIO) {
+    return hull(groups[0])
+  }
+  return union
+}
 
-  return {
-    top: Math.max(0, top - SPOT_PAD),
-    left: Math.max(0, left - SPOT_PAD),
-    width: Math.min(window.innerWidth, right + SPOT_PAD) - Math.max(0, left - SPOT_PAD),
-    height: Math.min(window.innerHeight, bottom + SPOT_PAD) - Math.max(0, top - SPOT_PAD),
+/**
+ * Bring the step's primary anchor onto the screen before it is measured.
+ *
+ * Four of the five steps point at home-screen cards, and the bar board sits below
+ * the fold on a kiosk window — a spotlight on an element the player cannot see is
+ * a dimmed screen with a caption. The walk scrolls the shell itself rather than
+ * moving the overlay, so what the player ends the tour looking at is the real
+ * layout, already in the place the step described.
+ */
+function revealTarget(targets: string[], reduced: boolean) {
+  for (const selector of targets) {
+    const el = Array.from(document.querySelectorAll(selector)).find(isVisible)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    // Only when it is actually out of the comfortable band: scrolling a plate
+    // that is already centred would jitter the frame on every step.
+    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+    }
+    return
   }
 }
 
@@ -237,6 +277,9 @@ function TourWalk({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!step) return
     const sync = () => setBox(measure(step.targets))
+    // Scroll first, measure after: the scroll listener below keeps the box on the
+    // anchor for the rest of the (possibly smooth) travel.
+    revealTarget(step.targets, reduced)
     sync()
     window.addEventListener('resize', sync)
     window.addEventListener('scroll', sync, true)
@@ -244,7 +287,7 @@ function TourWalk({ onClose }: { onClose: () => void }) {
       window.removeEventListener('resize', sync)
       window.removeEventListener('scroll', sync, true)
     }
-  }, [step])
+  }, [step, reduced])
 
   /**
    * Finishing and skipping are the same write (`completeOnboarding`): both mean
