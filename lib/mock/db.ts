@@ -16,6 +16,7 @@ import type {
   Game,
   GameCategory,
   GameLaunch,
+  GameRelease,
   HouseAccount,
   Product,
   ProductCategory,
@@ -42,12 +43,12 @@ import type { HelpThread, Notification } from '@/lib/types/notification'
 import type { Order } from '@/lib/types/order'
 import type { Pass, PassPurchase } from '@/lib/types/pass'
 import type { Promo, PromoAudience, PromoKind, PromoSurface } from '@/lib/types/promo'
-import type { Session } from '@/lib/types/session'
+import type { Session, TransferRequest } from '@/lib/types/session'
 import type { Club, ClubSettings, UserPreferences } from '@/lib/types/settings'
 import type { Friendship, FriendSummary, Party } from '@/lib/types/social'
 import type { Tab, Transaction } from '@/lib/types/tab'
 import type { Tournament, TournamentEntry } from '@/lib/types/tournament'
-import type { User, Wallet } from '@/lib/types/user'
+import type { PrivacySettings, User, Wallet } from '@/lib/types/user'
 
 /* ------------------------------------------------------------------ *
  * Time anchor
@@ -121,6 +122,32 @@ const clubSettings: ClubSettings = {
   // itself is mocked until a real PSP is wired in Stage 4.
   cardPaymentsEnabled: true,
   warningThresholds: { notice: 30, warning: 10, critical: 3 },
+  /**
+   * A plausible club week (C2.11), written so every branch of
+   * `lib/club-hours.ts` is covered by data rather than by hope:
+   *
+   *   Mon–Thu  12:00 → 02:00  window across midnight (the common shape)
+   *   Fri      12:00 → 04:00  same, longer
+   *   Sat      00:00 → 00:00  round the clock (`from === to`)
+   *   Sun      12:00 → 23:00  ordinary same-day window
+   *
+   * No `null` day on purpose: a closed weekday would put the "Club closed"
+   * overlay over the whole demo for a day at a time. The branch is still
+   * reachable — `?club=closed` (see `lib/dev-flags.ts`) walks straight into it.
+   *
+   * Saturday shows why a 24-hour day is not the same as "never closes": Sunday
+   * opens at noon, so the club really does close at Saturday midnight, and
+   * `clubHoursStatus()` warns about it.
+   */
+  openHours: {
+    1: { from: '12:00', to: '02:00' },
+    2: { from: '12:00', to: '02:00' },
+    3: { from: '12:00', to: '02:00' },
+    4: { from: '12:00', to: '02:00' },
+    5: { from: '12:00', to: '04:00' },
+    6: { from: '00:00', to: '00:00' },
+    7: { from: '12:00', to: '23:00' },
+  },
   bookingGraceMinutes: 15,
 }
 
@@ -320,8 +347,25 @@ function buildGames(): Game[] {
 
 const games: Game[] = buildGames()
 
-/** Curated hero row. Ids, not indexes, so reordering the catalogue is safe. */
-const FEATURED_GAME_IDS: ID[] = ['cs2', 'valorant', 'fortnite', 'cyberpunk', 'marvelrivals']
+/**
+ * "New at the club" — the curated novelty shelf behind the hero's third kind of
+ * slide (C3.9).
+ *
+ * Catalogue data, not session state: the staff edits the shelf in admin and a demo
+ * run never mutates it, so like `promos` it is deliberately absent from
+ * `lib/mock/persist.ts`.
+ *
+ * Deliberately *not* the club's headline titles: the hero would otherwise spend
+ * two of its slides on the same game — a campaign the club is running tonight and
+ * its newest arrival are different editorial claims, and a shelf that repeated the
+ * front page would say nothing new. `note` is the club's own line, printed as
+ * written.
+ */
+const GAME_RELEASES: GameRelease[] = [
+  { gameId: 'pathofexile2', addedAt: atDays(-2), note: 'Installed on every seat in the Main Hall' },
+  { gameId: 'helldivers2', addedAt: atDays(-6), note: 'Four-seat squads — book the corner pod' },
+  { gameId: 'frostpunk2', addedAt: atDays(-11), note: 'New on the two VIP machines' },
+]
 
 const houseAccounts: HouseAccount[] = [
   { id: 'house-1', label: 'House Account #1', status: 'available' },
@@ -471,10 +515,24 @@ export interface PlayerStats {
   totalHours: number
   gamesPlayed: number
   sessions: number
-  /** Hours inside the active season — this is what the leaderboard ranks by. */
+  /** Hours inside the active season — the leaderboard's default ranking (C3.10). */
   seasonHours: number
   seasonCoins: Coins
+  /**
+   * Matches won inside the active season — the leaderboard's third ranking
+   * (C3.10). Authored as its own number rather than derived from `gamesPlayed`:
+   * "played" and "won" are different facts about an evening, and a board that
+   * multiplied one by a guessed win-rate would rank players by a constant.
+   */
+  seasonWins: number
   achievementsUnlocked: number
+  /**
+   * Consecutive visit days, today included (C3.1). Optional because only the
+   * signed-in member's streak is ever rendered — the leaderboard ranks by season
+   * hours, so authoring twelve streaks nobody reads would be twelve numbers that
+   * can silently drift out of step with the sessions around them.
+   */
+  visitStreak?: number
 }
 
 /** A demo account bundled with everything the UI needs about it. */
@@ -527,7 +585,7 @@ const playersList: DemoPlayer[] = [
     12,
     6400,
     { moneyCents: 1750, coins: 1250 },
-    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, achievementsUnlocked: 11 },
+    { totalHours: 148, gamesPlayed: 23, sessions: 94, seasonHours: 28, seasonCoins: 5432, seasonWins: 9, achievementsUnlocked: 11, visitStreak: 4 },
     { machineId: CURRENT_MACHINE_ID, playingGameId: 'cs2' },
     { email: 'demo@imba.club' },
   ),
@@ -537,7 +595,7 @@ const playersList: DemoPlayer[] = [
     31,
     24800,
     { moneyCents: 4200, coins: 9876 },
-    { totalHours: 612, gamesPlayed: 41, sessions: 302, seasonHours: 42, seasonCoins: 9876, achievementsUnlocked: 27 },
+    { totalHours: 612, gamesPlayed: 41, sessions: 302, seasonHours: 42, seasonCoins: 9876, seasonWins: 64, achievementsUnlocked: 27 },
     { machineId: 'pc-01', playingGameId: 'cs2' },
   ),
   player(
@@ -546,7 +604,7 @@ const playersList: DemoPlayer[] = [
     28,
     21200,
     { moneyCents: 900, coins: 8765 },
-    { totalHours: 540, gamesPlayed: 36, sessions: 271, seasonHours: 39, seasonCoins: 8765, achievementsUnlocked: 24 },
+    { totalHours: 540, gamesPlayed: 36, sessions: 271, seasonHours: 39, seasonCoins: 8765, seasonWins: 57, achievementsUnlocked: 24 },
     { machineId: 'pc-02', playingGameId: 'valorant' },
   ),
   player(
@@ -555,7 +613,7 @@ const playersList: DemoPlayer[] = [
     25,
     18400,
     { moneyCents: 0, coins: 7654 },
-    { totalHours: 470, gamesPlayed: 33, sessions: 240, seasonHours: 35, seasonCoins: 7654, achievementsUnlocked: 22 },
+    { totalHours: 470, gamesPlayed: 33, sessions: 240, seasonHours: 35, seasonCoins: 7654, seasonWins: 48, achievementsUnlocked: 22 },
     { machineId: 'pc-11', playingGameId: 'r6' },
   ),
   player(
@@ -564,7 +622,7 @@ const playersList: DemoPlayer[] = [
     22,
     15600,
     { moneyCents: 2500, coins: 6543 },
-    { totalHours: 398, gamesPlayed: 29, sessions: 211, seasonHours: 31, seasonCoins: 6543, achievementsUnlocked: 19 },
+    { totalHours: 398, gamesPlayed: 29, sessions: 211, seasonHours: 31, seasonCoins: 6543, seasonWins: 41, achievementsUnlocked: 19 },
     { machineId: 'pc-19', playingGameId: 'cs2' },
   ),
   player(
@@ -573,7 +631,7 @@ const playersList: DemoPlayer[] = [
     20,
     13900,
     { moneyCents: 6100, coins: 4890 },
-    { totalHours: 352, gamesPlayed: 27, sessions: 190, seasonHours: 25, seasonCoins: 4890, achievementsUnlocked: 18 },
+    { totalHours: 352, gamesPlayed: 27, sessions: 190, seasonHours: 25, seasonCoins: 4890, seasonWins: 44, achievementsUnlocked: 18 },
     { machineId: 'pc-24', playingGameId: 'valorant' },
   ),
   player(
@@ -582,7 +640,7 @@ const playersList: DemoPlayer[] = [
     18,
     11700,
     { moneyCents: 350, coins: 4210 },
-    { totalHours: 300, gamesPlayed: 24, sessions: 172, seasonHours: 22, seasonCoins: 4210, achievementsUnlocked: 16 },
+    { totalHours: 300, gamesPlayed: 24, sessions: 172, seasonHours: 22, seasonCoins: 4210, seasonWins: 33, achievementsUnlocked: 16 },
   ),
   player(
     'u-frag',
@@ -590,7 +648,7 @@ const playersList: DemoPlayer[] = [
     17,
     10800,
     { moneyCents: 1200, coins: 3980 },
-    { totalHours: 288, gamesPlayed: 22, sessions: 165, seasonHours: 20, seasonCoins: 3980, achievementsUnlocked: 15 },
+    { totalHours: 288, gamesPlayed: 22, sessions: 165, seasonHours: 20, seasonCoins: 3980, seasonWins: 29, achievementsUnlocked: 15 },
     { machineId: 'pc-27', playingGameId: 'apex' },
   ),
   player(
@@ -599,7 +657,7 @@ const playersList: DemoPlayer[] = [
     15,
     9100,
     { moneyCents: 0, coins: 3540 },
-    { totalHours: 254, gamesPlayed: 20, sessions: 148, seasonHours: 18, seasonCoins: 3540, achievementsUnlocked: 13 },
+    { totalHours: 254, gamesPlayed: 20, sessions: 148, seasonHours: 18, seasonCoins: 3540, seasonWins: 22, achievementsUnlocked: 13 },
   ),
   player(
     'u-wolf',
@@ -607,7 +665,7 @@ const playersList: DemoPlayer[] = [
     14,
     8300,
     { moneyCents: 800, coins: 3120 },
-    { totalHours: 231, gamesPlayed: 19, sessions: 137, seasonHours: 16, seasonCoins: 3120, achievementsUnlocked: 12 },
+    { totalHours: 231, gamesPlayed: 19, sessions: 137, seasonHours: 16, seasonCoins: 3120, seasonWins: 26, achievementsUnlocked: 12 },
     { machineId: 'pc-33', playingGameId: 'dota2' },
   ),
   player(
@@ -616,7 +674,7 @@ const playersList: DemoPlayer[] = [
     13,
     7200,
     { moneyCents: 3300, coins: 2870 },
-    { totalHours: 205, gamesPlayed: 18, sessions: 126, seasonHours: 14, seasonCoins: 2870, achievementsUnlocked: 11 },
+    { totalHours: 205, gamesPlayed: 18, sessions: 126, seasonHours: 14, seasonCoins: 2870, seasonWins: 18, achievementsUnlocked: 11 },
     { machineId: 'pc-09', playingGameId: 'lol' },
   ),
   player(
@@ -625,7 +683,7 @@ const playersList: DemoPlayer[] = [
     11,
     5900,
     { moneyCents: 450, coins: 2410 },
-    { totalHours: 176, gamesPlayed: 16, sessions: 108, seasonHours: 12, seasonCoins: 2410, achievementsUnlocked: 9 },
+    { totalHours: 176, gamesPlayed: 16, sessions: 108, seasonHours: 12, seasonCoins: 2410, seasonWins: 11, achievementsUnlocked: 9 },
   ),
 ]
 
@@ -654,6 +712,35 @@ const userPreferences: UserPreferences[] = [
       corner: 'tr',
     },
   },
+  /**
+   * One friend who has switched party invites off (C3.7).
+   *
+   * Without this row every seat in the seed accepts invites, and the branch where
+   * the card must *not* offer a call button — because `inviteToParty` would refuse
+   * it — is unreachable data. `SilentWolf` is the natural candidate: he is seated
+   * in the Arena during the demo, so the state is visible rather than hypothetical.
+   */
+  {
+    userId: 'u-wolf',
+    locale: 'en',
+    density: 'comfortable',
+    reduceMotion: false,
+    sounds: true,
+    privacy: {
+      showOnLeaderboard: true,
+      showRealName: false,
+      allowFriendRequests: true,
+      allowPartyInvites: false,
+    },
+    overlay: {
+      enabled: true,
+      showFps: true,
+      showPing: false,
+      showClock: true,
+      showTimeLeft: true,
+      corner: 'tr',
+    },
+  },
 ]
 
 /* ------------------------------------------------------------------ *
@@ -668,7 +755,17 @@ const sessions: Session[] = [
     userId: CURRENT_USER_ID,
     guestId: null,
     machineId: CURRENT_MACHINE_ID,
-    billingMode: 'postpaid',
+    // A member's visit is **prepaid** (MVP §3.2): the hours are bought at the
+    // counter and burn down, and `lib/seat.ts` opens every account visit that
+    // way. This row used to say `postpaid` while the comment below described a
+    // remainder, and C1.10 is where the contradiction became visible — the PIN
+    // unlock adopts server truth, so the launcher opened a *counting-up* tab for
+    // the same visit whose paused card had just stated "01:24 left".
+    billingMode: 'prepaid',
+    // The remainder is being drawn from the banked pass `pp-1` below, so the HUD
+    // says "TIME LEFT · PASS": nothing more will be charged when it runs out,
+    // there are simply no more minutes (C2.2).
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-96),
     endedAt: null,
@@ -685,6 +782,7 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-01',
     billingMode: 'prepaid',
+    timeSource: 'pass',
     state: 'active',
     startedAt: atMinutes(-210),
     endedAt: null,
@@ -700,6 +798,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-09',
     billingMode: 'postpaid',
+    // A postpaid seat has no granted minutes to have a pocket: the clock runs up
+    // into the open tab, which is what the source has to say out loud.
+    timeSource: 'postpaid',
     state: 'paused',
     startedAt: atMinutes(-60),
     endedAt: null,
@@ -715,6 +816,10 @@ const sessions: Session[] = [
     guestId: 'guest-1',
     machineId: 'pc-20',
     billingMode: 'prepaid',
+    // A walk-in with granted, counting-down time is the one shape that can only
+    // have come from the counter: the admin issued an hour on this seat (MVP S9),
+    // and a guest owns neither a pass nor a wallet to have paid for it.
+    timeSource: 'staff',
     state: 'active',
     startedAt: atMinutes(-35),
     endedAt: null,
@@ -730,6 +835,9 @@ const sessions: Session[] = [
     guestId: null,
     machineId: 'pc-14',
     billingMode: 'prepaid',
+    // Yesterday's five hours were paid straight off the wallet, so the history
+    // row keeps a source the receipt of C2.3 can state.
+    timeSource: 'wallet',
     state: 'ended',
     startedAt: atDays(-1),
     endedAt: atHours(-19),
@@ -740,6 +848,16 @@ const sessions: Session[] = [
     closedBy: 'timeout',
   },
 ]
+
+/**
+ * Pending "move my session to this seat" asks (C1.12).
+ *
+ * Seeded empty, and it has to be: a request is a live negotiation between one
+ * player standing at one keyboard and the admin on shift, so a fixture row would
+ * be a transfer nobody asked for, waiting for an approval that would move a
+ * session out from under whoever is actually sitting there.
+ */
+const transferRequests: TransferRequest[] = []
 
 const CURRENT_TAB_ID: ID = 'tab-demo'
 
@@ -1180,6 +1298,14 @@ const activity: ActivityEvent[] = [
   { id: 'e6', type: 'achievement', label: 'Unlocked "Marathon"', time: '3 days ago' },
 ]
 
+/**
+ * Launch history. Feeds the "Continue" row (C3.2) and the playtime list on the
+ * profile, so the demo member needs more than one visit's worth: three distinct
+ * titles at three different distances (this visit / last night / three days ago)
+ * so every bucket of the "last played" label is reachable on screen, plus a
+ * repeat of one of them to prove the row deduplicates by title instead of
+ * printing the same cover twice.
+ */
 const gameLaunches: GameLaunch[] = [
   {
     id: 'gl-1',
@@ -1196,6 +1322,34 @@ const gameLaunches: GameLaunch[] = [
     sessionId: 'sess-demo-prev',
     startedAt: atDays(-1),
     endedAt: atHours(-20),
+  },
+  // Same title as `gl-2`, one visit earlier: the row must still list Valorant
+  // once, dated by this launch's *newer* sibling above.
+  {
+    id: 'gl-2b',
+    userId: CURRENT_USER_ID,
+    gameId: 'valorant',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-4),
+    endedAt: atDays(-4),
+  },
+  {
+    id: 'gl-2c',
+    userId: CURRENT_USER_ID,
+    gameId: 'bg3',
+    sessionId: 'sess-demo-prev2',
+    startedAt: atDays(-3),
+    endedAt: atDays(-3),
+  },
+  // Fourth title on purpose: the card asks for three, so the seed has to be able
+  // to prove that the fourth is left off rather than that there is no fourth.
+  {
+    id: 'gl-2d',
+    userId: CURRENT_USER_ID,
+    gameId: 'forza',
+    sessionId: 'sess-demo-prev3',
+    startedAt: atDays(-6),
+    endedAt: atDays(-6),
   },
   {
     id: 'gl-3',
@@ -1255,7 +1409,10 @@ const tournaments: Tournament[] = [
       { place: 3, label: '500 coins', coins: 500 },
     ],
     slots: 16,
-    slotsTaken: 13,
+    // 12, not 13: the demo member holds no entry here (see `tournamentEntries`), so
+    // the count must not include one. Four seats left is also what makes the home
+    // card's "Join" reachable rather than a "No slots left" badge (C3.8).
+    slotsTaken: 12,
     status: 'check-in',
   },
   {
@@ -1453,6 +1610,32 @@ const promos: Promo[] = [
       refId: 'pass-night',
     },
   ),
+  // The bar's own campaign (C3.6). `surfaces: ['bar']` and nothing else: the
+  // promo strip higher up the same screen reads `home`, so a row listed on both
+  // would advertise one tray twice — once as a hero banner and once inside the
+  // card that can put it in the basket. No art of its own (`image: ''`): the card
+  // draws the promoted product's photograph, which is the thing being sold.
+  //
+  // The copy names no percentage. Discounts are not modelled in the cart, and
+  // `quoteCart` would price the combo at its catalogue price regardless, so a
+  // banner promising "−15 %" would be contradicted by the drawer one click later.
+  promo(
+    'promo-bar-combo',
+    'sale',
+    {
+      badge: 'Kitchen deal',
+      title: 'Solo Combo — burger, fries and a cola',
+      subtitle: 'One tray, one price, brought to your seat while the kitchen is quiet',
+    },
+    {
+      priority: 95,
+      endsAt: atHours(4),
+      surfaces: ['bar'],
+      image: '',
+      refType: 'product',
+      refId: 'combo-solo',
+    },
+  ),
   promo(
     'promo-fifa-ladder',
     'tournament',
@@ -1497,7 +1680,12 @@ const promos: Promo[] = [
 ]
 
 const tournamentEntries: TournamentEntry[] = [
-  { tournamentId: 't-cs2-weekly', userId: CURRENT_USER_ID, teamId: null, checkedIn: false, seed: 9 },
+  // The member is deliberately **not** entered in `t-cs2-weekly`, the bracket the
+  // home card is about (C3.8): that card exists for its "Join" button, and a seeded
+  // entry would have made the one action the task asks for unreachable in the demo.
+  // Joining lands straight in the check-in window (the bracket is already in it), so
+  // the full chain register → check in → checked in is one click apiece from the seed
+  // as shipped. `slotsTaken` on the tournament is 12 to match.
   { tournamentId: 't-cs2-weekly', userId: 'u-pro', teamId: null, checkedIn: true, seed: 1 },
   { tournamentId: 't-cs2-weekly', userId: 'u-noscope', teamId: null, checkedIn: true, seed: 4 },
   { tournamentId: 't-dota-swiss', userId: 'u-wolf', teamId: null, checkedIn: true, seed: 6 },
@@ -1541,6 +1729,26 @@ const bookings: Booking[] = [
     status: 'confirmed',
     prepaidCents: 1000,
     createdAt: atDays(-1),
+  },
+  /**
+   * Somebody else's reservation on **this** seat, three hours out (C1.6).
+   *
+   * Here so the station panel's third state is real data rather than a demo
+   * flag: `pc-17` is free at `db.now`, and a seat that is free now and taken
+   * later is the case a plain `machines.status` cannot express. Without a row
+   * like this the "booked from HH:MM" branch would only ever be reachable by
+   * editing the fixture.
+   */
+  {
+    id: 'bk-4',
+    userId: 'u-noscope',
+    machineId: CURRENT_MACHINE_ID,
+    zoneId: 'zone-main',
+    startsAt: atHours(3),
+    endsAt: atHours(5),
+    status: 'confirmed',
+    prepaidCents: 900,
+    createdAt: atHours(-3),
   },
 ]
 
@@ -1607,6 +1815,13 @@ const helpThreads: HelpThread[] = [
   },
 ]
 
+/**
+ * The inbox spans three days on purpose (C2.5): grouping by day is only visible
+ * when there is more than one day, and the two actionable cards — the party
+ * invite still asking and the delivered order still unrated — are what the panel
+ * has to render buttons for. `n-8` is the same invite already answered, so the
+ * answered shape is on screen beside the unanswered one.
+ */
 const notifications: Notification[] = [
   {
     id: 'n-1',
@@ -1617,6 +1832,18 @@ const notifications: Notification[] = [
     body: 'About 1 hour 24 minutes left in your session.',
     createdAt: atMinutes(-2),
     readAt: null,
+    action: null,
+  },
+  {
+    id: 'n-6',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'ClutchQueen invited you to “Friday Five Stack”.',
+    createdAt: atMinutes(-4),
+    readAt: null,
+    action: { kind: 'party-invite', refId: 'party-1', outcome: null, rating: null },
   },
   {
     id: 'n-2',
@@ -1627,6 +1854,7 @@ const notifications: Notification[] = [
     body: 'French Fries — ready in about 6 minutes.',
     createdAt: atMinutes(-7),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-3',
@@ -1637,6 +1865,7 @@ const notifications: Notification[] = [
     body: 'CS2 Weekly Cup starts in 45 minutes. Confirm your spot.',
     createdAt: atMinutes(-10),
     readAt: null,
+    action: null,
   },
   {
     id: 'n-4',
@@ -1647,6 +1876,18 @@ const notifications: Notification[] = [
     body: 'All coffee is 50% off until 21:00.',
     createdAt: atMinutes(-55),
     readAt: atMinutes(-50),
+    action: null,
+  },
+  {
+    id: 'n-7',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Energy Drink, Chicken Wrap — how was it?',
+    createdAt: atHours(-2),
+    readAt: null,
+    action: { kind: 'rate-order', refId: 'ord-3', outcome: null, rating: null },
   },
   {
     id: 'n-5',
@@ -1657,6 +1898,29 @@ const notifications: Notification[] = [
     body: 'Main Hall seats will restart at 04:00 for updates.',
     createdAt: atHours(-3),
     readAt: atHours(-3),
+    action: null,
+  },
+  {
+    id: 'n-8',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'info',
+    title: 'Party invite',
+    body: 'FragMachine invited you to “Ranked Grind”.',
+    createdAt: atDays(-1),
+    readAt: atDays(-1),
+    action: { kind: 'party-invite', refId: 'party-1', outcome: 'declined', rating: null },
+  },
+  {
+    id: 'n-9',
+    target: 'user',
+    targetId: CURRENT_USER_ID,
+    level: 'success',
+    title: 'Order delivered',
+    body: 'Cheeseburger — thanks for the 5 stars.',
+    createdAt: atDays(-2),
+    readAt: atDays(-2),
+    action: { kind: 'rate-order', refId: 'ord-1', outcome: 'rated', rating: 5 },
   },
 ]
 
@@ -1982,7 +2246,7 @@ export const db = {
   machines,
   currentMachineId: CURRENT_MACHINE_ID,
   games,
-  featuredGameIds: FEATURED_GAME_IDS,
+  gameReleases: GAME_RELEASES,
   houseAccounts,
   gameLaunches,
   products,
@@ -1993,6 +2257,7 @@ export const db = {
   userPreferences,
   sessions,
   currentSessionId: CURRENT_SESSION_ID,
+  transferRequests,
   tabs,
   machineSettings,
   orders,
@@ -2072,17 +2337,52 @@ export function getZoneOccupancy() {
   })
 }
 
-/** Season leaderboard, ranked by hours played, with the viewer flagged. */
-export function getLeaderboard(viewerId: ID = db.currentUserId) {
-  return [...db.players.values()]
-    .sort((a, b) => b.stats.seasonHours - a.stats.seasonHours)
-    .map((p, index) => ({
-      rank: index + 1,
-      nickname: p.user.nickname,
-      hours: p.stats.seasonHours,
-      coins: p.stats.seasonCoins,
-      isCurrentUser: p.user.id === viewerId,
-    }))
+/**
+ * Every member's board row, **unranked and unsorted** (C3.10).
+ *
+ * Rank is deliberately not assigned here: the board is ranked by whichever of
+ * three columns the reader picked, and privacy hides rows *before* the numbering
+ * is handed out — a row stamped with a rank in this function would be a second
+ * opinion about position that the endpoint then has to overwrite. `userId` rides
+ * along so `fetchLeaderboard` can check the privacy flag by identity instead of
+ * matching nicknames, and is stripped before the payload leaves the API.
+ *
+ * `viewerId` has three states, and `null` is not the same as omitting it:
+ * omitted means "the signed-in member", `null` means **nobody** — an unattended
+ * kiosk, where no row may be flagged. Collapsing the two (`viewerId ?? undefined`
+ * at the call site) is what would put a "You" chip on the previous member's row
+ * in front of the walk-in standing at their seat.
+ */
+export function getLeaderboard(viewerId: ID | null = db.currentUserId) {
+  return [...db.players.values()].map((p) => ({
+    userId: p.user.id,
+    nickname: p.user.nickname,
+    level: p.user.level,
+    hours: p.stats.seasonHours,
+    coins: p.stats.seasonCoins,
+    wins: p.stats.seasonWins,
+    isCurrentUser: p.user.id === viewerId,
+  }))
+}
+
+/**
+ * Permissive defaults for a member with no preferences row.
+ *
+ * One definition, because privacy is checked in two places that must never
+ * disagree: the endpoints that refuse a request (`sendFriendRequest`,
+ * `inviteToParty`) and the summaries that decide whether to offer the button at
+ * all (C3.7). A card that guessed "probably allowed" would render an invite that
+ * the API is about to reject.
+ */
+export const DEFAULT_PRIVACY: PrivacySettings = {
+  showOnLeaderboard: true,
+  showRealName: false,
+  allowFriendRequests: true,
+  allowPartyInvites: true,
+}
+
+export function getPrivacy(userId: ID): PrivacySettings {
+  return db.userPreferences.find((p) => p.userId === userId)?.privacy ?? DEFAULT_PRIVACY
 }
 
 /** Accepted friends of one member, resolved to the summary the social list needs. */
@@ -2102,6 +2402,13 @@ export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
         online: friend.online,
         machineLabel: friend.machineId ? (getMachine(friend.machineId)?.label ?? null) : null,
         playingGameId: friend.playingGameId,
+        // Resolved here, not by the caller: a friend can be in a title this
+        // station has not installed, and a client-side lookup in the local
+        // library would then print nothing at all.
+        playingGameName: friend.playingGameId
+          ? (getGame(friend.playingGameId)?.name ?? null)
+          : null,
+        acceptsPartyInvites: getPrivacy(friend.user.id).allowPartyInvites,
       },
     ]
   })
@@ -2109,6 +2416,23 @@ export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
 
 export function getSession(sessionId: ID): Session | undefined {
   return db.sessions.find((s) => s.id === sessionId)
+}
+
+/**
+ * The visit currently holding a seat — active **or paused** — or `undefined`.
+ *
+ * Four endpoints ask this exact question (the holder read of C1.7, the seat
+ * claim in `openSession`, the paused-visit read and the PIN unlock of C1.10),
+ * and the two halves of the answer are easy to get subtly different: a paused
+ * row still holds the chair, and a seat that somehow carries two live rows must
+ * report the newest rather than whichever one the array happens to hold first.
+ * Written once here, so no endpoint can drift into its own definition of
+ * "occupied".
+ */
+export function getLiveSession(machineId: ID = db.currentMachineId): Session | undefined {
+  return db.sessions
+    .filter((s) => s.machineId === machineId && s.state !== 'ended')
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0]
 }
 
 export function getOpenTab(sessionId: ID): Tab | undefined {
@@ -2155,6 +2479,23 @@ export function getActivePromos(
       return true
     })
     .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+}
+
+/**
+ * The novelty shelf, newest first, resolved against the catalogue (C3.9).
+ *
+ * A shelf row naming a title the library no longer stocks is dropped rather than
+ * returned with a `null` game: "new at the club" is an invitation to press Play,
+ * and a slide that cannot launch anything is not one. Ordering is the club's
+ * `addedAt`, so an entry backdated in admin lands where the staff put it instead
+ * of jumping to the front on save.
+ */
+export function getNewReleases(limit?: number): { game: Game; release: GameRelease }[] {
+  const rows = db.gameReleases
+    .map((release) => ({ game: db.games.find((g) => g.id === release.gameId), release }))
+    .filter((row): row is { game: Game; release: GameRelease } => row.game !== undefined)
+    .sort((a, b) => Date.parse(b.release.addedAt) - Date.parse(a.release.addedAt))
+  return limit === undefined ? rows : rows.slice(0, limit)
 }
 
 export function getActiveSeason(): Season {

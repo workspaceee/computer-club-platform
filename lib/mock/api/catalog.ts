@@ -4,11 +4,27 @@
 // the club's own settings. Filtering and sorting live here on purpose — the real
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
-import { mutate, newId, query, required } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer } from '@/lib/mock/db'
+import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
+import {
+  db,
+  getLiveSession,
+  getMachine,
+  getPlayer,
+  getZone,
+  getZoneOccupancy,
+} from '@/lib/mock/db'
+import type { BookingStatus } from '@/lib/types/booking'
 import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
-import type { ID } from '@/lib/types/common'
-import type { Machine, Zone } from '@/lib/types/machine'
+import type { ID, ISODateTime } from '@/lib/types/common'
+import type {
+  Machine,
+  MachineSpecs,
+  MachineStatus,
+  Zone,
+  ZoneClass,
+  ZoneOccupancy,
+} from '@/lib/types/machine'
+import type { SessionState } from '@/lib/types/session'
 import type { Club, ClubSettings } from '@/lib/types/settings'
 
 export type GameSort = 'popular' | 'rating' | 'name' | 'recent'
@@ -77,17 +93,10 @@ export function fetchGame(gameId: ID): Promise<Game> {
   return query('catalog.fetchGame', () => required(db.games.find((g) => g.id === gameId)))
 }
 
-/**
- * `GET /api/games/featured` — the curated hero row. Resolved from ids in curator
- * order, and silently skips an id whose title left the catalogue.
- */
-export function fetchFeaturedGames(): Promise<Game[]> {
-  return query('catalog.fetchFeaturedGames', () =>
-    db.featuredGameIds
-      .map((id) => db.games.find((g) => g.id === id))
-      .filter((game): game is Game => game !== undefined),
-  )
-}
+// `GET /api/games/featured` used to live here — the five covers of the old hero
+// row. C3.9 replaced that rail with the club's own deck (`GET /api/hero`), which
+// composes campaigns, brackets and the novelty shelf; nothing reads a curated
+// game list any more, and the shelf it *would* have duplicated is `gameReleases`.
 
 /** `GET /api/games/categories` — with counts, for the filter chips. */
 export function fetchGameCategories(): Promise<{ category: GameCategory; count: number }[]> {
@@ -102,11 +111,41 @@ export function fetchGameCategories(): Promise<{ category: GameCategory; count: 
   })
 }
 
-/** `GET /api/games/recent` — the member's continue-playing row. */
-export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Promise<Game[]> {
+/**
+ * One row of the "Continue" card (C3.2): a title the member has played, and when
+ * they last started it.
+ *
+ * The timestamp travels *with* the game rather than the row being a bare `Game`,
+ * because "last played" is the only thing that makes the card more than three
+ * more covers — it is what tells the player which of these three is the match
+ * they just stepped away from. Deriving it on the client would mean pulling the
+ * whole launch history onto the home surface and reducing it there, which is the
+ * same mistake `sortGames` exists to prevent one function above.
+ *
+ * A `Minutes` total is deliberately *not* here: the card has room for one fact,
+ * and the profile screen is where playtime per title belongs.
+ */
+export interface RecentGame {
+  game: Game
+  /** Start of the most recent launch of this title. */
+  lastPlayedAt: ISODateTime
+}
+
+/**
+ * `GET /api/games/recent` — the member's continue-playing row.
+ *
+ * Deduplicated by title, newest first: a player who restarted CS2 four times
+ * tonight has played *one* game, and a row that repeated it four times would
+ * bury the other two. `limit` is the caller's — the home card asks for three,
+ * and nothing about that number lives in this function.
+ */
+export function fetchRecentGames(
+  userId: ID = db.currentUserId,
+  limit = 6,
+): Promise<RecentGame[]> {
   return query('catalog.fetchRecentGames', () => {
     const seen = new Set<ID>()
-    const ordered: Game[] = []
+    const ordered: RecentGame[] = []
     const launches = db.gameLaunches
       .filter((l) => l.userId === userId)
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
@@ -116,7 +155,9 @@ export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Prom
       const game = db.games.find((g) => g.id === launch.gameId)
       if (!game) continue
       seen.add(launch.gameId)
-      ordered.push(game)
+      // Newest-first order means the first row seen for a title *is* its latest
+      // launch, so no per-title max has to be computed.
+      ordered.push({ game, lastPlayedAt: launch.startedAt })
       if (ordered.length === limit) break
     }
     return ordered
@@ -202,6 +243,144 @@ export function fetchMachine(machineId: ID = db.currentMachineId): Promise<Machi
   return query('catalog.fetchMachine', () => required(getMachine(machineId)))
 }
 
+/**
+ * The seat this launcher runs on, resolved into one answer (C1.6).
+ *
+ * The station panel needs the machine, its zone *and* whatever is booked on it
+ * next. Three separate reads would make the lock screen join them itself and
+ * paint a seat as free while its own booking row was still in flight, so the
+ * join happens here — the real `GET /api/club/station` answers the same shape.
+ *
+ * Hardware facts (`specs`) travel with it because the HUD strip states the panel
+ * and the GPU next to the status: those are club data, not agent telemetry, and
+ * a seat with a dead agent must still be able to say what it is (F5.4).
+ */
+export interface StationInfo {
+  machineId: ID
+  /** Display name of the seat, e.g. `PC #17`. Never built from the id in the UI. */
+  label: string
+  zoneId: ID
+  zoneName: string
+  zoneClass: ZoneClass
+  status: MachineStatus
+  /**
+   * Start of the next live reservation on this seat, `null` when the horizon
+   * below is empty. Drives the third status the panel can show — "booked from
+   * HH:MM" — which no other field can express: a seat that is free *right now*
+   * and taken in twenty minutes is neither `free` nor `reserved`.
+   */
+  nextBookingAt: ISODateTime | null
+  specs: MachineSpecs
+  /** `null` when the Windows agent has never checked in (F5.4). */
+  agentLastSeen: ISODateTime | null
+}
+
+/**
+ * How far ahead a reservation is worth naming on the lock screen. Beyond half a
+ * day "booked from 09:00" is not information a walk-in can act on, and it would
+ * make every seat in the club look taken.
+ */
+const STATION_BOOKING_HORIZON_MS = 12 * 60 * 60 * 1000
+
+/** Reservations that still hold the seat. Cancelled and no-show ones do not. */
+const HOLDING_BOOKING_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'checked-in']
+
+/** `GET /api/club/station` — seat + zone + next reservation, for the lock screen. */
+export function fetchStation(machineId: ID = db.currentMachineId): Promise<StationInfo> {
+  return query('catalog.fetchStation', () => {
+    const machine = required(getMachine(machineId))
+    const zone = required(getZone(machine.zoneId))
+    const now = Date.parse(serverTime())
+
+    const next = db.bookings
+      .filter(
+        (booking) =>
+          booking.machineId === machine.id &&
+          HOLDING_BOOKING_STATUSES.includes(booking.status) &&
+          // Still running counts: a booking whose window has started but whose
+          // check-in never happened is exactly what holds this seat now.
+          Date.parse(booking.endsAt) > now &&
+          Date.parse(booking.startsAt) - now < STATION_BOOKING_HORIZON_MS,
+      )
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0]
+
+    return {
+      machineId: machine.id,
+      label: machine.label,
+      zoneId: zone.id,
+      zoneName: zone.name,
+      zoneClass: zone.class,
+      status: machine.status,
+      nextBookingAt: next?.startsAt ?? null,
+      specs: machine.specs,
+      agentLastSeen: machine.agentLastSeen,
+    }
+  })
+}
+
+/**
+ * Who is sitting here right now (C1.7).
+ *
+ * `StationInfo.status` answers "can this seat be taken", which is the question
+ * the lock screen's strip asks. It cannot answer the one the *sign-in* asks —
+ * "is the person who just authenticated the person this seat already belongs
+ * to" — because `occupied` is an aggregate for the floor map and names nobody.
+ * Only the session row knows, so this is a separate read against the sessions,
+ * not another field on the seat.
+ *
+ * `holder` is a display name and the only human-readable field: a nickname for a
+ * member, the walk-in's own label for a guest. It travels as *data* because it is
+ * data — an admin-authored account name, not copy to translate (F2.2).
+ */
+export interface StationHolder {
+  sessionId: ID
+  machineId: ID
+  /** Nickname of the member, or the walk-in's label. Never an id. */
+  holder: string
+  /** `null` for a walk-in — there is no account to compare an arrival against. */
+  userId: ID | null
+  /** `null` for a member. Exactly one of the two is set, like `Session`. */
+  guestId: ID | null
+  /**
+   * `ended` never reaches the client: a closed session holds nothing, and a
+   * screen that had to filter it out would be one `if` away from locking a
+   * player out of a seat nobody is on.
+   */
+  state: Exclude<SessionState, 'ended'>
+  startedAt: ISODateTime
+}
+
+/**
+ * `GET /api/club/station/holder` — the live session on this seat, or `null`.
+ *
+ * A paused session counts, and that is the whole point: "Lock PC" keeps the
+ * seat, so a paused visit is exactly the case where the machine looks free and
+ * is not. Its own player walks back in by PIN (`fetchPausedVisit` /
+ * `unlockWithPin`, C1.10); for everybody else this endpoint is what stops a
+ * second visit from being opened on top of the first.
+ */
+export function fetchStationHolder(
+  machineId: ID = db.currentMachineId,
+): Promise<StationHolder | null> {
+  return query('catalog.fetchStationHolder', () => {
+    const live = getLiveSession(machineId)
+    if (!live) return null
+
+    const member = live.userId ? getPlayer(live.userId) : undefined
+    return {
+      sessionId: live.id,
+      machineId,
+      // Same label shape `continueAsGuest` hands out, so the screen does not
+      // have to tell a member and a walk-in apart just to print a name.
+      holder: member?.user.nickname ?? `Guest ${(live.guestId ?? live.id).slice(-4).toUpperCase()}`,
+      userId: live.userId,
+      guestId: live.guestId,
+      state: live.state as Exclude<SessionState, 'ended'>,
+      startedAt: live.startedAt,
+    }
+  })
+}
+
 export interface OccupancySummary {
   total: number
   free: number
@@ -227,4 +406,18 @@ export function fetchOccupancy(zoneId?: ID): Promise<OccupancySummary> {
       loadPct: seats.length === 0 ? 0 : Math.round((occupied / seats.length) * 100),
     }
   })
+}
+
+/**
+ * `GET /api/club/occupancy/zones` — free seats **per zone** (C1.8).
+ *
+ * `fetchOccupancy` answers "how full is the club"; the idle screen has to answer
+ * "where can I sit", and those are different questions: a walk-in reading `12
+ * free` from the door still has to be told that eleven of them are in the Main
+ * Hall and the last one is a €5/h console seat. Counted here rather than by the
+ * screen for the usual reason — a client that counts seats itself is a client
+ * that will disagree with the counter's screen.
+ */
+export function fetchZoneOccupancy(): Promise<ZoneOccupancy[]> {
+  return query('catalog.fetchZoneOccupancy', () => getZoneOccupancy())
 }

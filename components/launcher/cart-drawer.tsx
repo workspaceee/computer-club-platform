@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { CheckoutModal } from '@/components/launcher/checkout-modal'
 import { ProductImage } from '@/components/product-image'
 import { Drawer } from '@/components/ui/drawer'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import { formatEur, mulCents } from '@/lib/money'
 import { cartTotalCents, useStore } from '@/lib/store'
@@ -40,6 +41,25 @@ export function CartDrawer() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const totalCents = cartTotalCents(cart)
 
+  /**
+   * The last door money can leave through (C2.11 / C2.12).
+   *
+   * A cart filled at 23:58 — or filled while the link was still up — is the one
+   * way a purchase could land after sales stopped: the grid's "Add" buttons go off
+   * with the club, but items already in here kept their way to checkout. Both
+   * refusals now arrive as one `canSpend`, so the drawer cannot honour the closing
+   * hour and miss the outage.
+   *
+   * Blocked at the button rather than by emptying the cart. The club will be open
+   * again tomorrow, the link will be back in seconds, and in both cases the
+   * player's picks are worth keeping — clearing them would turn a pause into lost
+   * work. Quantities, removal and the total all stay live for the same reason.
+   *
+   * The line under the button says *which* pause it is, because a disabled primary
+   * action with no explanation reads as a bug.
+   */
+  const sales = useSalesGate()
+
   return (
     <>
       <Drawer
@@ -56,12 +76,24 @@ export function CartDrawer() {
               </span>
             </div>
             <button
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || !sales.canSpend}
               onClick={() => setCheckoutOpen(true)}
               className="w-full rounded-lg bg-primary py-3 font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('shop.checkout')}
             </button>
+            {/* One line, whichever pause is in force — `reason` is exclusive, so
+                the footer never prints two explanations for one dead button. */}
+            {sales.reason === 'closed' && (
+              <p className="text-pretty text-center text-xs leading-relaxed text-text-low">
+                {t('shop.closedCheckoutHint')}
+              </p>
+            )}
+            {sales.reason === 'offline' && (
+              <p className="text-pretty text-center text-xs leading-relaxed text-text-low">
+                {t('realtime.salesHint')}
+              </p>
+            )}
           </div>
         }
       >

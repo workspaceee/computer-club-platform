@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { BusConsole } from '@/components/dev-kit/bus-console'
 import { Toaster } from '@/components/toaster'
@@ -30,6 +31,17 @@ export default function DevBusPage() {
               'Every event from MVP §7, published exactly the way the server will publish it. Each button writes the mock db first and pushes the frame second, so the client can never render something the next GET contradicts.'
             }
           </p>
+          {/* `Link`, and it has to be one: the mock db lives in this tab's module
+              instance and is not rehydrated on boot, so a typed URL or a reload
+              throws away everything the buttons above wrote. A client-side
+              navigation keeps it — which is what makes "seed a state here, then
+              walk into it on the lock screen" possible at all. */}
+          <Link
+            href="/"
+            className="label-mono w-fit text-[10px] text-primary underline-offset-4 hover:underline"
+          >
+            {'Open the launcher →'}
+          </Link>
         </header>
 
         <BusConsole />

@@ -24,6 +24,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
+// One rule for "which reads does this make stale", shared with the mutation path
+// (`useInvalidate`).
+import { keyMatches } from '@/hooks/use-api'
 import {
   EVENT_INVALIDATES,
   OFFLINE_BANNER_DELAY_MS,
@@ -34,6 +37,7 @@ import {
   type RealtimeStatus,
 } from '@/lib/realtime/events'
 import { mockBus, type RealtimeIdentity } from '@/lib/realtime/mock-bus'
+import { DEV_SHORTCUTS, LINK_BLIP_MS, readLinkOverride } from '@/lib/dev-flags'
 import { db } from '@/lib/mock/db'
 
 /** The transport in use. Stage 4 points this at the SSE channel. */
@@ -149,6 +153,29 @@ export function useRealtimeChannel(): RealtimeChannelState {
     }
   }, [])
 
+  /**
+   * `?link=cut` / `?link=blip` — boot into an outage (`lib/dev-flags.ts`).
+   *
+   * Declared **above** the connect effect so it runs first: the link is already
+   * down when `open()` is called, so the very first handshake fails and the page
+   * comes up the way it would with the cable out, rather than connecting and
+   * losing it a frame later. `blip` puts it back after `LINK_BLIP_MS` and lets the
+   * existing backoff notice — no second reconnect path, so what a reviewer watches
+   * is the product's own recovery.
+   *
+   * Dropped from a production build with `DEV_SHORTCUTS`; the whole hook body below
+   * is untouched by it.
+   */
+  useEffect(() => {
+    if (!DEV_SHORTCUTS) return
+    const override = readLinkOverride()
+    if (!override) return
+    bus.setLinkUp(false)
+    if (override !== 'blip') return
+    const timer = setTimeout(() => bus.setLinkUp(true), LINK_BLIP_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
   useEffect(() => {
     alive.current = true
     void open()
@@ -253,19 +280,11 @@ export function useRealtimeAny(
  * Cache invalidation
  * ------------------------------------------------------------------ */
 
-/** Does an SWR key start with this prefix? Handles both string and array keys. */
-function keyMatches(key: unknown, prefixes: readonly string[]): boolean {
-  const head =
-    typeof key === 'string' ? key : Array.isArray(key) && typeof key[0] === 'string' ? key[0] : null
-  if (head === null) return false
-  return prefixes.some((prefix) => head === prefix || head.startsWith(`${prefix}/`))
-}
-
 /**
  * Revalidates the SWR keys an event made stale (`EVENT_INVALIDATES`).
  *
  * Mount once alongside `useRealtimeChannel()`. This is what makes "admin changed
- * the catalogue → the player sees the new prices without a restart" true for
+ * the catalogue — the player sees the new prices without a restart" true for
  * every screen at the same time, instead of one handler per query.
  */
 export function useRealtimeRevalidation(): void {

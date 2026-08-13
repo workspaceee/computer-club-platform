@@ -446,7 +446,7 @@ export const EVENT_LEVEL: Record<RealtimeEventName, NotificationLevel> = {
  * `useRealtimeRevalidation()` reads this, so a screen gets fresh data from one
  * push without every component subscribing by hand. Prefixes are matched against
  * the first segment of the SWR key, which is either the string key itself
- * (`'games/featured'`) or the head of an array key (`['shop', tab]`).
+ * (`'tournaments'`) or the head of an array key (`['shop', tab]`).
  */
 export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'time.added': ['session', 'wallet', 'shop'],
@@ -454,19 +454,38 @@ export const EVENT_INVALIDATES: Record<RealtimeEventName, readonly string[]> = {
   'session.paused': ['session'],
   'session.resumed': ['session'],
   'session.ended': ['session', 'shop', 'wallet'],
-  'session.moved': ['session', 'catalog'],
+  // Also `social`: since C3.7 a card on the home screen names the PC each friend
+  // is sitting at, and a seat move is precisely the event that makes that label
+  // wrong. It travels scoped to the mover, so the only client this reaches is the
+  // one whose own row changed — the rest are covered by that card's poll.
+  'session.moved': ['session', 'catalog', 'social'],
   'order.status': ['shop', 'orders'],
   'tab.updated': ['shop', 'orders', 'wallet'],
   'pass.granted': ['session', 'shop', 'wallet'],
-  'wallet.updated': ['wallet', 'shop', 'profile'],
+  // Also `tournaments`: since C3.8 the home card's "Join" button is enabled by
+  // whether the wallet covers the entry fee, and the server puts that answer in
+  // the board (`affordable`) rather than making the card do wallet arithmetic. A
+  // balance change is therefore exactly the event that makes the button wrong —
+  // in either direction.
+  'wallet.updated': ['wallet', 'shop', 'profile', 'tournaments'],
   'message.received': ['support', 'help'],
   broadcast: ['support'],
   'quest.completed': ['loyalty', 'wallet'],
   'battlepass.tier': ['loyalty'],
-  'tournament.call': ['tournaments'],
+  // Also `hero`: the carousel's deck (C3.9) is composed *against* the bracket the
+  // home card is about — that one is dropped, along with any campaign advertising
+  // it, so one tournament occupies one place on the screen. A call moves that
+  // bracket's status, which moves the card's pick, which makes the exclusion the
+  // server computed the wrong one: without this the hero either keeps advertising
+  // a bracket that has already been called, or keeps hiding the one it should now
+  // be leading with.
+  'tournament.call': ['tournaments', 'hero'],
   'booking.reminder': ['booking'],
   'friend.request': ['social'],
-  'party.invite': ['social'],
+  // Also `support`: since C2.5 an invite is answerable *inside* the inbox, so a
+  // push that refreshed only the social screen would leave the card that asks
+  // the question — and the badge counting it — a revalidation behind.
+  'party.invite': ['social', 'support'],
   // Nothing to refresh: the station has no data for this player yet, and the
   // sign-in that follows the ticket exchange loads the first screen anyway.
   'login.qr.confirmed': [],
