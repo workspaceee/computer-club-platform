@@ -113,7 +113,12 @@ export function BarCard({
   }
 
   return (
-    <section aria-labelledby="bar-heading">
+    // First anchor of the tour's bar step (C3.12). The step lights this card
+    // together with the basket in the top bar, because "order at the bar" is one
+    // answer in two places: the board is where a drink is chosen, and the basket
+    // is where it is paid for — a spotlight on either half alone would leave the
+    // player holding a cola with nowhere to take it.
+    <section data-tour="bar" aria-labelledby="bar-heading">
       <SectionHeader
         index={index}
         title={t('home.barTitle')}

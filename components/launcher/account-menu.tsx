@@ -193,6 +193,27 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
                   setOpen(false)
                 }}
               />
+              {/* The first-run walk, on demand (C3.12).
+                  Its home is "Help → How this works", and the Help *section* is
+                  C11 — a `PendingView` today. So the door lives beside Settings
+                  for now, which is the right neighbour anyway: both are things
+                  the player asks the shell for rather than sections of the club.
+                  Members only, because the walk's dismissal is written to an
+                  account and a guest has none — the same asymmetry that keeps the
+                  wallet off this surface.
+                  DEBT for C11: move this item into the Help section's list and
+                  keep the menu entry only if the section is more than one press
+                  away. */}
+              {user && (
+                <MenuItem
+                  icon={<icons.support size={16} />}
+                  label={t('help.tourTitle')}
+                  onClick={() => {
+                    setTourOpen(true)
+                    setOpen(false)
+                  }}
+                />
+              )}
               <MenuItem
                 icon={<icons.lock size={16} />}
                 label={t('session.lockStation')}

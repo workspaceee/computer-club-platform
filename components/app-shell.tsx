@@ -34,6 +34,7 @@ import { InGameStrip } from '@/components/launcher/in-game-strip'
 import { MobileNav } from '@/components/launcher/mobile-nav'
 import { TopBar } from '@/components/launcher/top-bar'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
+import { FirstRunTour } from '@/components/launcher/first-run-tour'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
@@ -216,6 +217,12 @@ export function GlobalOverlays() {
           frame can land while the player is anywhere in the launcher, and a
           watcher mounted per screen would miss it on every section change. */}
       <SessionMovedOverlay />
+      {/* The first-run walk (C3.12). Global for a reason the others share and one
+          of its own: it dims the *chrome* — the session plate, the navigation rail,
+          the basket — so a tour mounted inside a section could not point at four
+          of its five steps. It renders nothing until the account says it has never
+          been offered, and nothing at all for a guest. */}
+      <FirstRunTour />
       <Toaster />
     </>
   )
