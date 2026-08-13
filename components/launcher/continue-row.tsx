@@ -88,7 +88,7 @@ function lastPlayed(iso: string): { key: TKey; count: number } {
  * the history on an account, and a guest has none, so a card on the guest surface
  * would be showing a walk-in the previous member's games.
  */
-export function ContinueRow() {
+export function ContinueRow({ index }: { index: string }) {
   const { t, tp } = useT();
   const user = useStore((s) => s.user);
   const setView = useStore((s) => s.setView);
@@ -109,12 +109,12 @@ export function ContinueRow() {
 
   return (
     <section aria-labelledby="continue-heading">
-      {/* `03`, matching the surface's existing run: the hero and the stat tiles
-          above it carry no heading at all, but the ladder and the leaderboard
-          below are already numbered 04 and 05, so this is the section that
-          precedes them. */}
+      {/* The number itself is not this component's to pick (C3.11): `home-view.tsx`
+          walks the sections that actually render on this surface and hands each
+          one its place in that run, so a card hidden for a walk-in cannot leave a
+          gap in front of the next one. */}
       <SectionHeader
-        index="03"
+        index={index}
         title={t("home.continueTitle")}
         headingId="continue-heading"
       />

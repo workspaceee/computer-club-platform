@@ -34,6 +34,54 @@ const PRIZE_ICONS: Record<string, LucideIcon> = {
 }
 
 /**
+ * The numbered run of this screen's cards, in render order (C3.11).
+ *
+ * Every card used to carry its own two-digit literal ("05" on the Battle Pass
+ * card, "07" on "the club now"…), each justified by a comment about which
+ * numbers its neighbours had already taken. That put the numbering in nine
+ * places at once — a card gated on the guest surface still counted itself
+ * out loud on the surface where it never renders, and the numbers downstream
+ * of it inherited the gap. This is the one place that decides the run: it
+ * mirrors exactly the gates the cards already apply on their own (`if
+ * (!user) return null`, the loyalty economy hidden from a walk-in), so a
+ * card that stops rendering here simply stops being counted, and the next
+ * one slides up to take its place instead of leaving a hole.
+ *
+ * The greeting and "Continue"'s sibling — the hero, the stat row, the promo
+ * strip — carry no heading at all (C3.1, C3.9) and are not part of this run
+ * for that reason; the sequence starts at 02, the visit card, on purpose.
+ */
+function useSectionIndices(isGuest: boolean) {
+  const visible = {
+    session: true,
+    continue: !isGuest,
+    quests: !isGuest,
+    battlePass: !isGuest,
+    bar: true,
+    clubNow: !isGuest,
+    tournament: !isGuest,
+    prizeLadder: !isGuest,
+    leaderboard: true,
+  } as const
+
+  let next = 2
+  const index = (key: keyof typeof visible) =>
+    visible[key] ? String(next++).padStart(2, '0') : ''
+
+  return {
+    session: index('session'),
+    continue: index('continue'),
+    quests: index('quests'),
+    battlePass: index('battlePass'),
+    bar: index('bar'),
+    clubNow: index('clubNow'),
+    tournament: index('tournament'),
+    prizeLadder: index('prizeLadder'),
+    leaderboard: index('leaderboard'),
+  }
+}
+
+/**
  * Home (F6.2).
  *
  * The loyalty economy — coins, the prize ladder and the double-coins promo — is
@@ -43,6 +91,7 @@ const PRIZE_ICONS: Record<string, LucideIcon> = {
  */
 export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }) {
   const isGuest = surface === 'guest'
+  const sectionIndex = useSectionIndices(isGuest)
 
   return (
     <div className="flex flex-col gap-10">
@@ -57,12 +106,12 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           inside: how much of the evening is left, how much is already gone, and
           the button that buys more. It took the "Time balance" tile's reading with
           it — see `QuickStats` below. */}
-      <SessionCard />
+      <SessionCard index={sectionIndex.session} />
       {/* Above the hero, and that is the whole point (C3.2): a player who left a
           match five minutes ago should meet the way back into it before they meet
           the club's curated recommendations. It renders nothing on the guest
           surface — the history is keyed to an account, and a walk-in has none. */}
-      <ContinueRow />
+      <ContinueRow index={sectionIndex.continue} />
       {/* The club's own highlights, not a second games shelf (C3.9): campaigns,
           the brackets the card below is *not* about, and the novelty shelf — one
           server-composed deck (`GET /api/hero`), so the hero cannot advertise the
@@ -81,39 +130,39 @@ export function HomeView({ surface = 'launcher' }: { surface?: LauncherSurface }
           today, then what the coins it pays buys. The card renders nothing for a
           walk-in on its own — quest progress is keyed to an account — so the gate
           here is the store's, not this surface's. */}
-      <QuestsCard />
+      <QuestsCard index={sectionIndex.quests} />
       {/* The season, under the dailies (C3.5). Same order-of-effort argument the
           quests card makes about the ladder below it: the club's daily ask, then
           where the XP those quests pay actually goes. It gates itself on the store
           for the same reason — season standing is keyed to an account, so a walk-in
           would be shown the previous member's tier. */}
-      <BattlePassCard />
+      <BattlePassCard index={sectionIndex.battlePass} />
       {/* The bar, under the loyalty block (C3.6). It is the one card on this screen
           that spends money rather than earning it, so it comes after the block that
           explains what the evening pays — and it is shown to a walk-in too: a guest
           orders at the counter exactly like a member does. It carries the campaign
           the promo strip above deliberately never sees (`surface: 'bar'`). */}
-      <BarCard surface={surface} />
+      <BarCard surface={surface} index={sectionIndex.bar} />
       {/* The room, last of the cards (C3.7): everything above is about this seat —
           the visit, the games, the evening's economy — and this is the one card
           about the hall around it and who else is in it. It gates itself on the
           store like the dailies and the season card do: both halves answer "where
           can I put my friend", and a walk-in has no friend list to answer it
           with. */}
-      <ClubNowCard />
+      <ClubNowCard index={sectionIndex.clubNow} />
       {/* Tonight's bracket (C3.8), after the room and before the standings: the
           club now says who is here, this says what they are here *for*, and the
           ladder below is last night's outcome. It gates itself on the store like
           the dailies, the season card and "the club now" do — an entry is keyed to
           an account and the fee comes out of a wallet a walk-in has none of. */}
-      <TournamentCard />
+      <TournamentCard index={sectionIndex.tournament} />
       {/* Last night's outcome, after tonight's bracket (C3.10). It is shown to a
           walk-in too — the standings are a fact about the club rather than about an
           account — so it asks as this surface's viewer instead of being gated
           here, the way the promo strip and the hero do. */}
       <div className={cn('grid gap-6', !isGuest && 'lg:grid-cols-[1fr_1.25fr]')}>
-        {!isGuest && <PrizeLadder />}
-        <LeaderboardCard surface={surface} />
+        {!isGuest && <PrizeLadder index={sectionIndex.prizeLadder} />}
+        <LeaderboardCard surface={surface} index={sectionIndex.leaderboard} />
       </div>
     </div>
   )
@@ -171,20 +220,17 @@ function QuickStats({ showLoyalty }: { showLoyalty: boolean }) {
   )
 }
 
-function PrizeLadder() {
+function PrizeLadder({ index }: { index: string }) {
   const { t } = useT()
   const coins = useStore((s) => s.coins)
   const prizes = useApi('loyalty/rewards/featured', fetchFeaturedRewards)
 
   return (
     <section>
-      {/* 09, not 04: the dailies card (C3.4), the season card (C3.5), the bar card
-          (C3.6), "the club now" (C3.7) and the tournament (C3.8) all landed between
-          the promo strip and this ladder, and each took a number with it. */}
       {/* Translated, at last: the ladder sat beside a fully localised board
           reading "PRIZE LADDER" in English on every locale. The key was already
           there — `loyalty.prizeLadder` — the heading simply never asked for it. */}
-      <SectionHeader index="09" title={t('loyalty.prizeLadder')} />
+      <SectionHeader index={index} title={t('loyalty.prizeLadder')} />
       <div className="glass flex flex-col gap-2 rounded-xl p-4">
         <DataBoundary
           state={prizes}

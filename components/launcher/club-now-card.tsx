@@ -76,7 +76,7 @@ const CLUB_NOW_REFRESH_MS = 30_000
 const ZONE_SKELETON_ROWS = 3
 const FRIEND_SKELETON_ROWS = 2
 
-export function ClubNowCard() {
+export function ClubNowCard({ index }: { index: string }) {
   const { t, tp } = useT()
   const user = useStore((s) => s.user)
   const toast = useStore((s) => s.toast)
@@ -133,7 +133,7 @@ export function ClubNowCard() {
   return (
     <section aria-labelledby="club-now-heading">
       <SectionHeader
-        index="07"
+        index={index}
         title={t('home.clubNowTitle')}
         headingId="club-now-heading"
         subtitle={headline}

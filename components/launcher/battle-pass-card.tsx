@@ -73,7 +73,7 @@ const REWARD_ICON: Record<BattlePassTier['rewardType'], LucideIcon> = {
   cosmetic: icons.achievement,
 }
 
-export function BattlePassCard() {
+export function BattlePassCard({ index }: { index: string }) {
   const { t, tp, formatNumber } = useT()
   const user = useStore((s) => s.user)
   const setView = useStore((s) => s.setView)
@@ -95,7 +95,7 @@ export function BattlePassCard() {
   return (
     <section aria-labelledby="pass-heading">
       <SectionHeader
-        index="05"
+        index={index}
         title={t('loyalty.battlePass')}
         headingId="pass-heading"
         // The season's own name, which is the club's copy — printed as written,
@@ -113,7 +113,7 @@ export function BattlePassCard() {
         }
       />
 
-      <div className="glass tick-corners rounded-xl p-5">
+      <div className="glass tick-corners rounded-xl p-4">
         <DataBoundary
           state={pass}
           errorBare

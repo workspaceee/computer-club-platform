@@ -55,7 +55,7 @@ import { cartTotalCents, timeChargeCents, useStore } from '@/lib/store'
 import { sumCents } from '@/lib/money'
 import { formatCountdown } from '@/lib/time'
 
-export function SessionCard() {
+export function SessionCard({ index }: { index: string }) {
   const { t } = useT()
 
   // The clock, from the one place that owns it (F6.3).
@@ -100,7 +100,7 @@ export function SessionCard() {
   return (
     <section aria-labelledby="session-card-heading">
       <SectionHeader
-        index="02"
+        index={index}
         title={t('home.sessionTitle')}
         headingId="session-card-heading"
         // The card states the visit; the panel holds the rest of it — the seat,
@@ -117,7 +117,7 @@ export function SessionCard() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="glass tick-corners grid gap-5 rounded-xl p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8"
+        className="glass tick-corners grid gap-5 rounded-xl p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8"
       >
         {/* ── The reading ───────────────────────────────────────────────── */}
         <div className="flex flex-col gap-3">

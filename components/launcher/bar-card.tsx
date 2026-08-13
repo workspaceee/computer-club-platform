@@ -80,7 +80,13 @@ function iconFor(product: Product): LucideIcon {
   return CATEGORY_ICONS[product.category] ?? icons.drinks
 }
 
-export function BarCard({ surface = 'launcher' }: { surface?: LauncherSurface }) {
+export function BarCard({
+  surface = 'launcher',
+  index,
+}: {
+  surface?: LauncherSurface
+  index: string
+}) {
   const { t } = useT()
   const setView = useStore((s) => s.setView)
   const addToCart = useStore((s) => s.addToCart)
@@ -109,7 +115,7 @@ export function BarCard({ surface = 'launcher' }: { surface?: LauncherSurface })
   return (
     <section aria-labelledby="bar-heading">
       <SectionHeader
-        index="06"
+        index={index}
         title={t('home.barTitle')}
         headingId="bar-heading"
         subtitle={t('home.barSubtitle')}

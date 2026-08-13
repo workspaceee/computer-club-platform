@@ -121,7 +121,7 @@ const FORMAT_KEY: Record<TournamentFormat, TKey> = {
   swiss: 'home.tournamentFormatSwiss',
 }
 
-export function TournamentCard() {
+export function TournamentCard({ index }: { index: string }) {
   const { t, tp } = useT()
   const user = useStore((s) => s.user)
   const toast = useStore((s) => s.toast)
@@ -187,7 +187,7 @@ export function TournamentCard() {
   return (
     <section aria-labelledby="tournament-heading">
       <SectionHeader
-        index="08"
+        index={index}
         title={t('home.tournamentTitle')}
         headingId="tournament-heading"
         subtitle={t('home.tournamentSubtitle')}

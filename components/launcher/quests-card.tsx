@@ -75,7 +75,7 @@ import { cn } from '@/lib/utils'
  * Here it is required rather than tidy — quest progress is keyed to an account, so
  * a card on the guest surface would show a walk-in the previous member's evening.
  */
-export function QuestsCard() {
+export function QuestsCard({ index }: { index: string }) {
   // XP is a plain count, so it is grouped by the *reader's* locale rather than by
   // `formatCoins` — the coin formatter is the club's currency and carries its own
   // rules; "1,200 XP" and "1 200 XP" are the same number in two languages.
@@ -143,7 +143,7 @@ export function QuestsCard() {
   return (
     <section aria-labelledby="quests-heading">
       <SectionHeader
-        index="04"
+        index={index}
         title={t('home.questsTitle')}
         headingId="quests-heading"
         // What the rest of the day is still worth, over the whole active set —

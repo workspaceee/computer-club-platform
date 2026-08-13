@@ -94,7 +94,13 @@ const RANK_GRADIENT = [
   'linear-gradient(116deg, #874a12, #d3975f)',
 ]
 
-export function LeaderboardCard({ surface = 'launcher' }: { surface?: LauncherSurface }) {
+export function LeaderboardCard({
+  surface = 'launcher',
+  index,
+}: {
+  surface?: LauncherSurface
+  index: string
+}) {
   const { t, formatNumber } = useT()
   const user = useStore((s) => s.user)
   const isGuest = surface === 'guest' || !user
@@ -145,7 +151,7 @@ export function LeaderboardCard({ surface = 'launcher' }: { surface?: LauncherSu
   return (
     <section aria-labelledby="leaderboard-heading">
       <SectionHeader
-        index="10"
+        index={index}
         title={t('home.leaderboardTitle')}
         headingId="leaderboard-heading"
         subtitle={t('home.leaderboardSubtitle')}
