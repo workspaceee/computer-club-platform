@@ -79,6 +79,12 @@ export function HelpButton() {
       text={t('nav.help')}
       active={view === 'help'}
       onClick={() => setView('help')}
+      // The last step of the first-run tour — "how to call an admin" — points
+      // here (C3.12). Below `sm` the button is not rendered at all, and the tour
+      // resolves its targets against what is actually visible, so on a phone the
+      // step falls back to the same door in the avatar menu rather than lighting
+      // up an empty rectangle.
+      data-tour="help"
       // Gone below `sm` (C2.9). Help is a *section* (`09`), so it stays one tap
       // away in the avatar menu on every surface, guests included — which is what
       // makes it the door a phone can afford to lose. The two that stay are the

@@ -93,7 +93,10 @@ export function BattlePassCard({ index }: { index: string }) {
   const daysLeft = data ? Math.ceil(secondsUntil(data.season.endsAt, serverNowMs()) / SECONDS_PER_DAY) : 0
 
   return (
-    <section aria-labelledby="pass-heading">
+    // The second anchor of the tour's loyalty step (C3.12) — see the note beside
+    // `data-tour="quests"`. The overlay measures one box around both, so this
+    // attribute has to exist even though the step is named after the other card.
+    <section data-tour="pass" aria-labelledby="pass-heading">
       <SectionHeader
         index={index}
         title={t('loyalty.battlePass')}

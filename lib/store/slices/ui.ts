@@ -35,6 +35,18 @@ export interface UiSlice {
   notificationsOpen: boolean
 
   /**
+   * The first-run tour is walking the player around the shell (C3.12).
+   *
+   * A flag here and nothing else: *whether the player has ever seen it* is a
+   * preference on the account (`onboardingCompletedAt`), and the two must not be
+   * confused — this one is true for about a minute, once, and is false again the
+   * moment the overlay closes, including when the tour is re-opened by hand from
+   * the avatar menu. Keeping the "seen" answer out of the store is also what
+   * stops a re-run from having to lie about it.
+   */
+  tourOpen: boolean
+
+  /**
    * The title that currently holds the machine, or `null` (F8.4).
    *
    * It lives in `ui` rather than in `session` because it answers a question
@@ -73,6 +85,7 @@ export interface UiSlice {
   setSettingsOpen: (open: boolean) => void
   setSessionPanelOpen: (open: boolean) => void
   setNotificationsOpen: (open: boolean) => void
+  setTourOpen: (open: boolean) => void
   setLaunchGame: (id: string | null) => void
   /**
    * A title took the machine (`id`) or handed it back (`null`) — F8.4.
@@ -102,6 +115,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
   settingsOpen: false,
   sessionPanelOpen: false,
   notificationsOpen: false,
+  tourOpen: false,
   launchGameId: null,
   runningGameId: null,
   launchingGameId: null,
@@ -118,6 +132,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setSessionPanelOpen: (open) => set({ sessionPanelOpen: open }),
   setNotificationsOpen: (open) => set({ notificationsOpen: open }),
+  setTourOpen: (open) => set({ tourOpen: open }),
   setLaunchGame: (id) => set({ launchGameId: id }),
   setRunningGame: (id) => set({ runningGameId: id }),
   setLaunchingGame: (id) => set({ launchingGameId: id }),
@@ -131,6 +146,11 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
       settingsOpen: false,
       sessionPanelOpen: false,
       notificationsOpen: false,
+      // The tour goes with the rest: it is a walk around *this* screen, and the
+      // player who comes back from a lock arrives at the PIN pad, not at step 3.
+      // The account has already been marked as offered the tour by then, so
+      // nothing re-opens it behind them (C3.12).
+      tourOpen: false,
       launchGameId: null,
     }),
 
@@ -144,6 +164,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
       settingsOpen: false,
       sessionPanelOpen: false,
       notificationsOpen: false,
+      tourOpen: false,
       launchGameId: null,
       runningGameId: null,
       // Same reason `runningGameId` is cleared here and nowhere else: a start

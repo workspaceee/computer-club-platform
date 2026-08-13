@@ -697,6 +697,11 @@ const userPreferences: UserPreferences[] = [
     density: 'comfortable',
     reduceMotion: false,
     sounds: true,
+    // Never taken the tour, so the demo shows what a first arrival sees (C3.12).
+    // Finishing or skipping it writes the timestamp through
+    // `completeOnboarding()`, and the snapshot in `persist.ts` keeps that answer
+    // across a reload — the tour is a first *visit*, not a first render.
+    onboardingCompletedAt: null,
     privacy: {
       showOnLeaderboard: true,
       showRealName: false,
@@ -726,6 +731,9 @@ const userPreferences: UserPreferences[] = [
     density: 'comfortable',
     reduceMotion: false,
     sounds: true,
+    // A regular: he was shown the shell on his first evening and is not shown it
+    // again. The date is inside the seed's own timeline, so it reads as history.
+    onboardingCompletedAt: '2024-03-04T19:12:00.000Z',
     privacy: {
       showOnLeaderboard: true,
       showRealName: false,

@@ -83,6 +83,11 @@ export function SessionHud() {
       <button
         type="button"
         onClick={() => setSessionPanelOpen(true)}
+        // Step 01 of the first-run tour points at this plate (C3.12). An explicit
+        // attribute rather than a CSS selector guessed from the classes: the tour
+        // dims the whole shell and cuts a hole around exactly one element, so what
+        // it aims at has to be a contract this file can see and keep.
+        data-tour="time"
         aria-label={t('session.openMine')}
         aria-haspopup="dialog"
         className="rounded-md transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"

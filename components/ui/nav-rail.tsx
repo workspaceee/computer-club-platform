@@ -105,6 +105,13 @@ export function NavRail<T extends string>({
             // is announced as one. `01` is typed as `1`.
             aria-keyshortcuts={index ? index.replace(/^0/, '') : undefined}
             data-roving-item
+            // Which destination this slot *is*, in the DOM (C3.12). The primitive
+            // still knows nothing about the launcher's table — it prints back the
+            // id the caller gave it — but the first-run tour has to point at "the
+            // way into the library" on whichever of the two rails the breakpoint
+            // is currently showing, and a slot with no name in the DOM can only be
+            // found by counting children.
+            data-nav-item={id}
             className={cn(
               'relative flex items-center transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70',
