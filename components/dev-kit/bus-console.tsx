@@ -23,6 +23,9 @@ import { setScrimPeek } from '@/lib/dev-flags'
 import * as admin from '@/lib/realtime/admin-sim'
 import { mockBus, type BusLogEntry } from '@/lib/realtime/mock-bus'
 import type { AnyRealtimeEvent, RealtimeStatus } from '@/lib/realtime/events'
+import { fetchCurrentSession, heartbeat } from '@/lib/mock/api/session'
+import type { SessionReport, SessionSnapshot } from '@/lib/types/session'
+import type { ID } from '@/lib/types/common'
 import { formatCountdown } from '@/lib/time'
 import { useStore } from '@/lib/store'
 
@@ -177,6 +180,17 @@ function clockOf(ms: number): string {
   return new Date(ms).toLocaleTimeString('en-GB', { hour12: false })
 }
 
+/**
+ * The last body sent by the "Report" group, kept **outside** React on purpose.
+ *
+ * "Re-send the same report" has to send the very same object — including an
+ * anchor the server has already rotated away from — and a state update would
+ * re-render this page between the two presses, which is exactly the retry the
+ * contract is supposed to survive. A module variable is the closest thing to a
+ * client that kept a report in flight across a lost reply.
+ */
+let lastReport: SessionReport | null = null
+
 /* ------------------------------------------------------------------ *
  * Console
  * ------------------------------------------------------------------ */
@@ -225,6 +239,47 @@ export function BusConsole() {
     [toast],
   )
 
+  /* ---- ledger reports (C2.14) ----------------------------------------- *
+   * The heartbeat has no periodic caller yet (that is C2.15), so without these
+   * three buttons "two identical reports in a row" cannot be produced in a
+   * browser at all — and idempotency is only worth something if it can be seen.
+   */
+  const [ledger, setLedger] = useState<SessionSnapshot | null>(null)
+
+  const sendReport = useCallback(
+    (build: (anchorId: ID) => SessionReport) => {
+      const run = async () => {
+        // The anchor comes from the freshest snapshot the page can get, not from
+        // the store: this route never mounts the launcher, so nothing here has
+        // applied a snapshot on its own.
+        const anchorId = ledger?.anchorId ?? (await fetchCurrentSession()).anchorId
+        const report = build(anchorId)
+        lastReport = report
+        setLedger(await heartbeat(report))
+      }
+      // `fire()` above only catches synchronous throws; an unwrapped rejection
+      // here would leave the failure in the console instead of on screen.
+      void run().catch((error: unknown) => {
+        toast('error', error instanceof Error ? error.message : String(error))
+      })
+    },
+    [ledger, toast],
+  )
+
+  const resendReport = useCallback(() => {
+    if (!lastReport) {
+      toast('warning', 'Nothing sent yet — press "Report +30 s" first')
+      return
+    }
+    // Deliberately the same object, stale anchor and all.
+    const report = lastReport
+    void heartbeat(report)
+      .then(setLedger)
+      .catch((error: unknown) => {
+        toast('error', error instanceof Error ? error.message : String(error))
+      })
+  }, [toast])
+
   const toggleLink = useCallback(() => {
     const next = !linkUp
     setLinkUp(next)
@@ -254,6 +309,38 @@ export function BusConsole() {
             </div>
           </Panel>
         ))}
+
+        <Panel eyebrow="REPORT" title="Ledger report">
+          <p className="mb-4 text-xs leading-relaxed text-text-medium">
+            {
+              'The client states a reading ("since anchor A, 30 seconds") and the server takes the maximum, so a repeat costs nothing and a reading from a replaced anchor moves nothing. There is no periodic caller yet (C2.15), so these are the only way to press the same report twice.'
+            }
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => sendReport((anchorId) => ({ anchorId, elapsedSinceAnchor: 30 }))}
+            >
+              Report +30 s
+            </Button>
+            <Button size="sm" variant="secondary" onClick={resendReport}>
+              Re-send the same report
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                sendReport(() => ({
+                  anchorId: 'stale',
+                  elapsedSinceAnchor: lastReport?.elapsedSinceAnchor ?? 30,
+                }))
+              }
+            >
+              Report with a stale anchor
+            </Button>
+          </div>
+        </Panel>
       </div>
 
       {/* ---- client side ----------------------------------------------- */}
@@ -317,6 +404,38 @@ export function BusConsole() {
           ) : (
             <p className="text-xs leading-relaxed text-text-medium">
               {'No session frame received yet — press "+15 min" or "Pause seat".'}
+            </p>
+          )}
+        </Panel>
+
+        <Panel eyebrow="LEDGER" title="Told to the club">
+          {ledger ? (
+            <>
+              <dl className="flex gap-8">
+                <div>
+                  <dt className="label-mono text-[10px] text-text-low">used</dt>
+                  <dd className="font-clock text-lg tabular-nums text-text-high">
+                    {ledger.secondsUsed}s
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label-mono text-[10px] text-text-low">debt</dt>
+                  <dd className="font-clock text-lg tabular-nums text-text-high">
+                    {ledger.debtSeconds}s
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label-mono text-[10px] text-text-low">state</dt>
+                  <dd className="font-display text-lg font-bold text-text-high">{ledger.state}</dd>
+                </div>
+              </dl>
+              <p className="mt-4 truncate font-mono text-[11px] text-text-medium">
+                anchor {ledger.anchorId}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs leading-relaxed text-text-medium">
+              {'No report sent yet — press "Report +30 s".'}
             </p>
           )}
         </Panel>
