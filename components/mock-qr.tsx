@@ -1,17 +1,33 @@
 // Decorative mock QR code (deterministic pattern, not a real code).
+//
+// `payload` does not make it scannable — nothing here encodes anything. It only
+// makes the pattern a *function of the challenge*, so "show a new code" visibly
+// draws a different square (C1.5). Before this, refreshing an expired handshake
+// redrew the exact same pixels and the screen looked frozen.
 const CELLS = 21
 
-function seeded(i: number) {
-  const x = Math.sin(i * 12.9898) * 43758.5453
+/** Stable 32-bit hash of the payload — same string, same square, every render. */
+function seedOf(payload: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < payload.length; i += 1) {
+    hash ^= payload.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return Math.abs(hash % 100000) + 1
+}
+
+function seeded(i: number, seed: number) {
+  const x = Math.sin((i + seed) * 12.9898) * 43758.5453
   return x - Math.floor(x) > 0.5
 }
 
-export function MockQr({ size = 180 }: { size?: number }) {
+export function MockQr({ size = 180, payload = '' }: { size?: number; payload?: string }) {
   const cell = size / CELLS
+  const seed = seedOf(payload)
   const squares: { x: number; y: number }[] = []
   for (let r = 0; r < CELLS; r++) {
     for (let c = 0; c < CELLS; c++) {
-      if (seeded(r * CELLS + c)) squares.push({ x: c, y: r })
+      if (seeded(r * CELLS + c, seed)) squares.push({ x: c, y: r })
     }
   }
 
@@ -24,7 +40,15 @@ export function MockQr({ size = 180 }: { size?: number }) {
   )
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rounded-lg bg-white p-2">
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      // Decorative for a screen reader: the same handshake is on screen as the
+      // typeable station code, which is the form a non-visual user can act on.
+      aria-hidden
+      className="rounded-lg bg-white p-2"
+    >
       {squares.map((s, i) => (
         <rect key={i} x={s.x * cell} y={s.y * cell} width={cell} height={cell} fill="#0f0f10" />
       ))}

@@ -50,7 +50,13 @@ export type { StoreState } from './types'
 export type { GuestIdentity } from './slices/auth'
 export type { Settings } from './slices/settings'
 export { DEFAULT_SETTINGS } from './slices/settings'
-export { POSTPAID_CENTS_PER_MINUTE, SESSION_LENGTH, timeChargeCents } from './slices/session'
+export {
+  POSTPAID_CENTS_PER_MINUTE,
+  SESSION_LENGTH,
+  sessionReport,
+  timeChargeCents,
+  unreportedSeconds,
+} from './slices/session'
 export { CHECKOUT_AWARD_COINS } from './slices/loyalty'
 export { MAX_TOASTS } from './slices/notifications'
 export type { Toast, ToastKind, ToastOptions } from './slices/notifications'

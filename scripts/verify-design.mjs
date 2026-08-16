@@ -206,12 +206,18 @@ for (const file of files) {
 /* ------------------------------------------------------------------ */
 
 /**
- * T1 is `neon-ring` / `neon-edge` *without* the `-static` suffix, and only in
- * class position. A match preceded by a dot (`.neon-ring` in a caption or in
- * these comments) is a name, not a call — the showcase captions the tiers by
- * name and would otherwise trip a rule it is exempt from anyway.
+ * T1 is `neon-ring` / `neon-edge` with **no** suffix, and only in class
+ * position. A match preceded by a dot (`.neon-ring` in a caption or in these
+ * comments) is a name, not a call — the showcase captions the tiers by name and
+ * would otherwise trip a rule it is exempt from anyway.
+ *
+ * Both suffixes are budget-free and for the same reason: neither can dilute the
+ * accent. `-static` is frozen, and `-sync` travels on the root's clock in phase
+ * with T1, so any number of them still read as one tube rather than as rival
+ * accents (§4.2). Only an unsuffixed ring gets its own halo, and that is what
+ * this rule rations.
  */
-const T1 = /(?<![.\w-])neon-(?:ring|edge)\b(?!-static)/g
+const T1 = /(?<![.\w-])neon-(?:ring|edge)\b(?!-(?:static|sync))/g
 
 for (const file of files) {
   if (waived(file, 'R3')) continue

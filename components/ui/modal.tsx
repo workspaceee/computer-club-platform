@@ -34,6 +34,21 @@ interface ModalProps {
   hideClose?: boolean
   /** Disable dismissal via overlay click / Escape. */
   dismissable?: boolean
+  /**
+   * Which rung of `lib/overlay.ts` the card sits on.
+   *
+   * `modal` — the default, and correct for every dialog a *player* opened, which
+   * is all of them today. `takeover` exists for the inverse case: a surface the
+   * player did not ask for and must not be able to bury, which on the normal rung
+   * would render *under* whatever they happened to have open.
+   *
+   * The clock's own takeovers (C2.6's last call, expiry) do **not** come through
+   * here — they are bespoke `Overlay` cards, because a warning that must read as
+   * an alarm wants a centred timer and a danger frame rather than this card's
+   * title-left / close-right header. This prop is what keeps a *dialog-shaped*
+   * takeover from having to fork the card to get the right rung.
+   */
+  layer?: 'modal' | 'takeover'
   className?: string
   children?: React.ReactNode
 }
@@ -54,6 +69,7 @@ export function Modal({
   footer,
   hideClose = false,
   dismissable = true,
+  layer = 'modal',
   className,
   children,
 }: ModalProps) {
@@ -67,7 +83,7 @@ export function Modal({
   })
 
   return (
-    <Overlay open={open} layer="modal" onDismiss={dismissable ? onClose : undefined}>
+    <Overlay open={open} layer={layer} onDismiss={dismissable ? onClose : undefined}>
       <motion.div
         ref={panelRef}
         role="dialog"
