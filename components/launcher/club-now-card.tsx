@@ -185,7 +185,13 @@ export function ClubNowCard({ index }: { index: string }) {
             />
           }
         >
-          {(board) => (
+          {(board) => {
+            // Whether the club runs a referral scheme at all — the offer shown to a
+            // member with no friend list is priced in the club's own
+            // `referralMinutes`, and a club sending `0` has no bonus to promise, so
+            // the honest "add the players you meet here" line stands in its place.
+            const referral = board.referralMinutes > 0
+            return (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               <div className="flex flex-col gap-2">
                 <p className="label-mono text-[9px] text-text-low">{t('home.clubNowZones')}</p>
@@ -261,7 +267,8 @@ export function ClubNowCard({ index }: { index: string }) {
                 )}
               </div>
             </div>
-          )}
+            )
+          }}
         </DataBoundary>
       </div>
     </section>
