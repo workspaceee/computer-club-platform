@@ -206,12 +206,26 @@ export function ClubNowCard({ index }: { index: string }) {
                 </p>
 
                 {board.friendsInClub.length === 0 ? (
+                  // "Nobody tonight" and "no friends at all" are two different
+                  // evenings (C3.13). A member with a list gets the promise this
+                  // card exists to make — it will name their PCs; somebody with no
+                  // list at all gets the club's own offer for making one, priced in
+                  // the club's `referralMinutes` rather than in a number written
+                  // into three dictionaries. A club running no such scheme sends
+                  // `0`, and then there is no offer to make: the honest line is
+                  // still "add the players you meet here".
                   <EmptyState
                     bare
                     size="sm"
-                    icon={icons.community}
-                    title={t('home.clubNowNoFriends')}
-                    description={t('home.clubNowNoFriendsBody')}
+                    icon={referral ? icons.gift : icons.community}
+                    title={
+                      referral
+                        ? tp('home.clubNowReferral', board.referralMinutes)
+                        : t('home.clubNowNoFriends')
+                    }
+                    description={t(
+                      referral ? 'home.clubNowReferralBody' : 'home.clubNowNoFriendsBody',
+                    )}
                   />
                 ) : (
                   <ul className="flex flex-col gap-2">
