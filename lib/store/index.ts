@@ -53,6 +53,7 @@ export { DEFAULT_SETTINGS } from './slices/settings'
 export {
   POSTPAID_CENTS_PER_MINUTE,
   SESSION_LENGTH,
+  sessionReport,
   timeChargeCents,
   unreportedSeconds,
 } from './slices/session'

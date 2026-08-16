@@ -15,7 +15,14 @@
 import { approveQrChallenge } from '@/lib/mock/api/auth'
 import { newId, serverNowMs } from '@/lib/mock/api/client'
 import { approveTransfer } from '@/lib/mock/api/session'
-import { db, getMachine, getOpenTab, getPlayer, getSession } from '@/lib/mock/db'
+import {
+  db,
+  getMachine,
+  getOpenTab,
+  getPlayer,
+  getSession,
+  reanchorSession,
+} from '@/lib/mock/db'
 import { persistDb } from '@/lib/mock/persist'
 import { mockBus } from '@/lib/realtime/mock-bus'
 import type {
@@ -75,6 +82,10 @@ function snapshot(session: Session): SessionSnapshot {
     debtSeconds: session.debtSeconds,
     tabTotalCents: getOpenTab(session.id)?.totalCents ?? 0,
     serverTime: new Date(nowMs).toISOString(),
+    // Printed here too, and forgetting it is the expensive kind of omission: a
+    // snapshot without an anchor after `+15 min` sends every following report of
+    // that visit straight into the ignore branch.
+    anchorId: session.anchorId,
   }
 }
 
@@ -134,6 +145,10 @@ export function grantTime(
     session.timeSource = 'staff'
   }
 
+  // The deadline moved, so the epoch does: a reading measured against the old one
+  // would be added to a promise that no longer exists.
+  reanchorSession(session)
+
   ledger({
     userId: db.currentUserId,
     type: 'time_grant',
@@ -163,6 +178,7 @@ export function deductTime(minutes: Minutes): RealtimeEnvelope<'time.added'> {
   const session = activeSession()
   const take = Math.min(Math.round(minutes) * 60, secondsLeft(session))
   session.secondsGranted -= take
+  reanchorSession(session)
   ledger({
     userId: db.currentUserId,
     type: 'time_spend',
@@ -196,6 +212,10 @@ export function warnLowTime(minutesLeft: Minutes = 10): RealtimeEnvelope<'time.w
   const session = activeSession()
   const target = Math.max(0, Math.round(minutesLeft)) * 60
   session.secondsUsed = Math.max(session.secondsUsed, session.secondsGranted - target)
+  // Burning the seat down is a write that moves the account, so it needs the
+  // rotation too — otherwise `baseAtAnchor` stays behind the fact and the next
+  // reading is compared with a count the row has already passed.
+  reanchorSession(session)
   commit()
 
   const left = secondsLeft(session)
@@ -216,6 +236,7 @@ export function pauseSession(
 ): RealtimeEnvelope<'session.paused'> {
   const session = activeSession()
   session.state = 'paused'
+  reanchorSession(session)
   commit()
 
   return mockBus.publish(
@@ -229,6 +250,7 @@ export function pauseSession(
 export function resumeSession(): RealtimeEnvelope<'session.resumed'> {
   const session = activeSession()
   session.state = 'active'
+  reanchorSession(session)
   commit()
 
   return mockBus.publish(

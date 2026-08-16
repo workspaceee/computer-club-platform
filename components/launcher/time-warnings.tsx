@@ -48,7 +48,7 @@ import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
 import { callStaff, fetchSessionDetail, toApiError, type SessionDetail } from '@/lib/mock/api'
 import { holdSeat } from '@/lib/seat'
-import { unreportedSeconds, useStore } from '@/lib/store'
+import { sessionReport, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -283,7 +283,7 @@ function LastCall({
    */
   const saveAndExit = useCallback(() => {
     setBusy('exit')
-    void holdSeat(unreportedSeconds(useStore.getState()))
+    void holdSeat(sessionReport(useStore.getState()))
     toast('info', t('session.lockedToast'))
     lockPc()
   }, [lockPc, t, toast])

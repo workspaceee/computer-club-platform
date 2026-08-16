@@ -786,6 +786,12 @@ const sessions: Session[] = [
     pausedSeconds: 0,
     debtSeconds: 0,
     closedBy: null,
+    // The epoch every seeded row opens in, with `baseAtAnchor` equal to its own
+    // `secondsUsed + debtSeconds`. A disagreement here would read as "the club has
+    // already heard more than it wrote down", and the visit's first report would
+    // bill the difference.
+    anchorId: 'sess-demo#seed',
+    baseAtAnchor: 96 * 60,
   },
   {
     id: 'sess-pro',
@@ -802,6 +808,8 @@ const sessions: Session[] = [
     pausedSeconds: 300,
     debtSeconds: 0,
     closedBy: null,
+    anchorId: 'sess-pro#seed',
+    baseAtAnchor: 210 * 60,
   },
   {
     id: 'sess-maya',
@@ -820,6 +828,8 @@ const sessions: Session[] = [
     pausedSeconds: 900,
     debtSeconds: 0,
     closedBy: null,
+    anchorId: 'sess-maya#seed',
+    baseAtAnchor: 45 * 60,
   },
   {
     id: 'sess-guest-1',
@@ -839,6 +849,8 @@ const sessions: Session[] = [
     pausedSeconds: 0,
     debtSeconds: 0,
     closedBy: null,
+    anchorId: 'sess-guest-1#seed',
+    baseAtAnchor: 35 * 60,
   },
   {
     id: 'sess-demo-prev',
@@ -857,6 +869,8 @@ const sessions: Session[] = [
     pausedSeconds: 0,
     debtSeconds: 0,
     closedBy: 'timeout',
+    anchorId: 'sess-demo-prev#seed',
+    baseAtAnchor: 5 * 3600,
   },
 ]
 
@@ -2460,6 +2474,29 @@ export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
 
 export function getSession(sessionId: ID): Session | undefined {
   return db.sessions.find((s) => s.id === sessionId)
+}
+
+/**
+ * Opens a new accounting epoch on a visit's row.
+ *
+ * Called by **every** write that moves time: an extension, an admin grant or
+ * correction, a pause, a resume, opening or adopting a visit — and the accepted
+ * `heartbeat` itself. The point is to make the previous reading unusable: the
+ * client measured its elapsed span against a deadline that no longer exists, and
+ * adding it to the new `baseAtAnchor` would be time nobody played.
+ *
+ * `baseAtAnchor` carries **both** halves of the club's count, because the reading
+ * is compared with them as one number (prepaid burns `secondsUsed`, postpaid
+ * accrues `debtSeconds`, and the border between the two is crossed exactly once).
+ *
+ * The identifier is random rather than a counter: after an F5 a module-level
+ * counter starts again, and the rotation could hand a row back an anchor it had
+ * already used — which would make a straggling report from the tab's previous
+ * life applicable again.
+ */
+export function reanchorSession(session: Session): void {
+  session.anchorId = `${session.id}#${Math.random().toString(36).slice(2, 8)}`
+  session.baseAtAnchor = session.secondsUsed + session.debtSeconds
 }
 
 /**
