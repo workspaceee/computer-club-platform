@@ -41,6 +41,13 @@ interface EntryOfflineProps {
  * grammar the offline banner and the guest panel already speak. Depth stays
  * `well` + `pill` inside the card, and no second T1 — the card's travelling ring
  * is the screen's whole budget (§4.2).
+ *
+ * The *words* live upstairs. `offlineEntryTitle` is the card's headline and
+ * `offlineEntryBody` its subline, so this panel deliberately holds neither: a
+ * refusal printed twice on one card reads as two different rules, and the header
+ * of the lock screen is already the place every other state (a held seat, a
+ * paused visit, a live recovery) states itself. What is left here is what only a
+ * panel can carry — the live state of the link, and the button.
  */
 export function EntryOffline({ onCallStaff, calling, called }: EntryOfflineProps) {
   const { t } = useT()
@@ -57,24 +64,22 @@ export function EntryOffline({ onCallStaff, calling, called }: EntryOfflineProps
       role="status"
     >
       {/* A well (§3.3): the state of the link is a fact stated *in* the card. */}
-      <div className="well flex items-start gap-3 rounded-lg border border-border p-4">
+      <div className="well flex items-center gap-3 rounded-lg border border-border p-4">
         <IconTile icon={icons.offline} variant="warning" size="md" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-pretty font-display text-base font-semibold uppercase leading-tight tracking-tight text-text-high">
-            {t('auth.offlineEntryTitle')}
-          </span>
           {/* Status plate (§3.3), warning tone: the shell is already retrying, so
               the strip says what is happening rather than asking for anything. */}
           <span className="label-mono flex items-center gap-1.5 text-[10px] text-warning">
             <icons.pending size={11} className="animate-spin" />
             {t('realtime.reconnecting')}
           </span>
+          {/* The promise a locked-out player needs next to the spinner: the wait
+              is the software's job, not theirs. */}
+          <span className="text-pretty text-xs leading-relaxed text-text-medium">
+            {t('realtime.offlineBody')}
+          </span>
         </div>
       </div>
-
-      <p className="text-pretty text-xs leading-relaxed text-text-medium">
-        {t('auth.offlineEntryBody')}
-      </p>
 
       {/* The one committing action left on the screen, so it takes the bevel the
           Unlock button vacated (§4). Once a thread is open it goes quiet instead

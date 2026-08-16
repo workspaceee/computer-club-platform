@@ -202,6 +202,25 @@ export function LockScreen() {
   const [shake, setShake] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
 
+  /**
+   * Can anybody come in right now (C2.13)?
+   *
+   * Borrowed from the hook, which borrows it from the banner — so the dead form
+   * and the strip explaining it can never disagree, and a 300 ms blink of packet
+   * loss cannot blank the fields under somebody's hands.
+   */
+  const { canEnter } = useEntryGate()
+  /**
+   * The help thread this seat asked for while the door was shut.
+   *
+   * Two flags rather than one: the button has to say "in flight" and then stay on
+   * screen saying "landed". `called` is not cleared when the link comes back — the
+   * admin really was called, and a player who pressed it deserves to keep seeing
+   * that until the card is replaced by the launcher.
+   */
+  const [calling, setCalling] = useState(false)
+  const [called, setCalled] = useState(false)
+
   // login fields
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
@@ -442,6 +461,32 @@ export function LockScreen() {
   }
 
   /**
+   * Reach a human from a station that cannot reach the club (C2.13).
+   *
+   * The only write this screen fires while the door is shut, and the one endpoint
+   * kept out of *both* offline block-lists on purpose: an admin with a key is the
+   * whole repair path here, so a queued ask that the counter honours a minute late
+   * is strictly better than a button that refuses. It is idempotent per open
+   * thread, which is why a second press is prevented in the panel rather than
+   * feared here.
+   *
+   * A genuine failure (the request really did not leave) leaves `called` false, so
+   * the button comes back live instead of quietly claiming somebody is on the way.
+   */
+  const handleCallStaff = async () => {
+    setCalling(true)
+    try {
+      await callStaff()
+      setCalled(true)
+      toast('success', t('help.staffCalled'))
+    } catch (err) {
+      reportError(err)
+    } finally {
+      setCalling(false)
+    }
+  }
+
+  /**
    * Signup ends *signed in* (C1.4), the same way recovery does:
    * `completeRegistration` returns a session, and telling somebody who is
    * standing at the station "account created, now log in" would be theatre.
@@ -576,7 +621,27 @@ export function LockScreen() {
    * A held seat outranks it — `blocked` only happens *after* somebody signed in,
    * and at that point the card is about the chair.
    */
-  const pinCard = paused !== null && !pinDismissed && !blocked && !elsewhere
+  const pinCard = paused !== null && !pinDismissed && !blocked && !elsewhere && canEnter
+
+  /**
+   * Is the card the offline panel right now (C2.13)?
+   *
+   * Ranked deliberately: **below** the two post-authentication panels, **above**
+   * every door.
+   *
+   * Below, because `blocked` and `elsewhere` are about a chair and a session that
+   * were established while the link was up. Replacing them mid-outage would erase
+   * the one thing the player walked to the counter with — *whose* session is in
+   * the way — and their own actions already fail with a sentence of their own if
+   * the club is unreachable when pressed.
+   *
+   * Above every door, including the PIN: `auth.unlockWithPin` is in
+   * `OFFLINE_ENTRY_BLOCKED`, so a keypad left on screen would be four digits that
+   * cannot open anything. Note the `canEnter` in `pinCard` above — the two states
+   * are mutually exclusive by construction, not by the order of the branches, so
+   * the header and the body cannot end up describing different cards.
+   */
+  const entryCard = !canEnter && !blocked && !elsewhere
 
   // Headline is split in two so the accent word can be highlighted where the
   // language has one; EN → "Welcome back", RU/LT → single phrase (F2.6).
@@ -591,6 +656,10 @@ export function LockScreen() {
     // *session*, not the chair, so the headline says so.
     if (elsewhere)
       return { lead: t('auth.activeElsewhere'), accent: t('auth.activeElsewhereHi') }
+    // The link is down, so none of the doors below can be opened (C2.13). One
+    // phrase, no accent word: the headline names the *club's* state, and glowing
+    // half of it in primary red would dress an outage up as an alarm.
+    if (entryCard) return { lead: t('auth.offlineEntryTitle'), accent: '' }
     // The seat is holding *this* player's own paused visit, so the card is not a
     // login at all: it names the state of the visit and asks for a PIN (C1.10).
     if (pinCard) return { lead: t('auth.sessionPaused'), accent: t('auth.sessionPausedHi') }
@@ -607,7 +676,7 @@ export function LockScreen() {
     }
     if (mode === 'register') return { lead: t('auth.join'), accent: t('auth.joinHi') }
     return { lead: t('guest.lockTitle'), accent: t('guest.lockTitleHi') }
-  }, [blocked, elsewhere, pinCard, mode, recovery, signup, t])
+  }, [blocked, elsewhere, entryCard, pinCard, mode, recovery, signup, t])
 
   const subline = blocked
     ? // The whole sentence, holder's name included, lives in the subline: the
@@ -618,6 +687,11 @@ export function LockScreen() {
     ? // Same division as above: the sentence names the seat and offers the move,
       // the panel below states the visit as a fact and carries the button.
       t('auth.activeElsewhereBody', { machine: elsewhere.machineLabel })
+    : entryCard
+    ? // The *why*, in the one place the card states sentences: only the club can
+      // confirm an identity and a free seat. The panel below keeps the live status
+      // of the link and the button, so this fact is printed exactly once.
+      t('auth.offlineEntryBody')
     : pinCard && paused
     ? // The remainder is stated here, in words, and *again* as a clock in the
       // panel below — the one place in this screen where a fact is printed twice
@@ -802,8 +876,10 @@ export function LockScreen() {
                 key={
                   blocked
                     ? 'seat-taken'
-                    : elsewhere
+                    :                   elsewhere
                     ? 'active-elsewhere'
+                    : entryCard
+                    ? 'entry-offline'
                     : pinCard
                     ? 'session-paused'
                     : recovery
@@ -868,8 +944,12 @@ export function LockScreen() {
             {/* And gone while the transfer panel is up (C1.12): the player is
                 past authentication, the card is about their session, and the
                 other two doors could only open a *second* visit on top of it. */}
+            {/* And gone while the link is down (C2.13): all three segments lead to
+                a write the transport refuses, so a live switcher would offer three
+                doors that are all the same locked one. */}
             {!blocked &&
               !elsewhere &&
+              !entryCard &&
               !pinCard &&
               !recovery &&
               signup?.step !== 'code' &&
@@ -941,6 +1021,18 @@ export function LockScreen() {
                   onCancel={() => setElsewhere(null)}
                   onToast={toast}
                   onReject={triggerShake}
+                />
+              ) : entryCard ? (
+                /* The club cannot be reached, so no door on this card can open
+                   (C2.13). The form is replaced rather than disabled: a greyed-out
+                   password field with a red toast under it blames the player for
+                   an outage, and there is nothing for them to correct. The one
+                   action left is the admin on shift. */
+                <EntryOffline
+                  key="entry-offline"
+                  onCallStaff={handleCallStaff}
+                  calling={calling}
+                  called={called}
                 />
               ) : pinCard && paused ? (
                 /* This station is holding its own player's paused visit (C1.10).
