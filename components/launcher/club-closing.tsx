@@ -55,7 +55,7 @@ import { icons } from '@/lib/icons'
 import { callStaff, toApiError } from '@/lib/mock/api'
 import { OVERLAY_MAX_H } from '@/lib/overlay'
 import { holdSeat } from '@/lib/seat'
-import { unreportedSeconds, useStore } from '@/lib/store'
+import { sessionReport, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -216,7 +216,7 @@ function ClubClosedOverlay({ open, onDismiss }: { open: boolean; onDismiss: () =
    */
   const saveAndExit = useCallback(() => {
     setBusy('exit')
-    void holdSeat(unreportedSeconds(useStore.getState()))
+    void holdSeat(sessionReport(useStore.getState()))
     toast('info', t('session.lockedToast'))
     lockPc()
   }, [lockPc, t, toast])

@@ -10,7 +10,7 @@ import { icons } from '@/lib/icons'
 import { useT } from '@/lib/i18n/provider'
 import { navFor, type LauncherSurface } from '@/lib/launcher-nav'
 import { holdSeat, releaseSeat } from '@/lib/seat'
-import { unreportedSeconds, useStore } from '@/lib/store'
+import { sessionReport, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -268,7 +268,7 @@ export function AccountMenu({ surface }: { surface: LauncherSurface }) {
           // C1.10 path — a member walking back into their own paused row) is time
           // the server already counted, so locking the station billed it twice and
           // a card that should have promised 01:23 promised 00:47.
-          void holdSeat(unreportedSeconds(useStore.getState()))
+          void holdSeat(sessionReport(useStore.getState()))
           lockPc()
         }}
         onCancel={() => setConfirm(null)}

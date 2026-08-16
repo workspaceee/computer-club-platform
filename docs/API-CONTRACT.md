@@ -106,7 +106,7 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 правилам:** 6 цифр, TTL 600 с, кулдаун ресенда 60 с, 5 попыток до сжигания
 челленджа. Челленджи отдают клиенту **длительности** (`expiresInSec`,
 `resendAfterSec`), а не таймстемпы: у ПК в клубе могут быть неверные системные
-час����, и UI обязан считать дедлайн от момента получения ответа. Ни код, ни
+час������, и UI обязан считать дедлайн от момента получения ответа. Ни код, ни
 счётчик попыток, ни пароль в ответе не появляются — в моке они лежат в серверной
 `Map`, а поле `devCode` существует **только** потому, что прототип не отправляет
 писем, и реальный API его не возвращает.
@@ -148,7 +148,7 @@ HTTP-статуса зафиксировано в `ApiErrorCode` / `STATUS`:
 | GET | `/api/session/current` | — | `SessionSnapshot` | `sessionExpired` |
 | GET | `/api/session/:id` | — | `Session` | `notFound` |
 | GET | `/api/session/history` | — | `Session[]` | `unauthorized` |
-| POST | `/api/session/heartbeat` | `{ elapsedSeconds }` | `SessionSnapshot` | `sessionExpired` |
+| POST | `/api/session/heartbeat` | `{ anchorId, elapsedSinceAnchor }` | `SessionSnapshot` | `sessionExpired` |
 | POST | `/api/session/open` | `{ userId? \| guestId?, billingMode, minutes?, machineId? }` | `SessionSnapshot` | `conflict` (место занято), `validation` (обе личности или ни одной) |
 | POST | `/api/session/pause` | `{ sessionId? }` | `SessionSnapshot` | `conflict` |
 | POST | `/api/session/resume` | `{ sessionId? }` | `SessionSnapshot` | `conflict` |
@@ -205,9 +205,9 @@ MVP §8.2). Всё остальное — `conflict`. Биллинг следу�
 | GET | `/api/club/occupancy` | `?zoneId` | `OccupancySummary` | — |
 | GET | `/api/club/accounts` | — | `HouseAccount[]` | `forbidden` |
 
-Поиск, фильтр по категории, сортировка и пагинация — **на сервере**.
+Поиск, фильтр по категории, сортировка и пагинация — **на серве��е**.
 Кли��нт не фильтрует 60+ игр в памяти, иначе на 600 играх это перестанет работать.
-`OccupancySummary` считается сервером: ни один компонент не ��ересчитывает места сам.
+`OccupancySummary` считается сервером: ни один компоне��т не ��ересчитывает места сам.
 
 ---
 
@@ -320,7 +320,7 @@ MVP §8.2). Всё остальное — `conflict`. Биллинг следу�
 возвращает предоплату тем же способом, которым она была внесена.
 
 `BookingSlot` содержит уже посчитанное число свободных мест в зоне на час, а
-`BookingView` — раскрытое окно чек-ина: клиент не вычисляет «можно ли отметиться
+`BookingView` — раскр��тое окно чек-ина: клиент не вычисляет «можно ли отметиться
 сейчас» из двух таймстемпов.
 
 ---
