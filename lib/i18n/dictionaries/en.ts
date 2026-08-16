@@ -374,6 +374,33 @@ export const en = {
     qrDemoNote:
       'The prototype has no phone app, so this button plays the phone: it approves the code and pushes the confirmation onto the bus, which this dialog then handles like any other.',
     qrDemoConfirm: 'Confirm from the phone',
+
+    /* ---------------------------------------------------------------- *
+     * The door while the link is down (C2.13)
+     *
+     * Three lines, one refusal, split by where it is read:
+     *
+     *   offlineEntryTitle    the headline over the card and the panel's own
+     *                        heading — it names the club's state, not the
+     *                        player's mistake.
+     *   offlineEntryBody     why a station may not decide this by itself, plus
+     *                        the reassurance a locked-out player actually needs:
+     *                        nothing was lost, and the form returns on its own.
+     *   offlineEntryRefused  the toast if a door is fired anyway (an `Enter` on a
+     *                        form that was already open). Deliberately *not*
+     *                        `realtime.salesRefused`: no money was involved, so
+     *                        "nothing was charged" would answer a question the
+     *                        player never asked.
+     *
+     * Never "try again later": the shell reconnects by itself.
+     * ---------------------------------------------------------------- */
+    offlineEntryTitle: 'No connection to the club server',
+    offlineEntryBody:
+      'Signing in needs the club server: only it can confirm who you are and that this seat is free. Nothing is lost — the form comes back by itself once the link is up.',
+    offlineEntryRefused: 'Sign-in needs a connection to the club server.',
+    /** The one live door of an offline lock screen: the admin on shift. */
+    callAdmin: 'Call admin',
+    adminCalled: 'Admin notified',
   },
 
   // The idle screen (C1.8). Its own namespace and not `auth`, because this copy
@@ -1233,6 +1260,21 @@ export const en = {
     openLibrary: 'Open library',
     noAccounts: 'No accounts available',
     noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
+
+    /**
+     * The same pool, refused for a different reason: no link (C4.7/C4.8).
+     *
+     * Reserved here alongside the block-list entry it belongs to
+     * (`catalog.grantHouseAccount` in `lib/mock/api/client.ts`), so the copy and
+     * the rule were decided in one breath rather than rediscovered later. The
+     * distinction *is* the message: the game still starts offline, only handing
+     * over a shared club login has to wait — and the way past it is a human, not
+     * a retry. An account already attached to this visit is untouched. The UI
+     * branch lands with C4.7/C4.8.
+     */
+    houseAccountOfflineTitle: 'Account needs a connection',
+    houseAccountOfflineBody:
+      'Launching the game works offline, but handing over a club account needs the club server. Call an admin.',
 
     /**
      * The launch dialog's own name (C3.2).

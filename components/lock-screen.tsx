@@ -16,6 +16,7 @@ import {
   type SignupState,
 } from '@/components/auth/registration'
 import { ActiveElsewhere } from '@/components/auth/active-elsewhere'
+import { EntryOffline } from '@/components/auth/entry-offline'
 import { SeatTaken, seatTakenBody } from '@/components/auth/seat-taken'
 import { SessionPaused, formatRemainder } from '@/components/auth/session-paused'
 import { BrandLabel } from '@/components/brand-label'
@@ -27,11 +28,13 @@ import { StationBadge, StationPanel } from '@/components/station-panel'
 import { QrLogin } from '@/components/auth/qr-login'
 import { Segmented } from '@/components/ui/segmented'
 import { DEV_SHORTCUTS } from '@/lib/dev-flags'
+import { useEntryGate } from '@/hooks/use-entry-gate'
 import { useIdle } from '@/hooks/use-idle'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import {
   ApiError,
+  callStaff,
   continueAsGuest,
   fetchPausedVisit,
   fetchStationHolder,

@@ -114,16 +114,20 @@ function useSocialBridge(): void {
  *     rather than read because `lib/realtime/mock-bus.ts` imports `serverTime()`
  *     from the client, and the reverse import would be a cycle.
  *
- *  2. **Up** — a refusal comes back as an endpoint name, and *this* is where it
- *     becomes a sentence. The mock API never produces prose (`client.ts` rule 2),
- *     so the copy stays in the dictionaries and stays translated. The line to pick
- *     is `realtime.salesRefused`, the one that says **nothing was charged** — the
- *     only fact a player needs when a payment they pressed did not happen.
+ *  2. **Up** — a refusal comes back as an endpoint name and a `kind`, and *this* is
+ *     where it becomes a sentence. The mock API never produces prose (`client.ts`
+ *     rule 2), so the copy stays in the dictionaries and stays translated. The
+ *     `kind` picks between the only two things a refused write can be about:
+ *     `realtime.salesRefused` says **nothing was charged** (the only fact a player
+ *     needs when a payment they pressed did not happen), and
+ *     `auth.offlineEntryRefused` says the door needs the club (C2.13). Before the
+ *     split, a sign-in refused offline was told nothing had been charged — money
+ *     talk over a door that never asked for a card.
  *
  * Reaching (2) at all means a click beat a re-render, or a dialog was already
- * open: every one of these buttons is disabled by `useSalesGate()`. It is the
- * backstop, not the first line, which is why it is an `error` toast and not a
- * banner — there is nothing to fix and nothing to retry.
+ * open: every one of these buttons is disabled by `useSalesGate()` or replaced by
+ * `useEntryGate()`. It is the backstop, not the first line, which is why it is an
+ * `error` toast and not a banner — there is nothing to fix and nothing to retry.
  */
 function useMoneyBridge(offline: boolean): void {
   const { t } = useT()
@@ -138,7 +142,10 @@ function useMoneyBridge(offline: boolean): void {
   useEffect(() => () => setTransportOffline(false), [])
 
   useEffect(
-    () => onPurchaseRefused(() => toast('error', t('realtime.salesRefused'))),
+    () =>
+      onPurchaseRefused((_endpoint, kind) =>
+        toast('error', t(kind === 'entry' ? 'auth.offlineEntryRefused' : 'realtime.salesRefused')),
+      ),
     [t, toast],
   )
 }
