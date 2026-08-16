@@ -2396,6 +2396,39 @@ export function getPrivacy(userId: ID): PrivacySettings {
   return db.userPreferences.find((p) => p.userId === userId)?.privacy ?? DEFAULT_PRIVACY
 }
 
+/**
+ * The preferences row a brand-new member starts life with (registration, C1.11).
+ *
+ * A member without this row is not a member with default settings — it is a
+ * member the preferences endpoints (`getPreferences`, `completeOnboarding`,
+ * `updateLocale`, `updatePrivacy`) throw `notFound` on, because each one does
+ * `required(find(...))`. So the seed and the sign-up path have to agree that
+ * *every* account owns exactly one row, and this factory is where they agree.
+ *
+ * `onboardingCompletedAt: null` on purpose: a first arrival has not been shown
+ * the shell tour (C3.12), and the empty-home states (C3.13) are written for
+ * precisely this person — the row exists, the history behind it does not yet.
+ */
+export function createDefaultPreferences(userId: ID): UserPreferences {
+  return {
+    userId,
+    locale: DEFAULT_LOCALE,
+    density: 'comfortable',
+    reduceMotion: false,
+    sounds: true,
+    onboardingCompletedAt: null,
+    privacy: { ...DEFAULT_PRIVACY },
+    overlay: {
+      enabled: true,
+      showFps: true,
+      showPing: true,
+      showClock: true,
+      showTimeLeft: true,
+      corner: 'tr',
+    },
+  }
+}
+
 /** Accepted friends of one member, resolved to the summary the social list needs. */
 export function getFriends(userId: ID = db.currentUserId): FriendSummary[] {
   const ids = db.friendships
