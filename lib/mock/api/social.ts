@@ -328,6 +328,10 @@ export function fetchClubNow(userId: ID = db.currentUserId): Promise<ClubNowBoar
       total: zones.reduce((sum, z) => sum + z.total, 0),
       friendsInClub,
       friendsAway: friends.length - seated.length,
+      // The club's own offer (C3.13), carried here so the half of the card that has
+      // nobody to list can say what bringing somebody in is worth — without a
+      // second read, and without the number being written into three dictionaries.
+      referralMinutes: db.clubSettings.referralBonusMinutes,
       partyId: party?.id ?? null,
       partyGameName: gameId ? (getGame(gameId)?.name ?? null) : null,
     }

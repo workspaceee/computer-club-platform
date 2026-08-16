@@ -149,6 +149,9 @@ const clubSettings: ClubSettings = {
     7: { from: '12:00', to: '23:00' },
   },
   bookingGraceMinutes: 15,
+  // Half an hour for a friend who signs up (C3.13) — the club's offer, so the
+  // card that makes the promise reads it from here instead of printing a 30.
+  referralBonusMinutes: 30,
 }
 
 /* ------------------------------------------------------------------ *

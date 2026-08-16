@@ -126,6 +126,16 @@ export interface ClubSettings {
   openHours: OpenHours
   /** Grace period before a no-show booking releases the seat. */
   bookingGraceMinutes: number
+  /**
+   * Free minutes the club pays for bringing a friend in (C3.13).
+   *
+   * A setting and not a sentence in the dictionaries, because it is the club's
+   * offer: the launcher promises "30 minutes" on a home card, and a club that
+   * runs 15 must be able to change the number without three translations being
+   * re-edited into a lie. `0` is a club that does not run the scheme at all, and
+   * the card then has no offer to make rather than one worth nothing.
+   */
+  referralBonusMinutes: number
 }
 
 /** One key/value row of the settings registry, for the generic admin editor. */

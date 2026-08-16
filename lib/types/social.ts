@@ -94,6 +94,17 @@ export interface ClubNowBoard {
    * the card exists to point at.
    */
   friendsAway: number
+  /**
+   * Free minutes the club pays for a friend who signs up, `0` when it runs no such
+   * scheme (C3.13).
+   *
+   * It travels with this payload rather than being a second read of the club
+   * settings, because the only place on the screen that may use it is the half of
+   * *this* card that has nobody to list: the same sentence next to an empty roster
+   * is an invitation and anywhere else an advertisement. One read also means the
+   * offer and the emptiness that justifies making it were true at the same moment.
+   */
+  referralMinutes: number
   /** The party the viewer already stands in, `null` when they have none. */
   partyId: ID | null
   /** The title a call would form a new party around, when there is one. */

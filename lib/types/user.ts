@@ -75,6 +75,21 @@ export interface UserProfile {
    * `0` means the streak is not running (first visit, or a day was missed).
    */
   visitStreak: number
+  /**
+   * Nobody has played here yet on this account (C3.13).
+   *
+   * Server-owned, and a *field* rather than something a card derives from the
+   * three counters below it, for the same reason `visitStreak` is one: "new to
+   * this club" is the club's definition, and the moment two surfaces each write
+   * their own test for it they start disagreeing about who gets welcomed. The
+   * home screen has three empty cards on a first evening, and all three have to
+   * agree they are looking at the same person.
+   *
+   * Deliberately not "registered recently": an account created a month ago whose
+   * owner is sitting down for the first time is a newcomer, and one who played
+   * yesterday is not — the answer is history, not a date.
+   */
+  isNewcomer: boolean
   totalHours: number
   gamesPlayed: number
   sessions: number
