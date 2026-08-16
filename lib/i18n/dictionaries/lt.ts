@@ -297,6 +297,14 @@ export const lt: Dictionary = {
     qrDemoNote:
       'Prototipas neturi telefono programėlės, todėl telefoną atlieka šis mygtukas: jis patvirtina kodą ir paskelbia įvykį magistralėje, o dialogas jį apdoroja kaip bet kurį kitą.',
     qrDemoConfirm: 'Patvirtinti telefonu',
+
+    // Klubo durys, kol nėra ryšio (C2.13). Trijų eilučių paaiškinimas — `en.ts`.
+    offlineEntryTitle: 'Nėra ryšio su klubu',
+    offlineEntryBody:
+      'Prisijungimui reikia ryšio su klubu: tik serveris patvirtina, kas jūs esate ir ar vieta laisva. Niekas neprarasta — forma grįš pati, kai ryšys atsinaujins.',
+    offlineEntryRefused: 'Prisijungimui reikia ryšio su klubo serveriu.',
+    callAdmin: 'Kviesti administratorių',
+    adminCalled: 'Administratorius iškviestas',
   },
 
   attract: {
@@ -768,6 +776,12 @@ export const lt: Dictionary = {
     openLibrary: 'Atidaryti biblioteką',
     noAccounts: 'Laisvų paskyrų nėra',
     noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
+
+    // Tas pats paskyrų fondas, bet atsisakymas dėl kitos priežasties — nėra ryšio
+    // (C4.7/C4.8). Paaiškinimas — `en.ts`.
+    houseAccountOfflineTitle: 'Paskyrai reikia ryšio',
+    houseAccountOfflineBody:
+      'Žaidimas paleidžiamas ir be ryšio, bet klubo paskyrą išduoti gali tik klubo serveris. Pakvieskite administratorių.',
 
     // Paleidimo dialogo vardas (C3.2): matoma antraštė nupiešta ant viršelio,
     // todėl ekrano skaitytuvui pavadinimas duodamas atskirai.

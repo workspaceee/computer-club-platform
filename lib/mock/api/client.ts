@@ -287,6 +287,26 @@ const OFFLINE_BLOCKED: ReadonlySet<string> = new Set([
   // Loyalty spends a balance the server owns, same as a card would.
   'loyalty.redeemReward',
   'loyalty.unlockPaidTrack',
+  /**
+   * C4.7/C4.8 — handing over a club ("house") game account. The endpoint does not
+   * exist in `lib/mock/api/catalog.ts` yet; the name is reserved here so the rule
+   * is decided once, in the file that owns the rule, rather than rediscovered when
+   * the feature lands. A set entry for a missing endpoint is inert.
+   *
+   * The rule, in three parts:
+   *  - **Launching an installed game is not blocked.** `catalog.launchGame` stays
+   *    absent from both lists: it is local, and taking it away is the last thing a
+   *    stranded player needs.
+   *  - **Only the *grant* is blocked.** The pool of shared logins is the club's,
+   *    one seat at a time, and lending one out without the server's yes is how two
+   *    stations end up in the same account.
+   *  - **A grant already made survives the outage.** An account stays attached to
+   *    the visit that has it; nothing here revokes one. Which is why *releasing* an
+   *    account must never join this list — a release frees a club resource and is
+   *    safe to honour late, exactly like `auth.logout` on the door side.
+   * Copy is reserved as `games.houseAccountOffline*`; the UI branch is C4.7/C4.8.
+   */
+  'catalog.grantHouseAccount',
 ])
 
 /**
@@ -357,15 +377,22 @@ export function setTransportOffline(offline: boolean): void {
   linkOffline = offline
 }
 
+/** Which of the two offline block-lists refused a write. */
+export type RefusalKind = 'sales' | 'entry'
+
 /**
- * Told when a purchase was refused before it left the station.
+ * Told when a write was refused before it left the station.
  *
  * A callback rather than a `toast()` call, because rule 2 of this file holds: the
  * mock API never produces prose. The UI registers a reporter that already knows
- * the language, so the sentence the player reads still comes from the dictionaries
- * (`realtime.salesRefused` — the one that says *nothing was charged*).
+ * the language, so the sentence the player reads still comes from the dictionaries.
+ *
+ * `kind` is what lets it pick the right one, and it exists because the first
+ * version did not have it: every refusal reported `realtime.salesRefused`, so a
+ * sign-in attempted while the link was down told the player *nothing was charged*
+ * — an answer about money over a door that never asked for any (C2.13).
  */
-type RefusalReporter = (endpoint: string) => void
+type RefusalReporter = (endpoint: string, kind: RefusalKind) => void
 
 let reportRefusal: RefusalReporter | null = null
 
@@ -435,9 +462,23 @@ export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
    * staff still goes through and fails on its own terms if the link really is
    * down.
    */
-  if (linkOffline && OFFLINE_BLOCKED.has(endpoint)) {
-    reportRefusal?.(endpoint)
-    throw new ApiError('network')
+  /**
+   * Both lists throw the same `network` code — from the caller's point of view the
+   * club is simply unreachable — but they report a different `kind`, because the
+   * two sentences a player must read are not interchangeable: a refused purchase
+   * needs "nothing was charged", and a refused sign-in needs "the door needs the
+   * club". Sending the money line to a login form would answer a question nobody
+   * asked and imply a charge that never existed.
+   */
+  if (linkOffline) {
+    if (OFFLINE_BLOCKED.has(endpoint)) {
+      reportRefusal?.(endpoint, 'sales')
+      throw new ApiError('network')
+    }
+    if (OFFLINE_ENTRY_BLOCKED.has(endpoint)) {
+      reportRefusal?.(endpoint, 'entry')
+      throw new ApiError('network')
+    }
   }
 
   await sleep(latency())
