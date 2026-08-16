@@ -507,6 +507,12 @@ export const lt: Dictionary = {
     continueEmpty: 'Žaidimų kol kas nėra',
     continueEmptyBody:
       'Paleisk ką nors iš bibliotekos — žaidimas lauks čia, ir nuo kito apsilankymo į jį grįši vienu paspaudimu.',
+    // Ta pati tuščia eilutė, bet žaidėjui, kuris čia dar nė karto nežaidė (C3.13).
+    // Dvi eilučių poros, o ne viena mandagi abiem: nuolatiniam žaidėjui istorija
+    // tiesiog atsistatė, o naujam reikia pasakyti, nuo ko pradėti.
+    continueFirstGame: 'Pasirink pirmą žaidimą',
+    continueFirstGameBody:
+      'Šioje paskyroje dar nieko nepaleista. Atidaryk biblioteką ir pradėk nuo bet ko — nuo kito apsilankymo žaidimas lauks čia.',
     // Praėjęs laikas, o ne kalendorius: 23:50 palikta partija ryte yra „prieš
     // 8 valandas“, ir būtent tai žaidėjui rūpi.
     // plurals lt: one | few | other
@@ -540,6 +546,9 @@ export const lt: Dictionary = {
     // Kiek diena dar verta — per visą aktyvų rinkinį, įskaitant užduotį, kuri
     // nepakliuvo į tris eilutes ekrane. Abi reikšmės atkeliauja jau suformatuotos.
     questsPending: 'Šiandien dar nepasiimta: {coins} monetų ir {xp} XP',
+    // Tas pats laukas pirmą vakarą, kai dar nieko neuždirbta (C3.13): tie patys du
+    // skaičiai, tik frazė žiūri į priekį, o ne atgal.
+    questsFirstQuest: 'Atlik pirmą užduotį — rinkinys duoda {coins} monetų ir {xp} XP',
     // Skaičiuojama iki kito klubo atidarymo, o ne iki vidurnakčio: žaidėjas prie
     // stoties 03:00 vis dar yra tame rinkinyje, su kuriuo sėdo vakare.
     // `{duration}` atkeliauja kaip frazė („4 valandos“), todėl klubo diena gali
@@ -636,6 +645,13 @@ export const lt: Dictionary = {
     clubNowNoFriends: 'Draugų kol kas nėra',
     clubNowNoFriendsBody:
       'Pridėk tuos, su kuriais žaidi klube, ir kortelė parodys, prie kurio kompiuterio jie sėdi.',
+    // Draugų sąrašas visiškai tuščias — tai ne „šiandien nieko“ (C3.13). `{n}` yra
+    // klubo `referralBonusMinutes`, todėl vertimas niekada nesiginčija su klubu.
+    // formos: viena | kelios | kita
+    clubNowReferral:
+      'Atvesk draugą — {n} nemokama minutė|Atvesk draugą — {n} nemokamos minutės|Atvesk draugą — {n} nemokamų minučių',
+    clubNowReferralBody:
+      'Klubas pridės laiką, kai tavo atvestas žaidėjas užsiregistruos ir atsisės prie stoties. Pakvietimo paklausk darbuotojų.',
     clubNowEmpty: 'Kol kas nėra ką parodyti',
     clubNowEmptyBody: 'Klubas dar nesužymėjo zonų — pasitikslink pas darbuotojus.',
 

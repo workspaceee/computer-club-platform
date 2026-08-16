@@ -132,9 +132,16 @@ export function QuestsCard({ index }: { index: string }) {
   if (!user) return null
 
   const pending = board.data
+  // The same two numbers, and on a first evening the same *amount* — what changes
+  // is which direction the sentence points (C3.13). "Still unclaimed today" is a
+  // report on a day already played; said to somebody who has done nothing at all
+  // it describes a debt for an evening that never happened, so a newcomer is told
+  // what the set pays instead. `isNewcomer` is the server's word, not a guess from
+  // "nothing is claimed yet" — a veteran who has only just sat down has an
+  // untouched set too.
   const owed =
     pending && (pending.pendingCoins > 0 || pending.pendingXp > 0)
-      ? t('home.questsPending', {
+      ? t(user.isNewcomer ? 'home.questsFirstQuest' : 'home.questsPending', {
           coins: formatCoins(pending.pendingCoins),
           xp: formatNumber(pending.pendingXp),
         })

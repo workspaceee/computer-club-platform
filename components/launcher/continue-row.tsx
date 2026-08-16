@@ -131,14 +131,25 @@ export function ContinueRow({ index }: { index: string }) {
         }
         isEmpty={(rows) => rows.length === 0}
         empty={
-          // A first-visit member has nothing here, and the honest thing to offer
-          // is the library rather than a shrug.
+          // Two different sentences behind one empty row (C3.13). A member whose
+          // history has rolled off is told the row will fill again; somebody who has
+          // never launched anything on this account is told what the first move is
+          // and given the library to make it in. `isNewcomer` is the server's answer
+          // — the card does not re-derive "new here" from a count of its own rows,
+          // because an empty history is not the same fact as an empty account (a
+          // veteran whose launches have aged out has one).
           <EmptyState
             bare
             size="sm"
             icon={icons.games}
-            title={t("home.continueEmpty")}
-            description={t("home.continueEmptyBody")}
+            title={t(
+              user.isNewcomer ? "home.continueFirstGame" : "home.continueEmpty",
+            )}
+            description={t(
+              user.isNewcomer
+                ? "home.continueFirstGameBody"
+                : "home.continueEmptyBody",
+            )}
             actionLabel={t("games.openLibrary")}
             onAction={openLibrary}
           />

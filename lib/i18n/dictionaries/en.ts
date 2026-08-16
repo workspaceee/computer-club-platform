@@ -732,6 +732,18 @@ export const en = {
     continueEmptyBody:
       'Start something from the library and it waits for you here — one click back in on every visit after this one.',
     /**
+     * The same empty row, for somebody who has never played here at all (C3.13).
+     *
+     * A separate pair rather than one polite sentence for both, because the two
+     * are different facts about the evening: a member whose history has rolled
+     * off is being told the row will fill up again, and a first-time player is
+     * being told what the first move *is*. "No games yet" said to someone on
+     * their first visit reads as a report on an account that should not have one.
+     */
+    continueFirstGame: 'Pick your first game',
+    continueFirstGameBody:
+      'Nothing has been launched on this account yet. Open the library and start anything — from your next visit it is one click away, right here.',
+    /**
      * When the title was last started, as elapsed time.
      *
      * Elapsed rather than calendar-relative ("Yesterday"), because a single row
@@ -786,6 +798,16 @@ export const en = {
      * row, because it is the one number no single quest can state.
      */
     questsPending: '{coins} coins and {xp} XP still unclaimed today',
+    /**
+     * The same slot on a first evening, when nothing has been earned yet (C3.13).
+     *
+     * "Still unclaimed today" is a sentence about a day that has already been
+     * played: it tells a returning member what is left of what they started. Said
+     * to a player who has done nothing at all it reports a debt the club owes them
+     * for an evening that has not happened, so the newcomer gets the same two
+     * numbers with the sentence pointing forward instead of back.
+     */
+    questsFirstQuest: 'Do your first quest — the set pays {coins} coins and {xp} XP',
     /**
      * The countdown to the club's next opening, not to midnight: a member playing
      * at 03:00 is still inside the set they started the evening with.
@@ -983,6 +1005,21 @@ export const en = {
     clubNowNoFriends: 'None of your friends are here yet',
     clubNowNoFriendsBody:
       'Add the players you meet at the club and this card will show which PC they are on.',
+    /**
+     * Nobody on the list at all — not "none of them tonight" (C3.13).
+     *
+     * The distinction is the whole point of a second pair of strings: a member with
+     * eleven friends and an empty floor is told the card will name their PCs, while
+     * a player with no friend list is told what the club pays for making one. `{n}`
+     * is the club's own `referralBonusMinutes`, so a club running fifteen minutes —
+     * or none, in which case this never renders — is never contradicted by a
+     * translation.
+     *
+     * plurals: one | other
+     */
+    clubNowReferral: 'Bring a friend in — {n} free minute|Bring a friend in — {n} free minutes',
+    clubNowReferralBody:
+      'The club adds the time once someone you brought registers and sits down. Ask the staff for your invite.',
     /** A club with no zones configured at all: the whole card has nothing to report. */
     clubNowEmpty: 'Nothing to report yet',
     clubNowEmptyBody: 'The club has not mapped its zones — ask the staff which seats are open.',
