@@ -5,7 +5,14 @@
 import { ApiError, mutate, newId, query, required } from '@/lib/mock/api/client'
 import { buildProfile } from '@/lib/mock/api/profile'
 import { resumeSessionRow, secondsLeft } from '@/lib/mock/api/session'
-import { CLUB_ID, db, getCurrentPlayer, getLiveSession, getSession } from '@/lib/mock/db'
+import {
+  CLUB_ID,
+  createDefaultPreferences,
+  db,
+  getCurrentPlayer,
+  getLiveSession,
+  getSession,
+} from '@/lib/mock/db'
 import type { ID, ISODate, ISODateTime, Seconds } from '@/lib/types/common'
 import type { SessionSnapshot } from '@/lib/types/session'
 import type { UserProfile, UserRole } from '@/lib/types/user'
@@ -227,6 +234,10 @@ function createMember(nickname: string, email: string, birthday: ISODate): ID {
     machineId: null,
     playingGameId: null,
   })
+  // Every account owns exactly one preferences row — the preferences endpoints
+  // `required()` it, so a member created without one crashes the moment the
+  // first-run tour tries to record its completion (C3.12/C3.13).
+  db.userPreferences.push(createDefaultPreferences(id))
   return id
 }
 
