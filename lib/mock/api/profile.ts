@@ -44,6 +44,14 @@ export function buildProfile(userId: ID = db.currentUserId): UserProfile {
     // Zero until the club has counted a second day in a row (C3.1), so a brand
     // new account is greeted as a first visit rather than with a streak of one.
     visitStreak: stats.visitStreak ?? 0,
+    // "Has anyone ever played here on this account" (C3.13). Three counters and
+    // not one, because each of them can legitimately be zero on its own: an
+    // account can have a finished visit that never launched anything (came in,
+    // ordered a cola, left), and the visit currently running is not counted in
+    // `sessions` until it ends — which is exactly the evening this flag is for.
+    // The one thing that must never happen is a veteran being told to pick their
+    // first game, so the flag only stays true while *all* of it is still zero.
+    isNewcomer: stats.sessions === 0 && stats.gamesPlayed === 0 && stats.totalHours === 0,
     totalHours: stats.totalHours,
     gamesPlayed: stats.gamesPlayed,
     sessions: stats.sessions,
