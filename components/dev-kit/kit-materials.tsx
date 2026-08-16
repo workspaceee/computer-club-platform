@@ -187,7 +187,11 @@ export function KitMaterials() {
         </div>
       </Spec>
 
-      <Spec id="F9.6 / neon" name="Neon tiers" note="T1 travels · T2 is frozen · T3 has none">
+      <Spec
+        id="F9.6 / neon"
+        name="Neon tiers"
+        note="T1 travels loud · T2 travels in phase, quiet · T3 has none"
+      >
         <Frame className="p-4 sm:p-6">
           <div aria-hidden className="veil-attract-floor absolute inset-0" />
           <div aria-hidden className="veil-attract-scrim absolute inset-0" />
@@ -200,7 +204,7 @@ export function KitMaterials() {
               {['CPU 41°', 'PING 12', 'STATION 07'].map((chip) => (
                 <span
                   key={chip}
-                  className="neon-ring-static pill label-mono rounded-full px-2.5 py-1 text-[10px] text-text-high"
+                  className="neon-ring-sync pill label-mono rounded-full px-2.5 py-1 text-[10px] text-text-high"
                 >
                   {chip}
                 </span>
@@ -215,11 +219,11 @@ export function KitMaterials() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Cap
             name=".neon-ring / .neon-edge"
-            note="T1 — light travels, 7 s. Budget: exactly one element per screen, the thing the visitor came for."
+            note="T1 — light travels, 7 s, halo at .55. Budget: exactly one element per screen, the thing the visitor came for."
           />
           <Cap
-            name=".neon-ring-static / .neon-edge-static"
-            note="T2 — same tube frozen at 135°, halo at .28. Unlimited: status plates read as lit, not as the destination."
+            name=".neon-ring-sync"
+            note="T2 — the same sweep, driven by the root so it can never drift out of phase with T1; halo at .28. Unlimited: the row reads as one tube, not as five accents. (.neon-ring-static / -edge-static pin it at 135° for plates that move some other way — the Segmented pill.)"
           />
           <Cap
             name="— (no class)"

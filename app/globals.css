@@ -503,16 +503,30 @@
    travels around borders (.neon-ring), breathes through display text
    (.neon-text) and haloes the brand mark (.neon-logo). */
 
+/* `inherits: true` is the whole synchronisation mechanism, so it is not a
+   detail to flip back: the sweep is animated **once**, on the root, and every
+   tube on the page reads that one inherited value in the same frame. Per-element
+   animations could not do this — a CSS animation starts when its element gets
+   its first style, so the login card (mounted with the screen) and the telemetry
+   chips (mounted when their reading arrives) ended up sweeping seconds apart,
+   which is what made a row of lit plates read as noise instead of one system.
+   A tube that must stay put overrides the angle locally (see T2 below) — it does
+   not opt out of an animation. */
 @property --neon-angle {
   syntax: '<angle>';
   initial-value: 0deg;
-  inherits: false;
+  inherits: true;
 }
 
 @keyframes neon-spin {
   to {
     --neon-angle: 360deg;
   }
+}
+
+/* The single clock. Nothing else in the neon system animates. */
+:root {
+  animation: neon-spin 7s linear infinite;
 }
 
 /* Thin neon border: red and white light on the edge of a panel.
@@ -525,20 +539,29 @@
        relative` would collapse those, so the edge is offered without it.
 
    HOW LOUD IT IS — the tier (§4.4, F9.4):
-     T1  .neon-ring / .neon-edge                — light TRAVELS. One element
-         per screen: the thing the visitor is meant to act on.
-     T2  .neon-ring-static / .neon-edge-static  — same tube, frozen. Status
-         plates: they must read as lit, not as the destination.
+     T1  .neon-ring / .neon-edge                — light travels, FULL halo
+         (.55). One element per screen: the thing the visitor is meant to act
+         on.
+     T2  .neon-ring-sync                        — same travelling light, in
+         phase with T1, halo halved (.28). Status plates that must feel live:
+         the telemetry strip both screens share.
+     T2F .neon-ring-static / .neon-edge-static  — the tube frozen mid-sweep.
+         For plates whose motion comes from somewhere else (the Segmented
+         pill slides) and for the kit, which has to show the frozen state.
      T3  no class at all. Everything else earns attention with border, glass
          and type.
 
    Why the tier lives in CSS and not in each screen's head: with T1 handed
    out per element, the idle screen ended up wearing seven traveling rings at
-   once, and an accent that is everywhere is not an accent. The animation is
-   the scarce resource here, so it is what the tier switches — the gradient,
-   mask, glow and geometry stay one block, and editing the tube edits all
-   four entry points. */
+   once, each on its own clock, and an accent that is everywhere is not an
+   accent. F9.4 fixed that by freezing them; the phase lock above fixes it the
+   other way round, so being lit no longer has to mean being still — seven
+   tubes sweeping as one read as a single instrument, and T1 keeps its rank
+   through the halo instead. What the tier switches now is the halo and
+   whether the angle is pinned; the gradient, mask and geometry stay one
+   block, so editing the tube edits every entry point. */
 .neon-ring,
+.neon-ring-sync,
 .neon-ring-static {
   position: relative;
 }
@@ -546,6 +569,8 @@
 .neon-ring::after,
 .neon-edge::before,
 .neon-edge::after,
+.neon-ring-sync::before,
+.neon-ring-sync::after,
 .neon-ring-static::before,
 .neon-ring-static::after,
 .neon-edge-static::before,
@@ -576,17 +601,13 @@
   mask-composite: exclude;
   pointer-events: none;
 }
-/* T1 only: the light travels. This one declaration is the whole difference
-   between the tiers — which is the point of F9.4. */
-.neon-ring::before,
-.neon-ring::after,
-.neon-edge::before,
-.neon-edge::after {
-  animation: neon-spin 7s linear infinite;
-}
-/* T2: the tube is frozen mid-sweep. 135deg puts the white segment on the
+/* T1 and T2 declare nothing here: both inherit the root's sweep, which is
+   exactly why they cannot drift apart. */
+/* T2F: the tube is frozen mid-sweep. 135deg puts the white segment on the
    top-left corner, so a row of status plates catches light from one
-   consistent direction instead of each freezing wherever it happened to be. */
+   consistent direction instead of each freezing wherever it happened to be —
+   and it is the angle motion-damping pins everything to, so a frozen plate
+   next to a damped ring still lights from the same side. */
 .neon-ring-static::before,
 .neon-ring-static::after,
 .neon-edge-static::before,
@@ -596,18 +617,21 @@
 /* Above the panel's own inner content (backgrounds, media, highlights). */
 .neon-ring::before,
 .neon-ring::after,
+.neon-ring-sync::before,
+.neon-ring-sync::after,
 .neon-ring-static::before,
 .neon-ring-static::after {
   z-index: 3;
 }
-/* Soft glow copy of the ring. T2 halves it: a frozen glow reads as a smudge
-   at full strength, and a status plate is small enough that the bloom would
-   swallow its own label. */
+/* Soft glow copy of the ring. Below T1 it is halved — a status plate is small
+   enough that a full bloom would swallow its own label, and with the light now
+   travelling on the plates too, the halo is what still tells T1 apart. */
 .neon-ring::after,
 .neon-edge::after {
   filter: blur(6px);
   opacity: 0.55;
 }
+.neon-ring-sync::after,
 .neon-ring-static::after,
 .neon-edge-static::after {
   filter: blur(5px);
@@ -1028,30 +1052,25 @@
   animation: none !important;
 }
 
-/* When motion is damped, T1 becomes T2 rather than "T1 stopped at 0deg":
-   without this the ring freezes wherever the angle happened to be, which is
-   the one look the tier ladder exists to prevent. Duplicated per selector
-   list because the media query cannot see the data attribute. */
-:root[data-reduce-motion='true'] .neon-ring::before,
-:root[data-reduce-motion='true'] .neon-ring::after,
-:root[data-reduce-motion='true'] .neon-edge::before,
-:root[data-reduce-motion='true'] .neon-edge::after {
+/* When motion is damped, every travelling tier becomes T2F rather than
+   "stopped at 0deg": without the pinned angle the tubes freeze wherever the
+   sweep happened to be, which is the one look the tier ladder exists to
+   prevent. Setting it on the root reaches T1 and T2 in one line — the same
+   inheritance that keeps them in phase — and the `animation: none` below is
+   what actually stops the clock. Duplicated per selector list because the
+   media query cannot see the data attribute. */
+:root[data-reduce-motion='true'] {
   --neon-angle: 135deg;
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .neon-ring::before,
-  .neon-ring::after,
-  .neon-edge::before,
-  .neon-edge::after {
+  :root {
     --neon-angle: 135deg;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .neon-ring::before,
-  .neon-ring::after,
-  .neon-edge::before,
-  .neon-edge::after,
+  :root,
   .neon-text,
   .neon-digits,
   .neon-logo,

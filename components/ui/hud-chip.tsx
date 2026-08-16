@@ -54,9 +54,13 @@ interface HudChipProps extends Omit<React.ComponentProps<'span'>, 'children'> {
  * exactly one file: hand-copied twins had already drifted (`px-3` vs `px-3.5`,
  * accent colouring the icon on one screen and icon + value on the other).
  *
- * Always **T2** (§4.2): the neon tube is frozen, never travelling. Each screen
- * spends its single animated ring on the one thing you can act on, and a row of
- * five runners would make the accent mean nothing.
+ * Always **T2** (§4.2): the tube travels, but on the root's clock and with the
+ * halo halved, so the strip is alive without competing with T1. The old rule
+ * (frozen, F9.4) existed because five chips each running their own animation
+ * looked like five separate accents; they are in phase now — the whole row and
+ * the login card sweep as one tube — so the ban was on the drift, not on the
+ * motion. Rank is carried by the halo: T1 keeps `.55`, the strip gets `.28`.
+ * Never `.neon-ring`: the chip is a reading, not a destination.
  */
 export function HudChip({
   label,
@@ -78,7 +82,7 @@ export function HudChip({
     <span
       data-slot="hud-chip"
       className={cn(
-        'glass neon-ring-static flex items-center gap-2 rounded-full px-3.5 py-1.5',
+        'glass neon-ring-sync flex items-center gap-2 rounded-full px-3.5 py-1.5',
         className,
       )}
       {...props}
