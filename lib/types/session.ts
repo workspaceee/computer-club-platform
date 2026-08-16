@@ -52,6 +52,17 @@ export interface Session {
   /** Postpaid overrun that still has to be paid for. */
   debtSeconds: Seconds
   closedBy: SessionClosedBy | null
+  /**
+   * Current accounting epoch of the row — what a reading has to name to count.
+   * Rewritten by every write that moves time (`reanchorSession`).
+   */
+  anchorId: ID
+  /**
+   * The club's own count at the moment that epoch opened: `secondsUsed +
+   * debtSeconds`, as **one** number, because a reading is compared with the two
+   * halves together and the boundary between them is crossed exactly once.
+   */
+  baseAtAnchor: Seconds
 }
 
 /**
@@ -96,6 +107,31 @@ export interface SessionSnapshot {
   tabTotalCents: Cents
   /** Server time at the moment of the reply, used to correct for clock skew. */
   serverTime: ISODateTime
+  /**
+   * The accounting **epoch** the client's next reading is measured against.
+   *
+   * Every write that moves time on the row mints a new one (an extension, an
+   * admin grant or correction, a pause, a resume, and the accepted heartbeat
+   * itself), so a reading taken against the previous epoch is recognisably
+   * unusable rather than silently added to a deadline that no longer exists.
+   */
+  anchorId: ID
+}
+
+/**
+ * What the client reports about time: a **reading**, never a delta.
+ *
+ * The difference is the whole point of the contract. A delta has to arrive
+ * exactly once — and after any drop the client can only retry, so a lost *reply*
+ * bills the player twice by construction. A reading is idempotent (the server
+ * takes the maximum), survives reordering (a late `480` cannot undo a `520`) and
+ * needs no queue of pending operations: the synchronised state is one number.
+ */
+export interface SessionReport {
+  /** Epoch it was measured from. Not the current one → the server moves nothing. */
+  anchorId: ID
+  /** Seconds elapsed since that anchor. A reading, not a delta: a repeat is safe. */
+  elapsedSinceAnchor: Seconds
 }
 
 /**

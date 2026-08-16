@@ -19,6 +19,7 @@ import {
   getOpenTab,
   getSession,
   getZone,
+  reanchorSession,
 } from '@/lib/mock/db'
 // The admin's transfer approval writes outside `mutate()` (see `approveTransfer`),
 // so it saves the store itself rather than relying on the transport to do it.
@@ -28,6 +29,7 @@ import type { MachineSettings, MachineTelemetry } from '@/lib/types/machine'
 import type {
   BillingMode,
   Session,
+  SessionReport,
   SessionSnapshot,
   SessionWarning,
   TimeSource,
@@ -81,6 +83,9 @@ function snapshot(session: Session): SessionSnapshot {
     debtSeconds: session.debtSeconds,
     tabTotalCents: tab?.totalCents ?? 0,
     serverTime: new Date(nowMs).toISOString(),
+    // The epoch the client's next reading must name. Every snapshot carries it,
+    // because a snapshot is also how a client that fell behind re-anchors.
+    anchorId: session.anchorId,
   }
 }
 
@@ -231,31 +236,66 @@ export function fetchSessionDetail(
 }
 
 /**
- * `POST /api/session/heartbeat` — advances the clock by the elapsed seconds the
- * agent reports. The server owns time accounting; the client only reports that it
- * is still alive.
+ * `POST /api/session/heartbeat` — the client states a **reading** ("since anchor
+ * `A`, 520 seconds have passed") and the server takes the maximum.
+ *
+ * A reading rather than a delta, because a delta has to arrive exactly once: after
+ * any drop the client can only retry the same thing, so a lost *reply* would bill
+ * the player a second time by construction. From the reading, three properties
+ * come for free — a repeat is safe, a late `480` cannot undo a `520`, and there is
+ * no queue of pending operations to keep, since the synchronised state is one
+ * number.
  */
-export function heartbeat(elapsedSeconds: Seconds = 10): Promise<SessionSnapshot> {
+export function heartbeat(report: SessionReport): Promise<SessionSnapshot> {
   return mutate('session.heartbeat', () => {
     const session = required(getSession(db.currentSessionId), 'sessionExpired')
+    // Checked before the anchor on purpose: a paused clock burns nothing whatever
+    // the reading names, and this path runs on every lock — answering with an
+    // error would break a perfectly ordinary flow.
     if (session.state !== 'active') return snapshot(session)
+    // A reading from a previous epoch: ignored, but with the ordinary reply — the
+    // snapshot is how the client learns the new anchor, so refusing with an error
+    // would be a dead end it could not recover from.
+    if (report.anchorId !== session.anchorId) return snapshot(session)
 
-    const burn = Math.max(0, Math.floor(elapsedSeconds))
-    const available = secondsLeft(session)
-    session.secondsUsed += Math.min(burn, available)
+    const elapsed = Math.max(0, Math.floor(report.elapsedSinceAnchor))
+    const reading = session.baseAtAnchor + elapsed
+    // TRUST: the server has to recompute this itself (Stage 4) — below is money.
+    // The maximum is taken over the **sum** of the two halves of the account, not
+    // over each of them, or the one crossing of the grant boundary is billed twice.
+    const counted = Math.max(session.secondsUsed + session.debtSeconds, reading)
 
+    session.secondsUsed = Math.min(counted, session.secondsGranted)
     // Postpaid seats may overrun into debt up to the club credit limit; prepaid
     // seats simply stop.
-    const overrun = burn - available
+    const overrun = counted - session.secondsGranted
     if (overrun > 0) {
       if (session.billingMode === 'postpaid') {
-        session.debtSeconds += overrun
+        // Assigned, not `+=`: `counted` is already monotonic, so repeating a
+        // reading cannot double the debt.
+        session.debtSeconds = overrun
       } else {
         session.state = 'ended'
         session.endedAt = db.now
         session.closedBy = 'timeout'
       }
     }
+
+    /**
+     * The report was accepted, so the next one is measured from the new mark.
+     *
+     * Not optional: the client's `unreportedSeconds()` measures from the last
+     * *applied snapshot*, not from the start of the epoch. Without this rotation
+     * a reading of `10` would land, the client would apply the reply and reset to
+     * zero, and the next reading would be `10` again — `max(10, 0 + 10)` is `10`,
+     * and time would stop being billed altogether.
+     *
+     * The price is one lost report window when a reply goes missing (the client
+     * retries against a stale anchor, is ignored, re-anchors from the reply), and
+     * that is the safe direction: an unbilled second costs the club, an
+     * over-billed one costs a player time they paid for.
+     */
+    reanchorSession(session)
     return snapshot(session)
   })
 }
@@ -266,6 +306,9 @@ export function pauseSession(sessionId: ID = db.currentSessionId): Promise<Sessi
     const session = required(getSession(sessionId), 'sessionExpired')
     if (session.state === 'ended') throw new ApiError('conflict')
     session.state = 'paused'
+    // The running span is over, so anything still measured against the old
+    // deadline is no longer applicable to this row.
+    reanchorSession(session)
     return snapshot(session)
   })
 }
@@ -288,6 +331,9 @@ export function resumeSessionRow(sessionId: ID): SessionSnapshot {
   }
   session.state = 'active'
   db.currentSessionId = session.id
+  // A new running span is a new epoch: readings taken before the pause belong to
+  // a deadline this resume has just replaced.
+  reanchorSession(session)
   return snapshot(session)
 }
 
@@ -417,6 +463,10 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
       // used seconds and its debt, and unlocking is what starts it again.
       live.state = 'active'
       db.currentSessionId = live.id
+      // Adoption starts a new epoch too: the player walks in with the anchor from
+      // this reply, and readings from the row's previous life (another tab, the
+      // span before the lock) must not be applicable to it.
+      reanchorSession(live)
       return snapshot(live)
     }
 
@@ -438,7 +488,12 @@ export function openSession(input: OpenSessionInput): Promise<SessionSnapshot> {
       pausedSeconds: 0,
       debtSeconds: 0,
       closedBy: null,
+      // Overwritten immediately by `reanchorSession` below; a literal here would
+      // be an anchor two visits opened in the same tab could share.
+      anchorId: '',
+      baseAtAnchor: 0,
     }
+    reanchorSession(session)
     db.sessions.push(session)
     db.currentSessionId = session.id
 
@@ -644,6 +699,9 @@ export function extendSession(
     // the player is counting down to.
     session.timeSource = 'pass'
     if (session.state === 'paused') session.state = 'active'
+    // The deadline just moved, so a reading measured against the old one is not
+    // comparable with anything: new epoch.
+    reanchorSession(session)
 
     db.transactions.push({
       id: newId('tx'),

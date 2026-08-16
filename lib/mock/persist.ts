@@ -41,8 +41,15 @@ const STORAGE_KEY = 'imba.mock.state'
  * as `null`: every browser that had ever opened the demo would be treated as a
  * first arrival again, and the row the tour writes its own dismissal into would
  * be the one field the restore quietly dropped.
+ *
+ * `6` adds `anchorId` / `baseAtAnchor` to `sessions` (C2.14). This bump is not
+ * housekeeping: a v5 snapshot restores visits **without** an anchor, and
+ * `report.anchorId !== undefined` is always true — so every heartbeat would be
+ * quietly ignored, forever, in every browser that had ever opened the demo. It
+ * cannot be diagnosed from inside the product either: the clock keeps running
+ * perfectly while the club stops being told anything.
  */
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from

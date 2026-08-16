@@ -36,7 +36,7 @@ import {
   type StationHolder,
 } from '@/lib/mock/api'
 import type { ID } from '@/lib/types/common'
-import type { SessionSnapshot } from '@/lib/types/session'
+import type { SessionReport, SessionSnapshot } from '@/lib/types/session'
 
 /**
  * Who just authenticated at the keyboard. Exactly one field is set — a member
@@ -146,18 +146,22 @@ export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
  * endpoint reports `paused`, and the panel prints it, because a paused visit is
  * exactly the case where the machine looks free and is not.
  *
- * `usedSeconds` is the visit's spent time as the shell has been counting it, and
- * it is reported **before** the pause because the paused screen of C1.10 states
- * the remainder as a fact of the club ("42:17 left"): a row that was opened two
- * hours ago and never heard from again still believes nothing was used, so
- * without this the lock screen would promise back every minute the player had
- * already played. It goes through the heartbeat rather than a "set the clock"
- * call on purpose — the client reports *elapsed* and the server does the
- * accounting (F3.7), which is the same contract the 10 s heartbeat of `C2` will
- * use once it runs; this is the one report in its place until then.
+ * `report` is the reading the shell owes the club, and it is sent **before** the
+ * pause because the paused screen of C1.10 states the remainder as a fact of the
+ * club ("42:17 left"): a row that was opened two hours ago and never heard from
+ * again still believes nothing was used, so without this the lock screen would
+ * promise back every minute the player had already played. It goes through the
+ * heartbeat rather than a "set the clock" call on purpose — the client reports a
+ * reading against an epoch and the server does the accounting (F3.7), which is the
+ * same contract the 10 s heartbeat of `C2` will use once it runs; this is the one
+ * report in its place until then.
+ *
+ * `null` is the ordinary "nothing to report" case (no anchor yet, or a clock that
+ * has not moved since the last snapshot), and it stays silent rather than sending
+ * an empty reading.
  */
-export async function holdSeat(usedSeconds = 0): Promise<void> {
-  if (usedSeconds > 0) await heartbeat(usedSeconds).catch(() => {})
+export async function holdSeat(report: SessionReport | null = null): Promise<void> {
+  if (report) await heartbeat(report).catch(() => {})
   await pauseSessionOnServer().catch(() => {})
 }
 

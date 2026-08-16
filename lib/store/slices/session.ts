@@ -40,8 +40,13 @@ import {
   secondsSince,
   secondsToMinutes,
 } from '@/lib/time'
-import type { ISODateTime, Seconds } from '@/lib/types/common'
-import type { BillingMode, SessionSnapshot, TimeSource } from '@/lib/types/session'
+import type { ID, ISODateTime, Seconds } from '@/lib/types/common'
+import type {
+  BillingMode,
+  SessionReport,
+  SessionSnapshot,
+  TimeSource,
+} from '@/lib/types/session'
 import type { SliceCreator } from '../types'
 
 /** Length of a prepaid session sold at the counter. */
@@ -84,6 +89,16 @@ export interface SessionSlice {
   runningSince: ISODateTime | null
   /** Server stamp paired with the anchors above; enables clock-skew correction. */
   serverTime: ISODateTime | null
+  /**
+   * The club's accounting epoch this clock was anchored to, or `null` when no
+   * snapshot has arrived yet (C2.14).
+   *
+   * Kept because the report the client is allowed to send is a *reading* attached
+   * to an epoch, and only the server knows which epoch is current: whatever moved
+   * time last minted it. `null` therefore means "there is nothing to report
+   * against", not "report zero".
+   */
+  anchorId: ID | null
   /**
    * The value carried across a pause: seconds *left* when prepaid, seconds
    * *used* when postpaid. Re-anchored into a timestamp on resume.
@@ -282,6 +297,25 @@ export function unreportedSeconds(s: {
 }
 
 /**
+ * The report the client is entitled to send, or `null` when there is nothing to
+ * send (C2.14).
+ *
+ * `null` means **stay quiet**, not "send a zero": without an anchor (a visit
+ * opened locally, no snapshot yet) the club has nothing to compare the reading
+ * with, and a zero reading is a request with no content in it.
+ *
+ * Built on `unreportedSeconds` rather than beside it, so there is exactly one way
+ * to answer "how much has the club not heard about".
+ */
+export function sessionReport(
+  s: Parameters<typeof unreportedSeconds>[0] & { anchorId: ID | null },
+): SessionReport | null {
+  if (!s.anchorId) return null
+  const elapsed = unreportedSeconds(s)
+  return elapsed > 0 ? { anchorId: s.anchorId, elapsedSinceAnchor: elapsed } : null
+}
+
+/**
  * How long this visit has been played, derived (C3.1).
  *
  * Deliberately built on `unreportedSeconds` rather than on a second span of its
@@ -328,6 +362,7 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   expiresAt: null,
   runningSince: null,
   serverTime: null,
+  anchorId: null,
   bankedSeconds: SESSION_LENGTH,
   timerRunning: false,
   sessionExpired: false,
@@ -355,6 +390,9 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       sessionPlayedSeconds: 0,
       timerRunning: true,
       sessionExpired: false,
+      // Opened without server truth, so there is no epoch to report against yet:
+      // the first snapshot that lands names one (C2.14).
+      anchorId: null,
       // A fresh visit has heard nothing yet, and the marks of the previous one
       // are none of its business (C2.6, C2.11).
       warnedMinutes: [],
@@ -414,6 +452,9 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       expiresAt: null,
       runningSince: null,
       serverTime: null,
+      // A free station must not keep the epoch of the visit that just left: the
+      // next report would be attached to somebody else's row.
+      anchorId: null,
       warnedMinutes: [],
       warningPulseAt: null,
       closingWarned: [],
@@ -486,6 +527,10 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
       // and the count starts again from now.
       runningSince: running && postpaid ? nowIso() : null,
       serverTime: snapshot.serverTime,
+      // Written in the same set as the anchors it belongs to: the reading the
+      // client sends next is measured from *this* snapshot, so an epoch out of
+      // step with the deadline beside it would be a report the club ignores.
+      anchorId: snapshot.anchorId,
       bankedSeconds: banked,
       sessionSeconds: banked,
       // Re-anchored in the same write as the remainder: the snapshot is one
