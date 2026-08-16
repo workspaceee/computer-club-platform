@@ -48,6 +48,7 @@ import { Button } from '@/components/ui/button'
 import { useApi, useInvalidate } from '@/hooks/use-api'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { useT } from '@/lib/i18n/provider'
+import type { TKey, TVars } from '@/lib/i18n/types'
 import { icons, type LucideIcon } from '@/lib/icons'
 import { completeOnboarding, fetchPreferences } from '@/lib/mock/api/profile'
 import { overlayZ } from '@/lib/overlay'
@@ -83,8 +84,8 @@ interface TourStep {
    */
   targets: string[]
   icon: LucideIcon
-  titleKey: string
-  bodyKey: string
+  titleKey: TKey
+  bodyKey: TKey
 }
 
 /**
@@ -454,7 +455,9 @@ function TourCard({
   onBack: () => void
   onNext: () => void
   onSkip: () => void
-  t: (key: string, vars?: Record<string, string | number>) => string
+  // The dictionary's own signature, not a widened `string`: keys are checked at
+  // the call site, so a typo inside the card fails the build instead of the walk.
+  t: (key: TKey, vars?: TVars) => string
 }) {
   const Icon = step.icon
   const last = index === total - 1
