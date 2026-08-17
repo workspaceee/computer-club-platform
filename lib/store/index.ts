@@ -51,6 +51,7 @@ export type { GuestIdentity } from './slices/auth'
 export type { Settings } from './slices/settings'
 export { DEFAULT_SETTINGS } from './slices/settings'
 export {
+  OFFLINE_TAB_CAP_SECONDS,
   POSTPAID_CENTS_PER_MINUTE,
   SESSION_LENGTH,
   sessionReport,

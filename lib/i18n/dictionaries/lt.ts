@@ -397,6 +397,21 @@ export const lt: Dictionary = {
     lastCallDismissHint: 'Pasibaigus laikui stotis vis tiek užsirakins.',
 
     /* ---------------------------------------------------------------- *
+     * Neprisijungus augantis postpaid sąskaitos laikas (C2.17)
+     * ---------------------------------------------------------------- */
+    tabCapTitle: 'Sąskaita auga be ryšio',
+    tabCapBody:
+      'Klubo serveris jau kurį laiką nepasiekiamas, o laikmatis visą tą laiką ėjo. Niekas neprapuolė — šios minutės pasieks klubą vos ryšys atsinaujins. Jei norite, kad skaitiklis sustotų, pašaukite administratorių: pristabdyti stotį gali tik klubas.',
+    tabCapElapsed: 'Dar neatsiskaityta',
+    tabCapCharge: 'Pagal klubo tarifą',
+    tabCapUnbilled:
+      'Apie {n} minutę klubas dar nežino — galutinį žodį turi registratūra.|Apie {n} minutes klubas dar nežino — galutinį žodį turi registratūra.|Apie {n} minučių klubas dar nežino — galutinį žodį turi registratūra.',
+    tabCapToast:
+      'Be ryšio {n} minutę — sąskaita vis dar auga|Be ryšio {n} minutes — sąskaita vis dar auga|Be ryšio {n} minučių — sąskaita vis dar auga',
+    tabCapDismiss: 'Tęsti žaidimą',
+    tabCapDismissHint: 'Laikmatis eina bet kuriuo atveju — sustabdyti jį gali tik klubas.',
+
+    /* ---------------------------------------------------------------- *
      * Administratoriaus pauzė (C2.7)
      * ---------------------------------------------------------------- */
     pauseTitle: 'Sesija pristabdyta',

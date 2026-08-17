@@ -70,6 +70,35 @@ export function timeChargeCents(secondsUsed: Seconds): number {
   return secondsToMinutes(secondsUsed) * POSTPAID_CENTS_PER_MINUTE
 }
 
+/**
+ * How much unreported time a **postpaid** seat may accrue before the club is
+ * asked to look at it (C2.17).
+ *
+ * Lives next to the rate because it is the same subject: what a walk-in minute
+ * costs, and how many of them the shell will let pile up without a word. It is a
+ * ceiling on the *reading* — `unreportedSeconds()`, the span the club has not
+ * heard about — never on the length of a visit. A guest who has been sitting for
+ * six hours with the link up has nothing to be warned about; one who has been
+ * sitting for thirty-one minutes with the link down does.
+ *
+ * Only postpaid has the problem. A prepaid seat carries its own wall in
+ * `expiresAt`: the clock runs out locally whether or not the server is
+ * reachable, so an outage cannot let anyone play more than they bought. A tab
+ * has no wall, so an eight-hour outage is a bill the guest first sees when it is
+ * already enormous — and the shell is the only thing in the room that can see it
+ * coming.
+ *
+ * Thirty minutes, because that is the largest amount of blind growth that can
+ * still be *explained* to a guest at the counter, and it lands well inside a
+ * club shift rather than after it.
+ *
+ * Reaching it changes nothing about the accounting. The clock does not stop, the
+ * tab is not closed locally and no charge is written: money is the server's
+ * (F3.7) and pausing a seat is the club's decision. All the ceiling buys is that
+ * somebody is told while the number is still small.
+ */
+export const OFFLINE_TAB_CAP_SECONDS = 30 * 60
+
 export interface SessionSlice {
   billingMode: BillingMode
   /**

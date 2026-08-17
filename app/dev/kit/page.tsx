@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { KitCrash } from '@/components/dev-kit/kit-crash'
 import { KitData } from '@/components/dev-kit/kit-data'
 import { KitMaterials } from '@/components/dev-kit/kit-materials'
+import { KitOfflineTabCap } from '@/components/dev-kit/kit-offline-tab-cap'
 import { KitSurfaces } from '@/components/dev-kit/kit-surfaces'
 import { Toaster } from '@/components/toaster'
 
@@ -85,6 +86,9 @@ export default function DevKitPage() {
         {/* Not an F1 primitive, but the only place the crash screen can be
             reviewed without breaking the real shell (F6.5). */}
         <KitCrash />
+        {/* Same reason: a postpaid tab that has grown for half an hour behind a
+            dead link cannot be produced on demand anywhere else (C2.17). */}
+        <KitOfflineTabCap />
 
         <footer className="border-t border-border pt-6 text-xs text-text-low">
           F1.1 – F1.23 · F6.5 · F9.6 · docs/DESIGN.md is the written counterpart to this page.
