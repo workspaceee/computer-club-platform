@@ -28,6 +28,13 @@
  *     no deadline to warn about, and telling a guest they have "5 minutes left"
  *     would be the shell inventing a limit the club never sold.
  *
+ *     Postpaid gets the *other* warning instead, from the second effect below
+ *     (C2.17): not "your time is ending" but "this tab has been growing while the
+ *     club could not see it". Two branches rather than extra entries in `MARKS`,
+ *     because they are measured against different things — a remainder that can
+ *     be bought more of, versus a reading nobody has been told about — and one
+ *     list would make a "30" mean two incompatible things.
+ *
  *  4. **The takeover is dismissable, the deadline is not.** A player one minute
  *     from the end may be mid-round, and a modal they cannot put away is a modal
  *     that costs them the match. "Keep playing" closes it and says, in the same
@@ -36,6 +43,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { OfflineTabCap } from '@/components/launcher/offline-tab-cap'
+import { useRealtimeStatus } from '@/components/realtime/realtime-provider'
 import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
 import { Overlay } from '@/components/ui/overlay'
@@ -48,7 +57,7 @@ import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
 import { callStaff, fetchSessionDetail, toApiError, type SessionDetail } from '@/lib/mock/api'
 import { holdSeat } from '@/lib/seat'
-import { sessionReport, useStore } from '@/lib/store'
+import { OFFLINE_TAB_CAP_SECONDS, sessionReport, unreportedSeconds, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 /**
@@ -91,6 +100,26 @@ export function TimeWarnings() {
   const setSessionPanelOpen = useStore((s) => s.setSessionPanelOpen)
 
   const [lastCallOpen, setLastCallOpen] = useState(false)
+
+  /**
+   * The outage flag is **borrowed**, never recomputed (C2.13/C2.12): the same
+   * `offline` the banner renders, already delayed by `OFFLINE_BANNER_DELAY_MS`.
+   * A second timer here would let the ceiling fire over a 300 ms blink of packet
+   * loss, with no banner above it to explain what the panel is talking about.
+   */
+  const { offline } = useRealtimeStatus()
+  const [tabCapOpen, setTabCapOpen] = useState(false)
+  const [tabCapSeconds, setTabCapSeconds] = useState(0)
+  /**
+   * Once per outage, not once per tick.
+   *
+   * A ref rather than store state, unlike `warnedMinutes`: the marks are "once
+   * per visit" and have to survive a lock/unlock, while this is "once per
+   * outage" and the thing it is keyed to — the link being down — is not
+   * persisted either. Cleared on the way back up, so a second outage an hour
+   * later is announced again.
+   */
+  const tabCapNoted = useRef(false)
 
   /**
    * The effect fires on a *clock tick*, so everything it needs besides the second
@@ -143,6 +172,50 @@ export function TimeWarnings() {
     cue('time-warning')
   }, [seconds, warnedMinutes, timerRunning, sessionExpired, billingMode])
 
+  /**
+   * The offline ceiling on a postpaid tab (C2.17).
+   *
+   * Ticks on the same second as the watcher above and asks a different question:
+   * not "how much is left" but "how much has the club not heard about". The
+   * reading comes from `unreportedSeconds()` — the one function that answers
+   * that (C2.14/C2.15) — read off the store inside the effect rather than
+   * subscribed to, because a second derived counter is exactly what the invariant
+   * of this block forbids.
+   *
+   * Nothing clears the warning by hand. A snapshot accepted on reconnect rotates
+   * the anchor, so the reading drops back to seconds by itself, and the flag is
+   * re-armed by the link coming up.
+   */
+  useEffect(() => {
+    if (!offline) {
+      tabCapNoted.current = false
+      return
+    }
+    if (billingMode !== 'postpaid' || !timerRunning || sessionExpired) return
+    if (tabCapNoted.current) return
+
+    const unreported = unreportedSeconds(useStore.getState())
+    if (unreported < OFFLINE_TAB_CAP_SECONDS) return
+
+    tabCapNoted.current = true
+    const { t: tr, tp: trp, toast: raise, play: cue } = latest.current
+
+    // The panel *and* a held toast, for the reason the last call raises both: the
+    // panel can be dismissed within a second by a player mid-round, and the fact
+    // still has to be somewhere they can find it — next to the offline banner
+    // that explains the cause.
+    setTabCapSeconds(unreported)
+    setTabCapOpen(true)
+    raise('warning', tr('session.tabCapBody'), {
+      title: trp('session.tabCapToast', Math.floor(unreported / 60)),
+      duration: 0,
+    })
+    // The same cue the clock uses, because this is the clock asking for
+    // attention, and it is on the list that still plays while a game holds the
+    // machine (F8.4) — which is the only reason warning by sound exists here.
+    cue('time-warning')
+  }, [seconds, offline, billingMode, timerRunning, sessionExpired])
+
   // The takeover cannot outlive the thing it is about: expiry replaces it with the
   // end-of-visit screen, and a granted extension makes it a lie. Both arrive as a
   // change to state this component already reads, so neither needs an event.
@@ -151,15 +224,25 @@ export function TimeWarnings() {
   }, [sessionExpired, seconds])
 
   return (
-    <LastCall
-      open={lastCallOpen}
-      seconds={seconds}
-      onClose={() => setLastCallOpen(false)}
-      onOpenPanel={() => {
-        setLastCallOpen(false)
-        setSessionPanelOpen(true)
-      }}
-    />
+    <>
+      <LastCall
+        open={lastCallOpen}
+        seconds={seconds}
+        onClose={() => setLastCallOpen(false)}
+        onOpenPanel={() => {
+          setLastCallOpen(false)
+          setSessionPanelOpen(true)
+        }}
+      />
+      {/* The reading is frozen at the moment the ceiling was crossed rather than
+          live: the panel states *why it opened*, and a number that kept climbing
+          under the guest's eyes would read as a meter running against them. */}
+      <OfflineTabCap
+        open={tabCapOpen}
+        unreported={tabCapSeconds}
+        onClose={() => setTabCapOpen(false)}
+      />
+    </>
   )
 }
 

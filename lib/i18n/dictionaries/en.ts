@@ -537,6 +537,37 @@ export const en = {
     lastCallDismissHint: 'The station still locks when the time runs out.',
 
     /* ---------------------------------------------------------------- *
+     * The offline ceiling on a postpaid tab (C2.17)
+     *
+     * Postpaid only, and not a deadline: a walk-in's tab has no wall, so a long
+     * outage is a bill first seen when it is already large. Every line here has
+     * to keep three promises the panel cannot break — the clock has not stopped,
+     * nothing has been charged by the shell, and pausing a station is the club's
+     * decision. So the copy states a *reading* ("not yet reported"), never a
+     * total owed, and the only action it offers is a human.
+     * ---------------------------------------------------------------- */
+    tabCapTitle: 'This tab has been growing offline',
+    /** The whole argument in three sentences: what happened, what it means, what can be done. */
+    tabCapBody:
+      'The club server has been out of reach for a while and the clock kept running. Nothing is lost — these minutes reach the club as soon as the link is back. If you would rather the meter stopped, call an admin: only the club can pause a station.',
+    /** Labels for the two readings. Both say *unreported*, never "owed". */
+    tabCapElapsed: 'Not yet reported',
+    tabCapCharge: 'At the club rate',
+    /**
+     * The line that keeps the number honest: it is what the shell can see, not a
+     * bill anybody has issued.
+     */
+    // plural: one | other
+    tabCapUnbilled:
+      '{n} minute the club has not been told about yet — the counter has the final say.|{n} minutes the club has not been told about yet — the counter has the final say.',
+    /** The held toast, so the fact survives dismissing the panel. */
+    // plural: one | other
+    tabCapToast: 'Offline for {n} minute — the tab keeps running|Offline for {n} minutes — the tab keeps running',
+    tabCapDismiss: 'Keep playing',
+    /** What dismissal does *not* do, said out loud rather than implied. */
+    tabCapDismissHint: 'The clock keeps running either way — pausing it is the club’s call.',
+
+    /* ---------------------------------------------------------------- *
      * Paused by an admin (C2.7)
      *
      * Not a lock screen and not an error: the visit is still on this machine,
