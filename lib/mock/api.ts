@@ -21,6 +21,9 @@
 export {
   ApiError,
   isApiError,
+  // C2.16. The heartbeat asks before speaking: an offline reading is not lost,
+  // it simply keeps accumulating in the anchor until the link is back.
+  isTransportOffline,
   mockFaults,
   // C2.12. The two ends of the "no purchases while the link is down" guard: the
   // realtime provider pushes the banner's delayed `offline` flag in, and registers

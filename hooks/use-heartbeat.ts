@@ -36,10 +36,15 @@
  * a lost answer costs nothing. Telling the guest their kiosk failed to invoice
  * them would be alarming and unactionable, so there is no toast; the failure goes
  * to the dev log, which is what `.catch(() => {})` refused to give anybody.
+ *
+ * An outage needs no machinery of its own (C2.16). The reading is a function of
+ * the anchor rather than a sum of ticks, so it keeps growing while the link is
+ * down and one report states the whole outage when the link is back — see
+ * `reportOnce()` for the silence and `reportNow()` for the catch-up.
  */
 
 import { useCallback, useRef } from 'react'
-import { ApiError, heartbeat } from '@/lib/mock/api'
+import { ApiError, heartbeat, isTransportOffline } from '@/lib/mock/api'
 import { sessionReport, useStore } from '@/lib/store'
 
 /**
@@ -54,14 +59,35 @@ import { sessionReport, useStore } from '@/lib/store'
 export const HEARTBEAT_TICKS = 10
 
 /**
+ * Whether a report is on the wire, module-wide (C2.16).
+ *
+ * It was a ref inside the hook while the tick was the only caller. The catch-up
+ * report on reconnect is a second caller, and it has to share *this* latch, not
+ * own a parallel one: the reconnect edge and a tick can land in the same instant,
+ * and two reports in flight together is precisely the race the latch exists to
+ * stop — the older answer arriving last and re-anchoring the client to a reading
+ * the newer one already passed. A module scalar is right because there is one
+ * station and one clock; a second `<SessionManager>` would be the bug, not a case
+ * to support.
+ */
+let inFlight = false
+
+/**
  * Send the current reading, if there is one to send.
  *
- * `inFlight` is not about load — it is about ordering. A request that outlived a
- * tick would otherwise be racing its own successor, and the older answer could
- * land last and re-anchor the client to a reading the newer one already passed.
+ * Silent while the link is down, and that is the whole of the offline story
+ * (C2.16). Nothing is queued, because there is nothing to queue: the reading is a
+ * *function of the anchor*, not a sum of ticks, so ten offline minutes are still
+ * sitting in `unreportedSeconds()` when the link returns and one report states
+ * them all. A queue of per-tick deltas would be sixty ways to double-bill the
+ * same span.
+ *
+ * Asking beforehand rather than letting the request fail keeps the dev log
+ * honest: a refusal line every ten seconds through a long outage would bury the
+ * failures that actually mean something.
  */
-async function reportOnce(inFlight: { current: boolean }): Promise<void> {
-  if (inFlight.current) return
+async function reportOnce(): Promise<void> {
+  if (inFlight || isTransportOffline()) return
 
   // Read through `getState()` rather than a subscription: this runs from a timer,
   // not from a render, and subscribing would re-run the effect that owns the
@@ -69,7 +95,7 @@ async function reportOnce(inFlight: { current: boolean }): Promise<void> {
   const report = sessionReport(useStore.getState())
   if (!report) return
 
-  inFlight.current = true
+  inFlight = true
   try {
     // The one door for server truth. The response also carries the rotated
     // anchor, without which the next reading would measure from a spent epoch
@@ -82,8 +108,30 @@ async function reportOnce(inFlight: { current: boolean }): Promise<void> {
       report,
     )
   } finally {
-    inFlight.current = false
+    inFlight = false
   }
+}
+
+/**
+ * The catch-up report the reconnect edge sends, before anything else asks the
+ * server what is true (C2.16).
+ *
+ * The order is the point, and it is a money argument rather than a tidiness one.
+ * The resync's other half refetches the session and adopts it through
+ * `applySnapshot()`, which rotates the anchor to the server's belief — and the
+ * server's belief still ends at the last reading it heard, ten minutes ago. Adopt
+ * first and the whole outage is erased from the row *and* handed back to the
+ * player as free time on the countdown. Report first and the snapshot that lands
+ * a moment later already contains the outage.
+ *
+ * Deliberately not awaited by the toast: "Connection restored" is about the link,
+ * which is demonstrably back, and it must not wait on a request that may lose the
+ * race. A failure here is logged like any other refused report, and the next tick
+ * — a few seconds away — states the same reading again, because the reading is
+ * idempotent (C2.14) and never stopped accumulating.
+ */
+export function reportNow(): Promise<void> {
+  return reportOnce()
 }
 
 /**
@@ -92,7 +140,6 @@ async function reportOnce(inFlight: { current: boolean }): Promise<void> {
  */
 export function useHeartbeat(): () => void {
   const ticks = useRef(0)
-  const inFlight = useRef(false)
 
   return useCallback(() => {
     ticks.current += 1
@@ -101,6 +148,6 @@ export function useHeartbeat(): () => void {
     // there was nothing to send for — must not make the next attempt wait for a
     // second window.
     ticks.current = 0
-    void reportOnce(inFlight)
+    void reportOnce()
   }, [])
 }
