@@ -153,15 +153,35 @@ export async function claimSeat(arrival: Arrival): Promise<SeatClaim> {
  * promise back every minute the player had already played. It goes through the
  * heartbeat rather than a "set the clock" call on purpose — the client reports a
  * reading against an epoch and the server does the accounting (F3.7), which is the
- * same contract the 10 s heartbeat of `C2` will use once it runs; this is the one
- * report in its place until then.
+ * same contract the periodic report of `hooks/use-heartbeat.ts` uses; this is that
+ * same report, sent one last time at the moment the clock stops.
  *
  * `null` is the ordinary "nothing to report" case (no anchor yet, or a clock that
  * has not moved since the last snapshot), and it stays silent rather than sending
  * an empty reading.
+ *
+ * **The pause is not conditional on the report.** They are two separate promises
+ * to the player and only the second one is urgent: an unreported second is time
+ * the club did not bill (the safe direction, §6 of `OFFLINE-TIME.md`), while a
+ * pause that did not happen is a running clock on an empty chair. So a refused
+ * report is logged and the pause goes out anyway — what it must never do again is
+ * vanish. `.catch(() => {})` used to make an offline report disappear silently
+ * and forever (§5 ②); there is no toast, because there is nothing for the player
+ * to do about it and the reading is idempotent, so the next report states the same
+ * total.
  */
 export async function holdSeat(report: SessionReport | null = null): Promise<void> {
-  if (report) await heartbeat(report).catch(() => {})
+  if (report) {
+    try {
+      await heartbeat(report)
+    } catch (error) {
+      console.log(
+        '[v0] heartbeat before pause refused:',
+        error instanceof ApiError ? error.code : error,
+        report,
+      )
+    }
+  }
   await pauseSessionOnServer().catch(() => {})
 }
 

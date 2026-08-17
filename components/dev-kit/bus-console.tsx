@@ -240,9 +240,12 @@ export function BusConsole() {
   )
 
   /* ---- ledger reports (C2.14) ----------------------------------------- *
-   * The heartbeat has no periodic caller yet (that is C2.15), so without these
-   * three buttons "two identical reports in a row" cannot be produced in a
-   * browser at all — and idempotency is only worth something if it can be seen.
+   * The heartbeat now has a periodic caller (`hooks/use-heartbeat.ts`, C2.15),
+   * but it only ever sends *honest* readings: "the same report twice" and "a
+   * report from a spent anchor" are exactly what it cannot produce, and
+   * idempotency is only worth something if it can be seen. This route never
+   * mounts the launcher, so these buttons are also the only reports that exist
+   * here.
    */
   const [ledger, setLedger] = useState<SessionSnapshot | null>(null)
 

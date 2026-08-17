@@ -26,6 +26,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
 import { useEffect } from 'react'
+import { useHeartbeat } from '@/hooks/use-heartbeat'
 import { useRealtimeEvent } from '@/hooks/use-realtime'
 import { useT } from '@/lib/i18n/provider'
 import { overlayZ } from '@/lib/overlay'
@@ -40,6 +41,10 @@ export function SessionManager() {
   const sessionExpired = useStore((s) => s.sessionExpired)
   const clearExpired = useStore((s) => s.clearExpired)
   const applySnapshot = useStore((s) => s.applySnapshot)
+  // Stage 2: the periodic reading the club is owed. It counts ticks and reports
+  // on every tenth one; deciding *whether* there is anything to send belongs to
+  // the hook, so this component stays about the clock (C2.15).
+  const onTick = useHeartbeat()
 
   // Server truth wins over anything derived here: a granted 15 minutes arrives as
   // a *new deadline*, and the next tick simply reads it. Because the clock is a
@@ -55,7 +60,15 @@ export function SessionManager() {
     // Sync once on mount too: resuming a visit must not show a stale second
     // while waiting for the first tick.
     syncClock()
-    const interval = setInterval(syncClock, 1000)
+    // The clock's tick, and the club being told about it, are the same tick
+    // (F6.3, C2.15): stage 2 rides this interval instead of starting a second
+    // one, so there is nothing to keep in step and no extra wake-up on an idle
+    // station. `syncClock()` goes first — the reading is derived from the
+    // anchors, so it is read after they have been re-derived, never before.
+    const interval = setInterval(() => {
+      syncClock()
+      onTick()
+    }, 1000)
 
     // `visibilitychange` covers minimise/restore and tab switching; `focus`
     // covers the window being raised without a visibility change; `online`
@@ -72,7 +85,7 @@ export function SessionManager() {
       window.removeEventListener('focus', resync)
       window.removeEventListener('online', resync)
     }
-  }, [timerRunning, syncClock])
+  }, [timerRunning, syncClock, onTick])
 
   useEffect(() => {
     if (!sessionExpired) return
