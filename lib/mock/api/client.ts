@@ -377,6 +377,23 @@ export function setTransportOffline(offline: boolean): void {
   linkOffline = offline
 }
 
+/**
+ * The same flag, readable (C2.16).
+ *
+ * The block-lists above answer "may this write leave the station" for writes a
+ * *player pressed*. The heartbeat is neither pressed nor refusable: it is a
+ * reading the station volunteers every ten ticks, and there is nothing to tell
+ * anybody when it cannot be delivered. So it asks instead of being refused —
+ * adding `session.heartbeat` to `OFFLINE_BLOCKED` would fire `reportRefusal` and
+ * put "nothing was charged" on screen over a request the guest never made.
+ *
+ * A getter rather than a subscription because the caller runs from a timer, not
+ * from a render: `useHeartbeat()` reads this at the moment of the tick.
+ */
+export function isTransportOffline(): boolean {
+  return linkOffline
+}
+
 /** Which of the two offline block-lists refused a write. */
 export type RefusalKind = 'sales' | 'entry'
 

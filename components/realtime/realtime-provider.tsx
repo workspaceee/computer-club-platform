@@ -23,6 +23,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef } from 'react'
 import { useSWRConfig } from 'swr'
 import { OfflineBanner } from '@/components/realtime/offline-banner'
+import { reportNow } from '@/hooks/use-heartbeat'
 import {
   useRealtimeAny,
   useRealtimeChannel,
@@ -158,6 +159,13 @@ function useMoneyBridge(offline: boolean): void {
  * did not push (a price, a balance, the state of an order) is still on screen as
  * the stale copy SWR fetched before the drop. So on the `offline → online` edge:
  *
+ *   • **the catch-up reading is reported first** (C2.16). The heartbeat stayed
+ *     quiet through the outage — nothing was queued, because the reading is
+ *     derived from the anchor and kept growing on its own — so the station is
+ *     holding the only account of the minutes the club never heard about. It has
+ *     to leave *before* the refetch below, which would otherwise re-anchor us to
+ *     the server's pre-outage belief and forgive the whole outage: unbilled for
+ *     the club, and free minutes appearing on the player's countdown.
  *   • **every SWR key is revalidated**, in the background. `mutate(() => true)`
  *     keeps the data on screen while it refetches, so the shop does not blank out
  *     into skeletons for a player who never asked for a reload.
@@ -213,23 +221,34 @@ function useReconnectResync(offline: boolean): void {
 
     let cancelled = false
 
-    // `revalidate: true`, `populateCache` left alone: refetch everything, but keep
-    // rendering what we have until the answers arrive.
-    void mutate(() => true)
+    // Speak before listening (C2.16). The station is the only party that knows how
+    // long the outage lasted, and everything below this line replaces what it
+    // knows with what the server last heard — which is the reading from before the
+    // drop. Refetch first and the outage is both unbilled *and* handed back to the
+    // player as minutes on the countdown; report first and the answers that follow
+    // already include it.
+    void (async () => {
+      await reportNow()
+      if (cancelled) return
 
-    if (running.current) {
-      void fetchCurrentSession().then(
-        (snapshot) => {
-          if (!cancelled) applySnapshot(snapshot)
-        },
-        () => {
-          // The link dropped again mid-resync, or the visit ended while we were
-          // away. The channel is already retrying and the banner is already back
-          // up; the next heartbeat settles either case.
-        },
-      )
-    }
+      // `revalidate: true`, `populateCache` left alone: refetch everything, but
+      // keep rendering what we have until the answers arrive.
+      void mutate(() => true)
 
+      if (!running.current) return
+      try {
+        const snapshot = await fetchCurrentSession()
+        if (!cancelled) applySnapshot(snapshot)
+      } catch {
+        // The link dropped again mid-resync, or the visit ended while we were
+        // away. The channel is already retrying and the banner is already back
+        // up; the next heartbeat settles either case.
+      }
+    })()
+
+    // Not inside the chain above: the toast is about the *link*, which is back,
+    // and it would be a lie by omission to delay it behind a report that may lose
+    // the race.
     toast('success', t('realtime.restored'))
 
     return () => {
