@@ -212,6 +212,37 @@ export function useRealtimeChannel(): RealtimeChannelState {
     void open()
   }, [open])
 
+  /**
+   * `Ctrl+Alt+L` — pull the cable **while a visit is running** (C2.19).
+   *
+   * `?link=cut` boots into the outage, and that is the wrong moment for every
+   * scenario about *time*: signing in offline is refused by design (C2.13), so a
+   * page that starts with the cable out can never get to a clock. The console's
+   * own "Cut the link" is no help either — a live session takes the screen over
+   * on `/dev/bus` as well, which is exactly why "prepaid burns down offline" and
+   * "the reconnect edge with the clock running" stood in the debt list of both
+   * `C2.16` and `C2.17`. This is that debt paid, and it pays it the same way the
+   * console does: the *real* `setLinkUp`, the product's own backoff, banner delay
+   * and resync — only the moment is chosen for us.
+   *
+   * A hotkey rather than a button: no player-facing screen gains a widget, and
+   * unlike a query parameter it can be pressed *after* the visit exists. Coming
+   * back up runs the same manual retry a player has. Dropped from a production
+   * build by `DEV_SHORTCUTS`.
+   */
+  useEffect(() => {
+    if (!DEV_SHORTCUTS) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.altKey || event.key.toLowerCase() !== 'l') return
+      event.preventDefault()
+      const next = !bus.online
+      bus.setLinkUp(next)
+      if (next) reconnectNow()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [reconnectNow])
+
   return {
     status,
     connected: status === 'open',
