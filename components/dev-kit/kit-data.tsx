@@ -6,6 +6,7 @@ import { Grid, Row, Spec } from '@/components/dev-kit/kit-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
+import { Dropdown } from '@/components/ui/dropdown'
 import { Field } from '@/components/ui/field'
 import { HudChip } from '@/components/ui/hud-chip'
 import { HudPlate } from '@/components/ui/hud-plate'
@@ -44,6 +45,7 @@ export function KitData() {
   const [volume, setVolume] = useState(70)
   const [reduce, setReduce] = useState(false)
   const [res, setRes] = useState('1920x1080')
+  const [sort, setSort] = useState('popularity')
   const [rail, setRail] = useState<(typeof RAIL_ITEMS)[number]['id']>('games')
   const toast = useStore((s) => s.toast)
 
@@ -120,7 +122,11 @@ export function KitData() {
         </Row>
       </Spec>
 
-      <Spec id="F1.7" name="Slider / Toggle / Select" note="row and bare variants">
+      <Spec
+        id="F1.7"
+        name="Slider / Toggle / Select / Dropdown"
+        note="row and bare variants; native select vs in-skin listbox"
+      >
         <Panel variant="flat" className="flex flex-col gap-1">
           <Slider label="Master volume" value={volume} onChange={setVolume} suffix="%" />
           <Slider
@@ -160,6 +166,41 @@ export function KitData() {
             ]}
           />
           <Slider hideValue value={volume} onChange={setVolume} className="w-64" />
+        </Row>
+        {/* The two dropdowns stand next to each other on purpose: `Select` is the
+            native control in a product skin (fast, every input device, right for a
+            settings row), `Dropdown` draws its *open* panel too — which is what a
+            composed frame like the library filter row needs, because the OS panel
+            is grey where everything around it is not (C4.2). Open both to see the
+            difference the trigger alone cannot show. */}
+        <Row label="Dropdown — panel in the design system" stack>
+          <Dropdown
+            label="Sort library"
+            icon={<icons.sort size={15} />}
+            value={sort}
+            onChange={setSort}
+            className="w-56"
+            panelWidth="trigger"
+            align="start"
+            options={[
+              { value: 'popularity', label: 'Popularity' },
+              { value: 'az', label: 'A–Z' },
+              { value: 'recent', label: 'Recently played' },
+            ]}
+          />
+          <Dropdown
+            label="With hints and a disabled row"
+            showLabel
+            value={res}
+            onChange={setRes}
+            align="start"
+            className="w-72"
+            options={[
+              { value: '1920x1080', label: '1920 x 1080', hint: 'Native for this station' },
+              { value: '1366x768', label: '1366 x 768', hint: 'Falls back on the old seats' },
+              { value: '3840x2160', label: '3840 x 2160', hint: 'GPU cannot drive it', disabled: true },
+            ]}
+          />
         </Row>
       </Spec>
 
