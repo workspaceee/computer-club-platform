@@ -318,8 +318,15 @@ export function GamesView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:shrink-0">
-          <div className="glass flex min-w-0 flex-1 items-center gap-2 rounded-md px-3.5 py-2 sm:w-56 sm:flex-none">
+        {/* Two controls, one row — but only from `sm`. Sharing a 390px row meant
+            the search field gave up whatever the fixed-width sort control did not
+            take, and at the narrow end its placeholder was clipped to "Поис"
+            while the sort trigger next to it truncated its own label: two half-
+            readable controls instead of one of each. Below `sm` they stack and
+            each takes the full width, which is also the only way the sort
+            trigger can state a Russian option in full. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
+          <div className="glass flex min-w-0 items-center gap-2 rounded-md px-3.5 py-2 sm:w-56">
             <icons.search size={16} className="shrink-0 text-text-low" aria-hidden />
             <input
               value={rawQuery}
@@ -337,9 +344,9 @@ export function GamesView() {
               `glass-strong` the avatar menu uses and marks the applied row the
               way an applied chip is marked, so the whole filter row is one
               control surface whether it is open or shut.
-              `panelWidth="auto"` is the default and is load-bearing here: the
-              trigger is a fixed width in a row that also holds the search field,
-              but the *panel* must fit its longest label. Pinning it to the
+              `panelWidth="auto"` is the default and is load-bearing here: from
+              `sm` the trigger is a fixed width in a row that also holds the
+              search field, but the *panel* must fit its longest label. Pinning it to the
               trigger cut three of the five Russian options mid-word ("По
               популярнос…", "По игрокам он…") — a list of sorts the player cannot
               read is worse than the OS panel this replaced. The trigger alone
@@ -351,7 +358,7 @@ export function GamesView() {
             label={t('games.sortLabel')}
             icon={<icons.sort size={15} />}
             align="end"
-            className="w-48 shrink-0"
+            className="w-full sm:w-48 sm:shrink-0"
             options={SORTS.map((s) => ({ value: s.id, label: t(s.key) }))}
           />
         </div>
