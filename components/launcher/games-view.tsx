@@ -275,7 +275,16 @@ export function GamesView() {
           // responsive column count (F6.7).
           <Grid ref={gridRef}>
             {filtered.map((game) => (
-              <GameCard key={game.id} game={game} players={players[game.id] ?? game.players} />
+              <GameCard
+                key={game.id}
+                game={game}
+                players={players[game.id] ?? game.players}
+                // The debounced `query`, not `rawQuery`: the highlight has to
+                // mark the term these results were actually fetched for,
+                // otherwise mid-typing it underlines a substring of a title the
+                // server has not filtered on yet.
+                query={query}
+              />
             ))}
           </Grid>
         )}
@@ -310,7 +319,43 @@ function Grid({
   )
 }
 
-function GameCard({ game, players }: { game: Game; players: number }) {
+/**
+ * Marks the searched term inside a title (C4.3).
+ *
+ * Plain substring matching on a case-folded copy, and the slice comes out of the
+ * *original* string — replacing the matched text with the query itself would
+ * reprint "elden ring" in the player's own casing over the catalogue's
+ * "Elden Ring". No regex either: titles carry `:`, `.` and `(` and a player
+ * typing "PUBG:" would otherwise build an invalid pattern out of their own input.
+ */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const term = query.trim()
+  const at = term ? text.toLowerCase().indexOf(term.toLowerCase()) : -1
+  if (at === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, at)}
+      {/* `mark` for the meaning, restyled because the UA default is a black-on-
+          yellow block that belongs to no palette here. The term is stated in the
+          brand red over a faint wash of it — the same "this is what you asked
+          for" colour the active filter uses. */}
+      <mark className="rounded-[2px] bg-primary/20 text-primary">
+        {text.slice(at, at + term.length)}
+      </mark>
+      {text.slice(at + term.length)}
+    </>
+  )
+}
+
+function GameCard({
+  game,
+  players,
+  query,
+}: {
+  game: Game
+  players: number
+  query: string
+}) {
   const { t, formatNumber } = useT()
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const prev = useRef(players)
@@ -353,10 +398,27 @@ function GameCard({ game, players }: { game: Game; players: number }) {
         sizes="(min-width: 1536px) 210px, (min-width: 1024px) 265px, (min-width: 640px) 33vw, 50vw"
       />
       <div className="flex flex-col gap-1.5 p-3">
-        <span className="label-mono w-fit rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
-          {t(CATEGORY_KEYS[game.category])}
-        </span>
-        <h3 className="truncate font-display text-sm font-semibold text-text-high">{game.name}</h3>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="label-mono shrink-0 rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
+            {t(CATEGORY_KEYS[game.category])}
+          </span>
+          {/* Which launcher the title starts through (C4.4) — the club runs Steam,
+              Epic, Riot and Battle.net side by side, and it decides whether a
+              start needs a house account at all, so it belongs on the tile and
+              not only in the launch modal.
+              Printed verbatim from the catalogue and never translated: these are
+              product names, the same rule the club's own copy follows (F2.2).
+              `title` because a 2-column phone truncates "Battle.net". */}
+          <span
+            className="label-mono truncate text-[8px] text-text-low"
+            title={game.launcher}
+          >
+            {game.launcher}
+          </span>
+        </div>
+        <h3 className="truncate font-display text-sm font-semibold text-text-high">
+          <Highlight text={game.name} query={query} />
+        </h3>
         <div className="flex items-center justify-between text-xs">
           <span className="flex items-center gap-1 text-warning">
             <icons.rating size={12} fill="currentColor" />
@@ -390,7 +452,13 @@ function GameCard({ game, players }: { game: Game; players: number }) {
           reached it. */}
       {/* `scrim` (§3.3): the tile is darkened so a raised control on top of it
           reads — the same job a modal backdrop does, so the same depth. */}
-      <div className="scrim absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      {/* `pointer-events-none` while it is invisible, `auto` once it is shown: at
+          `opacity-0` the layer is still a layer, so an untouched tile had a
+          transparent sheet over its whole face swallowing every click and
+          text selection. It only becomes a surface when it is actually visible —
+          and because the trigger is `group-hover`, the same pointer that reveals
+          it is the one that then reaches the button. */}
+      <div className="scrim pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         <button
           onClick={() => setLaunchGame(game.id)}
           // The card carries the title, but a button announcing just "Play"
