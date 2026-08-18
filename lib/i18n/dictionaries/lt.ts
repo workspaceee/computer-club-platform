@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina ��aidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ����aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -776,6 +776,10 @@ export const lt: Dictionary = {
     title: 'Žaidimai',
     subtitle: 'Viskas, kas įdiegta šioje stotyje, paruošta paleisti.',
     searchPlaceholder: 'Ieškoti žaidimų',
+    // Išvalymo mygtukas paieškos lauke (C4.3). Paaiškinimas — `en.ts`. „Išvalyti
+    // paiešką“, o ne „Išvalyti“: žemiau tuščioje būsenoje jau yra „Išvalyti
+    // filtrus“, o du nepavadinti valymai viename bloke lieka spėliojimu.
+    searchClear: 'Išvalyti paiešką',
 
     // Bibliotekos tinklelis (C4.1). Paaiškinimas — `en.ts`. Žanrai turi savo
     // raktus, o ne `GameCategory` reikšmę: kitaip filtrai lieka angliški, o kiekviena
