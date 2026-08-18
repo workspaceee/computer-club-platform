@@ -11,24 +11,55 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useApi } from '@/hooks/use-api'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
+import type { TKey } from '@/lib/i18n/types'
 import { fetchGames, type GameSort } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 import type { Game, GameCategory } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
 
-const CATEGORIES: (GameCategory | 'All')[] = [
-  'All',
-  'Shooter',
-  'MOBA',
-  'Battle Royale',
-  'Sports',
-  'Racing',
-  'Strategy',
-  'MMO',
-  'RPG',
+/**
+ * The filter row: the value the endpoint filters on, plus the key it is *named*
+ * by (C4.1).
+ *
+ * The two are deliberately separate. `GameCategory` is data — it travels to
+ * `GET /api/games` as a query param and matches rows in the catalogue — and
+ * printing that value into the button is what left nine English words standing
+ * on a Russian screen. Pairing each with a dictionary key keeps the query honest
+ * and the label translated, and makes the next category added to the catalogue a
+ * compile error in three dictionaries rather than silent English.
+ */
+const CATEGORIES: { value: GameCategory | 'All'; key: TKey }[] = [
+  { value: 'All', key: 'games.catAll' },
+  { value: 'Shooter', key: 'games.catShooter' },
+  { value: 'MOBA', key: 'games.catMoba' },
+  { value: 'Battle Royale', key: 'games.catBattleRoyale' },
+  { value: 'Sports', key: 'games.catSports' },
+  { value: 'Racing', key: 'games.catRacing' },
+  { value: 'Strategy', key: 'games.catStrategy' },
+  { value: 'MMO', key: 'games.catMmo' },
+  { value: 'RPG', key: 'games.catRpg' },
 ]
 
+/**
+ * Category → label key, for the badge on each card.
+ *
+ * Derived from `CATEGORIES` rather than written out again: two hand-kept lists
+ * of the same eight genres is the setup where the filter row says
+ * "Королевская битва" and the badge under the cover still says "Battle Royale".
+ */
+const CATEGORY_KEYS = Object.fromEntries(
+  CATEGORIES.map((c) => [c.value, c.key]),
+) as Record<GameCategory | 'All', TKey>
+
 type Sort = 'popularity' | 'az' | 'rating' | 'online'
+
+/** Same split for the sort control: stable option value, translated label. */
+const SORTS: { id: Sort; key: TKey }[] = [
+  { id: 'popularity', key: 'games.sortPopularity' },
+  { id: 'az', key: 'games.sortAz' },
+  { id: 'rating', key: 'games.sortRating' },
+  { id: 'online', key: 'games.sortOnline' },
+]
 
 /** UI sort → the `sort` query param the endpoint understands. */
 const SORT_PARAM: Record<Sort, GameSort> = {
@@ -41,10 +72,10 @@ const SORT_PARAM: Record<Sort, GameSort> = {
 }
 
 export function GamesView() {
-  const { t } = useT()
+  const { t, tp } = useT()
   const [rawQuery, setRawQuery] = useState('')
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All')
+  const [category, setCategory] = useState<GameCategory | 'All'>('All')
   const [sort, setSort] = useState<Sort>('popularity')
   const [players, setPlayers] = useState<Record<string, number>>({})
 
@@ -119,11 +150,18 @@ export function GamesView() {
         <div className="flex items-center gap-4">
           <IconTile icon={icons.games} variant="primary" size="xl" ticks />
           <div>
-            <p className="label-mono text-[10px] text-text-low">Library // 02</p>
+            <p className="label-mono text-[10px] text-text-low">
+              {t('nav.games')} // 02
+            </p>
             <h2 className="font-display text-2xl font-bold uppercase tracking-tighter text-text-high">
-              Game Library
+              {t('games.title')}
             </h2>
-            <p className="text-sm text-text-low">{total} titles ready to launch</p>
+            {/* The count is the library's own readout, so it is stated only once
+                the endpoint has answered: "0 titles ready to launch" under a
+                grid of skeletons is a wrong number, not a loading state. */}
+            <p className="text-sm text-text-low">
+              {library.data ? tp('games.libraryCount', total) : t('games.subtitle')}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -132,19 +170,22 @@ export function GamesView() {
             <input
               value={rawQuery}
               onChange={(e) => setRawQuery(e.target.value)}
-              placeholder="Search games..."
+              placeholder={t('games.searchPlaceholder')}
+              aria-label={t('games.searchPlaceholder')}
               className="w-full bg-transparent text-sm text-text-high outline-none placeholder:text-text-low"
             />
           </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
+            aria-label={t('games.sortLabel')}
             className="glass rounded-md px-4 py-2.5 text-sm text-text-high outline-none"
           >
-            <option value="popularity">Popularity</option>
-            <option value="az">A–Z</option>
-            <option value="rating">Rating</option>
-            <option value="online">Players Online</option>
+            {SORTS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {t(s.key)}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -152,21 +193,31 @@ export function GamesView() {
       {/* Nine filters were nine tab stops on the way to the results. As one
           composite widget they are a single stop, and entering it lands on the
           filter that is actually applied because `aria-pressed` marks it (F6.7). */}
-      <div ref={filtersRef} className="flex flex-wrap gap-2" role="group" aria-label="Category">
+      <div
+        ref={filtersRef}
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label={t('games.categoryFilter')}
+      >
         {CATEGORIES.map((c) => (
           <button
-            key={c}
-            onClick={() => setCategory(c)}
-            aria-pressed={category === c}
+            key={c.value}
+            onClick={() => setCategory(c.value)}
+            aria-pressed={category === c.value}
             data-roving-item
             className={cn(
               'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all',
-              category === c
-                ? 'border-primary bg-primary/15 text-primary shadow-[0_0_16px_-6px_rgba(229,53,43,0.8)]'
+              // The applied filter is *state*, not the call to action, so it
+              // reads as T3 (§4.4): border, tint and colour only. It used to
+              // carry a red bloom of its own, which put a second glowing
+              // element on a screen whose T1 belongs to the launch button —
+              // and an accent in two places is an accent in neither.
+              category === c.value
+                ? 'border-primary bg-primary/15 text-primary'
                 : 'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high',
             )}
           >
-            {c}
+            {t(c.key)}
           </button>
         ))}
       </div>
@@ -175,8 +226,20 @@ export function GamesView() {
         state={library}
         loading={
           <Grid>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 w-full rounded-lg" />
+            {/* One skeleton per card, built from the same two blocks as the real
+                card — a 16:9 cover plus the copy strip — so the grid does not
+                resize under the player when the library answers. A single
+                `h-64` plate here was a different height from the card it stood
+                in for, which is a layout shift the moment data lands. */}
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="glass overflow-hidden rounded-lg">
+                <Skeleton className="aspect-video w-full rounded-none" />
+                <div className="flex flex-col gap-1.5 p-3">
+                  <Skeleton className="h-3 w-14 rounded-[4px]" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <Skeleton className="h-3 w-full rounded" />
+                </div>
+              </div>
             ))}
           </Grid>
         }
@@ -224,14 +287,21 @@ function Grid({
   ref?: React.Ref<HTMLDivElement>
 }) {
   return (
-    <div ref={ref} className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div
+      ref={ref}
+      // Five columns on the widest breakpoint because the target hardware is a
+      // club station, not a laptop: at 2560px a four-column library stretched
+      // each cover past the 800px the generated artwork actually ships, so the
+      // grid was upscaling every tile it drew.
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5"
+    >
       {children}
     </div>
   )
 }
 
 function GameCard({ game, players }: { game: Game; players: number }) {
-  const { t } = useT()
+  const { t, formatNumber } = useT()
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const prev = useRef(players)
   const rising = players > prev.current
@@ -242,34 +312,36 @@ function GameCard({ game, players }: { game: Game; players: number }) {
   return (
     <motion.div
       whileHover={{ y: -6 }}
-      className="glass group relative overflow-hidden rounded-lg transition-shadow hover:border-border-strong hover:shadow-[0_0_28px_-8px_rgba(229,53,43,0.5)]"
+      // Lifting the card used to add a second red bloom directly under the
+      // launch button's own halo, so the hovered tile glowed twice for one
+      // action. The raise is depth now — a black elevation shadow, the same
+      // language every other floating surface uses — and the red is left to the
+      // control (§4.4).
+      className="glass group relative overflow-hidden rounded-lg transition-shadow hover:border-border-strong hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.95)]"
     >
-      <div className="relative">
-        <GameCover game={game} className="h-40 w-full" />
-        {/* `group-focus-within` is not a nicety here: the launch button — the only
-            action on a card — was revealed by hover alone, so a keyboard player
-            focused a control they could not see press. The overlay now follows
-            focus as well as the pointer. */}
-        {/* `scrim` (§3.3): the cover is darkened so a raised control on top of it
-            reads — the same job a modal backdrop does, so the same depth. */}
-        <div className="scrim absolute inset-0 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          <button
-            onClick={() => setLaunchGame(game.id)}
-            // The card carries the title, but a button announcing just "Play"
-            // repeats itself sixty times in the accessibility tree.
-            aria-label={`${t('games.launch')} ${game.name}`}
-            // The card is the roving item, via its only control (F6.7).
-            data-roving-item
-            className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
-          >
-            <icons.play size={15} fill="currentColor" />
-            Play
-          </button>
-        </div>
-      </div>
+      {/* `aspect-video`, not a fixed height: the covers are generated at 800×450,
+          so a 16:9 box is the one shape that neither crops the art nor
+          letterboxes it, and it holds its own space before the file decodes —
+          the tile reserves its slot in the grid whether the image arrives,
+          arrives late, or never arrives at all. */}
+      <GameCover
+        game={game}
+        className="aspect-video w-full"
+        // The card writes the name into its own copy strip three lines down, so
+        // the cover's built-in caption printed it twice per tile —
+        // "CIVILIZATION VII" burned across the art with "Civilization VII"
+        // directly beneath it. `hideTitle` is the documented way out: this
+        // caller owns the heading, the cover stays pure art.
+        hideTitle
+        // Mirrors the five breakpoints of `Grid` above. Wrong `sizes` is not a
+        // cosmetic bug: it makes the browser pick a candidate for a width the
+        // tile never has, so the station either downloads a 2× file for a 300px
+        // slot or upscales a small one.
+        sizes="(min-width: 1536px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+      />
       <div className="flex flex-col gap-1.5 p-3">
         <span className="label-mono w-fit rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
-          {game.category}
+          {t(CATEGORY_KEYS[game.category])}
         </span>
         <h3 className="truncate font-display text-sm font-semibold text-text-high">{game.name}</h3>
         <div className="flex items-center justify-between text-xs">
@@ -285,9 +357,39 @@ function GameCard({ game, players }: { game: Game; players: number }) {
             className="flex items-center gap-1 tabular-nums"
           >
             <icons.community size={12} />
-            {players.toLocaleString()}
+            {/* `formatNumber`, not `toLocaleString()`: the latter groups by the
+                *browser's* locale, so a station whose Chrome is English printed
+                "1,204" under a Russian interface. The provider's formatter
+                follows the session language like every other number in the
+                shell. */}
+            {formatNumber(players)}
           </motion.span>
         </div>
+      </div>
+      {/* `group-focus-within` is not a nicety here: the launch button — the only
+          action on a card — was revealed by hover alone, so a keyboard player
+          focused a control they could not see press. The overlay now follows
+          focus as well as the pointer. */}
+      {/* Spans the whole card, not just the cover. Scoped to the art, the bottom
+          third of every tile — the strip carrying the name, the rating and the
+          live counter, i.e. the part a player reads before deciding — was a dead
+          zone that dismissed the only action on the card the moment the pointer
+          reached it. */}
+      {/* `scrim` (§3.3): the tile is darkened so a raised control on top of it
+          reads — the same job a modal backdrop does, so the same depth. */}
+      <div className="scrim absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <button
+          onClick={() => setLaunchGame(game.id)}
+          // The card carries the title, but a button announcing just "Play"
+          // repeats itself sixty times in the accessibility tree.
+          aria-label={`${t('games.launch')} ${game.name}`}
+          // The card is the roving item, via its only control (F6.7).
+          data-roving-item
+          className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
+        >
+          <icons.play size={15} fill="currentColor" />
+          {t('games.launch')}
+        </button>
       </div>
     </motion.div>
   )

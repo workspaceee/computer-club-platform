@@ -1276,6 +1276,36 @@ export const en = {
     title: 'Games',
     subtitle: 'Everything installed on this station, ready to launch.',
     searchPlaceholder: 'Search games',
+
+    /* ---------------------------------------------------------------- *
+     * Library grid chrome (C4.1)
+     *
+     * The category chips are keyed here rather than printed from the
+     * `GameCategory` union, because that union is a *data* value the endpoint
+     * filters on — rendering it straight into the buttons is exactly what left
+     * nine English words standing on a Russian screen. Genre names travel well
+     * ("MOBA" is "MOBA" everywhere), but the row still has to route through the
+     * dictionary or the next category added to the catalogue ships
+     * untranslated again, silently.
+     * ---------------------------------------------------------------- */
+    // plural: one | other
+    libraryCount: '{n} title ready to launch|{n} titles ready to launch',
+    sortLabel: 'Sort library',
+    sortPopularity: 'Popularity',
+    sortAz: 'A–Z',
+    sortRating: 'Rating',
+    sortOnline: 'Players online',
+    categoryFilter: 'Category',
+    catAll: 'All',
+    catShooter: 'Shooter',
+    catMoba: 'MOBA',
+    catBattleRoyale: 'Battle royale',
+    catSports: 'Sports',
+    catRacing: 'Racing',
+    catStrategy: 'Strategy',
+    catMmo: 'MMO',
+    catRpg: 'RPG',
+
     favorites: 'Favorites',
     recent: 'Recently played',
     allGames: 'All games',
