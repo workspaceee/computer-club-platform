@@ -19,6 +19,21 @@ export interface Game {
   /** two tailwind color stops for the gradient cover */
   cover: [string, string]
   launcher: string
+  /**
+   * Does starting this title need one of the club's shared logins (C4.2)?
+   *
+   * A catalogue fact, not a launcher one, which is why it is a field and not
+   * `LAUNCHER_NEEDS_ACCOUNT[game.launcher]` in the view: two Steam titles can
+   * differ — one runs off the club's café licence, the next needs a publisher
+   * account of its own — and the club decides that per game when it puts the
+   * title on the disks. Derived in the UI it would also be derived *differently*
+   * in the library, the launch dialog (C4.7) and the counter's screen.
+   *
+   * It is deliberately not the `HouseAccount` row: which of the pool a player
+   * gets is availability the server owns at launch time. This only says whether
+   * the question will be asked at all.
+   */
+  needsHouseAccount: boolean
 }
 
 /**

@@ -788,7 +788,22 @@ export const lt: Dictionary = {
     sortAz: 'A–Ž',
     sortRating: 'Pagal reitingą',
     sortOnline: 'Pagal žaidėjus',
+    sortRecent: 'Pagal paskutinius paleidimus',
     categoryFilter: 'Kategorija',
+
+    // Trys būsenos filtrai prie žanrų (C4.2). Paaiškinimas — `en.ts`. Pavadinti
+    // žaidėjo klausimu, o ne duomenų lauku: „Paruoštas paleisti“ žmogui prie
+    // stoties reiškia „įdiegtas ir neatnaujinamas“. Vienintelis iš trijų, į kurį
+    // klubo serveris atsakyti negali — atsako stoties agentas, todėl vietoje be
+    // agento šis filtras nerodomas visai. Paaiškinimai keliauja į `title`: trims
+    // ženkleliams vienoje eilėje frazei vietos nėra.
+    stateFilter: 'Pasiekiamumas',
+    filterInstalled: 'Paruoštas paleisti',
+    filterInstalledHint: 'Įdiegtas šiame kompiuteryje ir neatnaujinamas',
+    filterHouseAccount: 'Reikia klubo paskyros',
+    filterHouseAccountHint: 'Paleidžiamas per bendrą klubo paskyrą',
+    filterFriends: 'Žaidžia draugai',
+    filterFriendsHint: 'Draugas šiuo metu yra šiame žaidime',
     catAll: 'Visi',
     catShooter: 'Šaudymo',
     catMoba: 'MOBA',

@@ -1295,7 +1295,27 @@ export const en = {
     sortAz: 'A–Z',
     sortRating: 'Rating',
     sortOnline: 'Players online',
+    sortRecent: 'Recently played',
     categoryFilter: 'Category',
+
+    /* ---------------------------------------------------------------- *
+     * The three state filters beside the genres (C4.2)
+     *
+     * Named by the question the player is asking, not by the field behind them:
+     * "Ready to play" is what "installed and not mid-patch" means to someone
+     * standing at the seat, and it is the only one of the three the club server
+     * cannot answer — it comes from the station agent, so on a seat without one
+     * the chip is not offered at all rather than shown filtering nothing.
+     * The hints are `title` text: three chips in one row have no space for the
+     * sentence that makes each unambiguous.
+     * ---------------------------------------------------------------- */
+    stateFilter: 'Availability',
+    filterInstalled: 'Ready to play',
+    filterInstalledHint: 'Installed on this PC and not updating',
+    filterHouseAccount: 'Needs club account',
+    filterHouseAccountHint: 'Starts through a shared club login',
+    filterFriends: 'Friends playing',
+    filterFriendsHint: 'A friend is in this game right now',
     catAll: 'All',
     catShooter: 'Shooter',
     catMoba: 'MOBA',

@@ -28,6 +28,7 @@ import {
   toAgentError,
 } from '@/lib/agent/bridge'
 import { mockAgent } from '@/lib/agent/mock-agent'
+import type { ID } from '@/lib/types/common'
 import type { MachineTelemetry } from '@/lib/types/machine'
 
 /** The bridge in use. Stage 5 points this at the real agent transport. */
@@ -113,6 +114,69 @@ export function useAgent(): AgentState {
     recheck,
     rechecking,
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Installed titles
+ * ------------------------------------------------------------------ */
+
+export interface InstalledGamesState {
+  /** Ids the disk can start right now. Empty while checking or without an agent. */
+  ids: Set<ID>
+  /**
+   * `true` only when a real agent answered with a list. The one gate the
+   * "Installed on this PC" filter is allowed to read: without it the library
+   * must not offer the filter at all rather than offer it and match nothing
+   * (F5.4).
+   */
+  known: boolean
+}
+
+/**
+ * What this seat can start, as a set of catalogue ids (C4.2).
+ *
+ * The only filter in the library that is *not* a query param, and deliberately
+ * so: the club server knows what it sells, the agent knows what is on this disk,
+ * and `GET /api/games` cannot answer for a machine it has never seen. So the set
+ * comes from the seat and the grid narrows the page it already has.
+ *
+ * `needsUpdate` counts as not installed. A title mid-patch is one the player
+ * cannot start, and "Installed on this PC" that lists it would be a filter whose
+ * results fail at the launch dialog — the same rule `launchGame` enforces when it
+ * throws `gameNotInstalled`.
+ */
+export function useInstalledGames(): InstalledGamesState {
+  const { status } = useAgent()
+  const [state, setState] = useState<InstalledGamesState>({ ids: new Set(), known: false })
+
+  useEffect(() => {
+    if (status !== 'ready') {
+      setState({ ids: new Set(), known: false })
+      return
+    }
+
+    let alive = true
+    void (async () => {
+      try {
+        const games = await agent.getInstalledGames()
+        if (!alive) return
+        setState({
+          ids: new Set(games.filter((g) => g.installed && !g.needsUpdate).map((g) => g.gameId)),
+          known: true,
+        })
+      } catch (error) {
+        if (!alive) return
+        console.log('[v0] installed games read failed:', toAgentError(error).code)
+        setState({ ids: new Set(), known: false })
+      }
+    })()
+
+    return () => {
+      alive = false
+    }
+  }, [status])
+
+  return state
 }
 
 /* ------------------------------------------------------------------ *

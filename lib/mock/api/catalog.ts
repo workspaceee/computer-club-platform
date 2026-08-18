@@ -7,6 +7,7 @@
 import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
 import {
   db,
+  getFriends,
   getLiveSession,
   getMachine,
   getPlayer,
@@ -35,6 +36,20 @@ export interface GameQuery {
   sort?: GameSort
   /** Only titles the member has launched before. */
   playedOnly?: boolean
+  /**
+   * Only titles that need one of the club's shared logins (C4.2). A catalogue
+   * predicate, so it is answered here and not by the grid.
+   */
+  needsHouseAccount?: boolean
+  /**
+   * Only titles an accepted friend is in **right now** (C4.2).
+   *
+   * Server-side because the client has neither half of the answer: it would have
+   * to pull the whole friend list *and* everyone's live presence into the library
+   * screen to filter covers. The endpoint joins the two and returns titles, never
+   * people — who is in what is the social panel's business (C3.7) and C4.5's.
+   */
+  friendsPlaying?: boolean
   limit?: number
   offset?: number
 }
@@ -65,17 +80,36 @@ function sortGames(items: Game[], sort: GameSort, launches: GameLaunch[]): Game[
   }
 }
 
-/** `GET /api/games` — search, category filter, sort and pagination. */
+/** `GET /api/games` — search, filters, sort and pagination (C4.2). */
 export function fetchGames(params: GameQuery = {}): Promise<GameListResult> {
   return query('catalog.fetchGames', () => {
-    const { search = '', category = 'all', sort = 'popular', playedOnly = false } = params
+    const {
+      search = '',
+      category = 'all',
+      sort = 'popular',
+      playedOnly = false,
+      needsHouseAccount = false,
+      friendsPlaying = false,
+    } = params
     const needle = search.trim().toLowerCase()
     const launches = db.gameLaunches.filter((l) => l.userId === db.currentUserId)
     const played = new Set(launches.map((l) => l.gameId))
+    // Built once per call rather than per row, and only when the filter is on:
+    // resolving the friend list for every one of 67 titles is the same answer 67
+    // times. Titles, not friends — a game with four friends in it appears once.
+    const friendTitles = friendsPlaying
+      ? new Set(
+          getFriends()
+            .filter((f) => f.online && f.playingGameId)
+            .map((f) => f.playingGameId as ID),
+        )
+      : null
 
     let items = db.games.filter((game) => {
       if (category !== 'all' && game.category !== category) return false
       if (playedOnly && !played.has(game.id)) return false
+      if (needsHouseAccount && !game.needsHouseAccount) return false
+      if (friendTitles && !friendTitles.has(game.id)) return false
       if (needle && !game.name.toLowerCase().includes(needle)) return false
       return true
     })
