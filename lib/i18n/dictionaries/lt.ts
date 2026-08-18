@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina žaidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ��aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -776,6 +776,29 @@ export const lt: Dictionary = {
     title: 'Žaidimai',
     subtitle: 'Viskas, kas įdiegta šioje stotyje, paruošta paleisti.',
     searchPlaceholder: 'Ieškoti žaidimų',
+
+    // Bibliotekos tinklelis (C4.1). Paaiškinimas — `en.ts`. Žanrai turi savo
+    // raktus, o ne `GameCategory` reikšmę: kitaip filtrai lieka angliški, o kiekviena
+    // nauja katalogo kategorija vėl atkeliauja neišversta.
+    // formos: one | few | other
+    libraryCount:
+      '{n} žaidimas paruoštas paleisti|{n} žaidimai paruošti paleisti|{n} žaidimų paruošta paleisti',
+    sortLabel: 'Bibliotekos rikiavimas',
+    sortPopularity: 'Pagal populiarumą',
+    sortAz: 'A–Ž',
+    sortRating: 'Pagal reitingą',
+    sortOnline: 'Pagal žaidėjus',
+    categoryFilter: 'Kategorija',
+    catAll: 'Visi',
+    catShooter: 'Šaudymo',
+    catMoba: 'MOBA',
+    catBattleRoyale: 'Karališkos kautynės',
+    catSports: 'Sportas',
+    catRacing: 'Lenktynės',
+    catStrategy: 'Strategijos',
+    catMmo: 'MMO',
+    catRpg: 'RPG',
+
     favorites: 'Mėgstami',
     recent: 'Neseniai žaisti',
     allGames: 'Visi žaidimai',
