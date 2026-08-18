@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
 import { GameCover } from '@/components/game-cover'
 import { Skeleton } from '@/components/skeleton'
+import { Dropdown } from '@/components/ui/dropdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionHeader } from '@/components/ui/section-header'
 import { useInstalledGames } from '@/hooks/use-agent'
@@ -328,18 +329,31 @@ export function GamesView() {
               className="w-full min-w-0 bg-transparent text-sm text-text-high outline-none placeholder:text-text-low"
             />
           </div>
-          <select
+          {/* The product's own listbox, not a native `<select>` (C4.2).
+              The trigger was already a glass plate; the list that dropped out of
+              it was the operating system's — grey rows, its own font, its own
+              blue selection — two centimetres from a row of filter chips marked
+              in the brand red. `Dropdown` draws the open panel from the same
+              `glass-strong` the avatar menu uses and marks the applied row the
+              way an applied chip is marked, so the whole filter row is one
+              control surface whether it is open or shut.
+              `panelWidth="auto"` is the default and is load-bearing here: the
+              trigger is a fixed width in a row that also holds the search field,
+              but the *panel* must fit its longest label. Pinning it to the
+              trigger cut three of the five Russian options mid-word ("По
+              популярнос…", "По игрокам он…") — a list of sorts the player cannot
+              read is worse than the OS panel this replaced. The trigger alone
+              still truncates, which is correct: it states a choice already made,
+              and the full text is one press away. */}
+          <Dropdown
             value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            aria-label={t('games.sortLabel')}
-            className="glass shrink-0 rounded-md px-3 py-2 text-sm text-text-high outline-none"
-          >
-            {SORTS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {t(s.key)}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setSort(v as Sort)}
+            label={t('games.sortLabel')}
+            icon={<icons.sort size={15} />}
+            align="end"
+            className="w-48 shrink-0"
+            options={SORTS.map((s) => ({ value: s.id, label: t(s.key) }))}
+          />
         </div>
       </div>
 

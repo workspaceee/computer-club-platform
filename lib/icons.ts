@@ -23,6 +23,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
+  ArrowDownUp,
   ArrowUpRight,
   Award,
   Bell,
@@ -148,6 +149,11 @@ export const icons = {
   back: ChevronLeft,
   forward: ChevronRight, // «дальше», в том числе CTA промо
   expand: ChevronDown, // раскрыть список/меню
+  // Порядок списка, а не фильтр: `expand` на том же контроле говорит «раскроется»,
+  // а этот глиф — «что именно раскроется». Воронку (`Filter`) намеренно не берём:
+  // фильтры в библиотеке — это чипы, у них подписи, и второй смысл у иконки
+  // сортировки читался бы как «здесь ещё одни фильтры» (C4.2).
+  sort: ArrowDownUp,
   search: Search,
   add: Plus, // добавить: время, товар, количество
   remove: Minus, // убавить количество
