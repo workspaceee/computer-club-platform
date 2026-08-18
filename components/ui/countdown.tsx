@@ -44,6 +44,18 @@ interface CountdownProps extends Omit<React.ComponentProps<'div'>, 'children'> {
   noPulse?: boolean
   /** Text shown once the counter hits zero. */
   expiredLabel?: React.ReactNode
+  /**
+   * Which way the number runs.
+   *
+   * `remaining` (default) is a prepaid seat: the thresholds above apply and the
+   * digits go amber, then red. `elapsed` is a **postpaid** walk-in, whose clock
+   * counts *up* into an open tab (F6.3) — there is no "5 minutes left" to warn
+   * about, so painting minute 3 of a visit red would warn the guest about the
+   * exact opposite of what is happening. The top bar used to keep a private copy
+   * of the thresholds just to suppress them for guests; this is that suppression,
+   * living next to the thresholds it turns off.
+   */
+  mode?: 'remaining' | 'elapsed'
 }
 
 /**
@@ -60,10 +72,13 @@ export function Countdown({
   label,
   noPulse = false,
   expiredLabel = '00:00:00',
+  mode = 'remaining',
   className,
   ...props
 }: CountdownProps) {
-  const level = countdownLevel(seconds)
+  // An elapsed clock has no urgency band and no "expired" state: zero is simply
+  // the first second of the visit.
+  const level = mode === 'elapsed' ? 'neutral' : countdownLevel(seconds)
   const isExpired = level === 'expired'
 
   return (

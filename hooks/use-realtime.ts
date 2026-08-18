@@ -24,6 +24,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSWRConfig } from 'swr'
+// One rule for "which reads does this make stale", shared with the mutation path
+// (`useInvalidate`).
+import { keyMatches } from '@/hooks/use-api'
 import {
   EVENT_INVALIDATES,
   OFFLINE_BANNER_DELAY_MS,
@@ -34,6 +37,7 @@ import {
   type RealtimeStatus,
 } from '@/lib/realtime/events'
 import { mockBus, type RealtimeIdentity } from '@/lib/realtime/mock-bus'
+import { DEV_SHORTCUTS, LINK_BLIP_MS, readLinkOverride } from '@/lib/dev-flags'
 import { db } from '@/lib/mock/db'
 
 /** The transport in use. Stage 4 points this at the SSE channel. */
@@ -149,6 +153,29 @@ export function useRealtimeChannel(): RealtimeChannelState {
     }
   }, [])
 
+  /**
+   * `?link=cut` / `?link=blip` — boot into an outage (`lib/dev-flags.ts`).
+   *
+   * Declared **above** the connect effect so it runs first: the link is already
+   * down when `open()` is called, so the very first handshake fails and the page
+   * comes up the way it would with the cable out, rather than connecting and
+   * losing it a frame later. `blip` puts it back after `LINK_BLIP_MS` and lets the
+   * existing backoff notice — no second reconnect path, so what a reviewer watches
+   * is the product's own recovery.
+   *
+   * Dropped from a production build with `DEV_SHORTCUTS`; the whole hook body below
+   * is untouched by it.
+   */
+  useEffect(() => {
+    if (!DEV_SHORTCUTS) return
+    const override = readLinkOverride()
+    if (!override) return
+    bus.setLinkUp(false)
+    if (override !== 'blip') return
+    const timer = setTimeout(() => bus.setLinkUp(true), LINK_BLIP_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
   useEffect(() => {
     alive.current = true
     void open()
@@ -184,6 +211,37 @@ export function useRealtimeChannel(): RealtimeChannelState {
   const reconnectNow = useCallback(() => {
     void open()
   }, [open])
+
+  /**
+   * `Ctrl+Alt+L` — pull the cable **while a visit is running** (C2.19).
+   *
+   * `?link=cut` boots into the outage, and that is the wrong moment for every
+   * scenario about *time*: signing in offline is refused by design (C2.13), so a
+   * page that starts with the cable out can never get to a clock. The console's
+   * own "Cut the link" is no help either — a live session takes the screen over
+   * on `/dev/bus` as well, which is exactly why "prepaid burns down offline" and
+   * "the reconnect edge with the clock running" stood in the debt list of both
+   * `C2.16` and `C2.17`. This is that debt paid, and it pays it the same way the
+   * console does: the *real* `setLinkUp`, the product's own backoff, banner delay
+   * and resync — only the moment is chosen for us.
+   *
+   * A hotkey rather than a button: no player-facing screen gains a widget, and
+   * unlike a query parameter it can be pressed *after* the visit exists. Coming
+   * back up runs the same manual retry a player has. Dropped from a production
+   * build by `DEV_SHORTCUTS`.
+   */
+  useEffect(() => {
+    if (!DEV_SHORTCUTS) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.altKey || event.key.toLowerCase() !== 'l') return
+      event.preventDefault()
+      const next = !bus.online
+      bus.setLinkUp(next)
+      if (next) reconnectNow()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [reconnectNow])
 
   return {
     status,
@@ -253,19 +311,11 @@ export function useRealtimeAny(
  * Cache invalidation
  * ------------------------------------------------------------------ */
 
-/** Does an SWR key start with this prefix? Handles both string and array keys. */
-function keyMatches(key: unknown, prefixes: readonly string[]): boolean {
-  const head =
-    typeof key === 'string' ? key : Array.isArray(key) && typeof key[0] === 'string' ? key[0] : null
-  if (head === null) return false
-  return prefixes.some((prefix) => head === prefix || head.startsWith(`${prefix}/`))
-}
-
 /**
  * Revalidates the SWR keys an event made stale (`EVENT_INVALIDATES`).
  *
  * Mount once alongside `useRealtimeChannel()`. This is what makes "admin changed
- * the catalogue → the player sees the new prices without a restart" true for
+ * the catalogue — the player sees the new prices without a restart" true for
  * every screen at the same time, instead of one handler per query.
  */
 export function useRealtimeRevalidation(): void {

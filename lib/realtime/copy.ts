@@ -51,7 +51,10 @@ const ORDER_KEY = {
  * The line for one frame, or `null` when the event is handled visually elsewhere.
  *
  * Deliberately silent for: `session.paused` / `session.resumed` / `session.ended`
- * (the lock screen and the summary say it far louder), `broadcast` (the shell
+ * (the C2.7 pause overlay and the summary say it far louder — and the overlay
+ * raises the "pause lifted" line itself, so a toast from here would double it),
+ * `session.moved` (same shape: the C2.8 overlay owns the address and raises its
+ * own reminder on acknowledgement), `broadcast` (the shell
  * decides toast vs modal from `presentation`), and `time.warning` (the countdown
  * turns red and the session HUD owns that story).
  */
@@ -70,14 +73,16 @@ export function realtimeToast(event: AnyRealtimeEvent): RealtimeToast | null {
       }
     }
 
+    // Being re-seated is not a toast *first* (C2.8). The same frame reaches two
+    // very different screens: the station the player is leaving, where
+    // `SessionMovedOverlay` states the new address and takes the
+    // acknowledgement, and the station they are arriving at, where
+    // `ActiveElsewhere` has been waiting for it (C1.12). A generic line would be
+    // wrong on both — redundant behind the overlay, and an instruction to walk
+    // away on the machine the player just walked to. The overlay raises the
+    // persistent reminder itself, once the address has actually been read.
     case 'session.moved':
-      return {
-        kind: 'warning',
-        key: 'realtime.sessionMoved',
-        vars: { seat: event.payload.toMachineLabel ?? event.payload.toMachineId },
-        // Moving seats needs an acknowledgement, not a 4-second flash.
-        durationMs: 0,
-      }
+      return null
 
     case 'order.status':
       return {

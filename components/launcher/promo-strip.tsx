@@ -117,9 +117,11 @@ export function PromoStrip({ surface = 'launcher' }: { surface?: LauncherSurface
             // is what stops the strip from becoming a flat red-scrimmed void.
             fallback="plate"
           />
-          {/* The art is framed dark on the left; this scrim guarantees the
-              contrast ratio there even if a future banner is not. */}
-          <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(10,10,12,0.96)_18%,rgba(10,10,12,0.7)_52%,rgba(10,10,12,0.15))]" />
+          {/* The art is framed dark on the left; this veil guarantees the
+              contrast ratio there even if a future banner is not. It is a §3
+              utility, not a gradient spelled out here (F9.7b) — the campaign
+              art comes from the admin panel, so it passes the same pie. */}
+          <div className="veil-promo-h absolute inset-0" />
 
           <div className="relative flex min-h-44 flex-col items-start justify-center gap-2 p-6 md:min-h-40 md:p-7">
             <span className="label-mono flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[10px] text-primary-foreground">
