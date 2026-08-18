@@ -334,6 +334,34 @@ const GAME_SEEDS: GameSeed[] = [
   ['gtaonline', 'GTA Online', 'RPG', 4.4, ['#4aa85f', '#0d2113'], 'Rockstar'],
 ]
 
+/**
+ * Launchers the club can only start through one of its **own** logins (C4.2).
+ *
+ * Steam, Epic and GOG run under the club's café licensing — the seat starts the
+ * title on the machine's own library and nobody signs in twice. Everything here
+ * insists on a publisher account per player, so the counter keeps a pool of them
+ * (`houseAccounts`) and the launch dialog hands one over (C4.7).
+ *
+ * Kept as a launcher set rather than a flag per seed row because that *is* the
+ * rule the club works by, and 67 hand-written booleans is 67 chances to make
+ * Valorant the one Riot title that needs no account. `Game.needsHouseAccount`
+ * stays a per-title field so a future exception can be written down without
+ * teaching every screen about launchers.
+ */
+const HOUSE_ACCOUNT_LAUNCHERS = new Set([
+  'Riot',
+  'Battle.net',
+  'EA App',
+  'Ubisoft',
+  'Rockstar',
+  'Xbox',
+  'Square Enix',
+  'Mojang',
+  'BSG',
+  'Gaijin',
+  'Wargaming',
+])
+
 function buildGames(): Game[] {
   const rng = makeRng(777)
   return GAME_SEEDS.map(([id, name, category, rating, cover, launcher]) => ({
@@ -345,6 +373,7 @@ function buildGames(): Game[] {
     players: Math.round(120 + rating * 180 + rng() * 900),
     cover,
     launcher,
+    needsHouseAccount: HOUSE_ACCOUNT_LAUNCHERS.has(launcher),
   }))
 }
 

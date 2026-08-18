@@ -8,6 +8,7 @@ import { GameCover } from '@/components/game-cover'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionHeader } from '@/components/ui/section-header'
+import { useInstalledGames } from '@/hooks/use-agent'
 import { useApi } from '@/hooks/use-api'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
@@ -52,12 +53,13 @@ const CATEGORY_KEYS = Object.fromEntries(
   CATEGORIES.map((c) => [c.value, c.key]),
 ) as Record<GameCategory | 'All', TKey>
 
-type Sort = 'popularity' | 'az' | 'rating' | 'online'
+type Sort = 'popularity' | 'az' | 'recent' | 'rating' | 'online'
 
 /** Same split for the sort control: stable option value, translated label. */
 const SORTS: { id: Sort; key: TKey }[] = [
   { id: 'popularity', key: 'games.sortPopularity' },
   { id: 'az', key: 'games.sortAz' },
+  { id: 'recent', key: 'games.sortRecent' },
   { id: 'rating', key: 'games.sortRating' },
   { id: 'online', key: 'games.sortOnline' },
 ]
@@ -66,11 +68,46 @@ const SORTS: { id: Sort; key: TKey }[] = [
 const SORT_PARAM: Record<Sort, GameSort> = {
   popularity: 'popular',
   az: 'name',
+  // "Recently played" is the member's own launch history, which only the server
+  // has: `sortGames` reduces `game_launches` to a last-played timestamp per
+  // title. The client has never seen that table and must not learn to.
+  recent: 'recent',
   rating: 'rating',
   // The live counter is a client-side simulation, so the server sorts by
   // popularity and the fluctuating value is applied on top below.
   online: 'popular',
 }
+
+/**
+ * The three state filters beside the genres (C4.2).
+ *
+ * `installed` is the odd one out and the row is built so it can be: the club
+ * server answers the other two as query params, while "is it on *this* disk"
+ * belongs to the station agent — so the chip is dropped entirely on a seat whose
+ * agent never answered, rather than offered and matching nothing (F5.4).
+ */
+type StateFilter = 'installed' | 'houseAccount' | 'friends'
+
+const STATE_FILTERS: { id: StateFilter; key: TKey; hint: TKey }[] = [
+  { id: 'installed', key: 'games.filterInstalled', hint: 'games.filterInstalledHint' },
+  { id: 'houseAccount', key: 'games.filterHouseAccount', hint: 'games.filterHouseAccountHint' },
+  { id: 'friends', key: 'games.filterFriends', hint: 'games.filterFriendsHint' },
+]
+
+/**
+ * One chip look for both filter rows.
+ *
+ * Extracted when the second row arrived, not before: two copies of the same six
+ * classes is how the genre pills and the state pills end up a pixel of padding
+ * apart, and two rows of chips that *nearly* match read as a mistake rather than
+ * a grouping. The applied state stays T3 (§4.4) — border, tint and colour, no
+ * bloom of its own, because this screen's T1 belongs to the launch button and an
+ * accent in two places is an accent in neither.
+ */
+const CHIP = 'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all'
+const CHIP_ON = 'border-primary bg-primary/15 text-primary'
+const CHIP_OFF =
+  'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high'
 
 export function GamesView() {
   const { t, tp } = useT()
@@ -79,11 +116,28 @@ export function GamesView() {
   const [category, setCategory] = useState<GameCategory | 'All'>('All')
   const [sort, setSort] = useState<Sort>('popularity')
   const [players, setPlayers] = useState<Record<string, number>>({})
+  // The three toggles are independent, so they are a set and not one more
+  // single-choice row: "ready to play, and a friend is in it" is the question
+  // someone with twenty minutes left actually asks.
+  const [states, setStates] = useState<Set<StateFilter>>(new Set())
+  const on = (id: StateFilter) => states.has(id)
+  const toggleState = (id: StateFilter) =>
+    setStates((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
 
-  // Two composite widgets on this screen (F6.7). The grid is the reason the
+  // What this seat can actually start (C4.2). `known` is false while the
+  // handshake runs and on a seat with no agent — the filter is not offered then.
+  const installed = useInstalledGames()
+  const installedOnly = installed.known && on('installed')
+
+  // Three composite widgets on this screen (F6.7). The grid is the reason the
   // pattern exists at all: with plain Tab, leaving a full library meant one
   // keypress per remaining title.
   const filtersRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
+  const statesRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
   const gridRef = useRovingFocus<HTMLDivElement>({ orientation: 'grid' })
 
   // debounce search
@@ -95,18 +149,22 @@ export function GamesView() {
   // `GET /api/games` — search, category and sort are query params, so the screen
   // never filters the whole library itself (F3.4).
   const library = useApi(
-    ['games', query, category, sort],
+    // Both server filters are part of the cache key: without them the page for
+    // "needs a club account" and the page for the whole shelf would share one
+    // entry, and toggling a chip would show whichever answered last.
+    ['games', query, category, sort, on('houseAccount'), on('friends')],
     () =>
       fetchGames({
         search: query,
         category: category === 'All' ? 'all' : category,
         sort: SORT_PARAM[sort],
+        needsHouseAccount: on('houseAccount'),
+        friendsPlaying: on('friends'),
       }),
     { keepPreviousData: true },
   )
 
   const items = useMemo(() => library.data?.items ?? [], [library.data])
-  const total = library.data?.total ?? 0
 
   // Seed a live counter for every title the endpoint returned.
   useEffect(() => {
@@ -139,11 +197,27 @@ export function GamesView() {
   }, [])
 
   const filtered = useMemo(() => {
-    if (sort !== 'online') return items
-    return [...items].sort(
+    // The one filter applied to the page instead of asked for: disk state comes
+    // from the agent, and `GET /api/games` cannot answer for a machine it has
+    // never seen (see `useInstalledGames`). Safe to narrow here only because the
+    // library is unpaginated — the endpoint returns the whole shelf, so nothing
+    // that matches is left on a page this screen never fetched.
+    const shelf = installedOnly ? items.filter((g) => installed.ids.has(g.id)) : items
+    if (sort !== 'online') return shelf
+    return [...shelf].sort(
       (a, b) => (players[b.id] ?? b.players) - (players[a.id] ?? a.players),
     )
-  }, [items, players, sort])
+  }, [items, players, sort, installedOnly, installed.ids])
+
+  // Any filter on at all — drives the "Clear filters" action in the empty state,
+  // which must not offer to clear a search box and a genre row that are already
+  // clear just because a toggle emptied the grid.
+  const anyFilter = rawQuery !== '' || category !== 'All' || states.size > 0
+  const clearFilters = () => {
+    setRawQuery('')
+    setCategory('All')
+    setStates(new Set())
+  }
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="section-games">
@@ -164,7 +238,12 @@ export function GamesView() {
         // The count is the library's own readout, so it is stated only once the
         // endpoint has answered: "0 titles ready to launch" under a grid of
         // skeletons is a wrong number, not a loading state.
-        subtitle={library.data ? tp('games.libraryCount', total) : t('games.subtitle')}
+        // Counts what is on screen, so it counts `filtered`: `total` is the
+        // endpoint's answer and would keep claiming 67 titles under a grid the
+        // "Ready to play" chip has cut to nine.
+        subtitle={
+          library.data ? tp('games.libraryCount', filtered.length) : t('games.subtitle')
+        }
       />
 
       {/* Search and sort ride with the filters rather than in the header's
@@ -174,36 +253,68 @@ export function GamesView() {
           full width and stack, and from `sm` they sit opposite the genre row the
           way they did on the desktop kiosk. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        {/* Nine filters were nine tab stops on the way to the results. As one
-            composite widget they are a single stop, and entering it lands on the
-            filter that is actually applied because `aria-pressed` marks it (F6.7). */}
-        <div
-          ref={filtersRef}
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label={t('games.categoryFilter')}
-        >
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => setCategory(c.value)}
-            aria-pressed={category === c.value}
-            data-roving-item
-            className={cn(
-              'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all',
-              // The applied filter is *state*, not the call to action, so it
-              // reads as T3 (§4.4): border, tint and colour only. It used to
-              // carry a red bloom of its own, which put a second glowing
-              // element on a screen whose T1 belongs to the launch button —
-              // and an accent in two places is an accent in neither.
-              category === c.value
-                ? 'border-primary bg-primary/15 text-primary'
-                : 'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high',
-            )}
+        <div className="flex min-w-0 flex-col gap-2">
+          {/* Nine filters were nine tab stops on the way to the results. As one
+              composite widget they are a single stop, and entering it lands on the
+              filter that is actually applied because `aria-pressed` marks it (F6.7). */}
+          <div
+            ref={filtersRef}
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label={t('games.categoryFilter')}
           >
-            {t(c.key)}
-          </button>
-        ))}
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setCategory(c.value)}
+                aria-pressed={category === c.value}
+                data-roving-item
+                className={cn(CHIP, category === c.value ? CHIP_ON : CHIP_OFF)}
+              >
+                {t(c.key)}
+              </button>
+            ))}
+          </div>
+
+          {/* The state row is a second group, not more chips in the first: genre
+              is one choice out of nine, these are three independent switches, and
+              arrow keys that walked from "RPG" into "Friends playing" would be
+              walking across that seam. Separate `role="group"`, separate roving
+              stop, own label. */}
+          <div
+            ref={statesRef}
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label={t('games.stateFilter')}
+          >
+            {STATE_FILTERS.map((f) => {
+              // No agent, no honest answer — so the chip is absent rather than
+              // present and matching nothing (F5.4).
+              if (f.id === 'installed' && !installed.known) return null
+              const active = on(f.id)
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => toggleState(f.id)}
+                  aria-pressed={active}
+                  title={t(f.hint)}
+                  data-roving-item
+                  className={cn(
+                    CHIP,
+                    'inline-flex items-center gap-1.5',
+                    active ? CHIP_ON : CHIP_OFF,
+                  )}
+                >
+                  {/* The glyph is the *only* thing these chips add over a genre:
+                      three switches that can all be on at once need a mark that
+                      survives being read at a glance next to a tinted genre pill.
+                      `icons.check` is the product's "this option is chosen". */}
+                  {active && <icons.check size={11} aria-hidden />}
+                  {t(f.key)}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:shrink-0">
@@ -253,19 +364,22 @@ export function GamesView() {
             ))}
           </Grid>
         }
-        isEmpty={(page) => page.items.length === 0}
+        // `filtered`, not `page.items`: "Ready to play" narrows the answered page
+        // on the client, so a shelf of 67 titles none of which are on this disk is
+        // a page the endpoint filled and an empty grid — the boundary has to be
+        // told about the row it cannot see.
+        isEmpty={() => filtered.length === 0}
         empty={
           <EmptyState
             icon={icons.games}
             title={t('games.noResults')}
             description={t('games.noResultsBody')}
-            actionLabel={
-              rawQuery || category !== 'All' ? t('games.clearFilters') : undefined
-            }
-            onAction={() => {
-              setRawQuery('')
-              setCategory('All')
-            }}
+            // Offered only when something is actually on, and it clears all three
+            // rows: after C4.2 the grid can be empty with the search box blank and
+            // every genre showing, so a button that reset only those two would
+            // leave the player looking at the same empty grid.
+            actionLabel={anyFilter ? t('games.clearFilters') : undefined}
+            onAction={clearFilters}
           />
         }
       >
