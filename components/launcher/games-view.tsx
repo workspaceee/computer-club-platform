@@ -141,6 +141,10 @@ export function GamesView() {
   const statesRef = useRovingFocus<HTMLDivElement>({ orientation: 'horizontal' })
   const gridRef = useRovingFocus<HTMLDivElement>({ orientation: 'grid' })
 
+  // Held so clearing the term — by the × or by Escape — leaves the caret where
+  // the next term is typed instead of dropping focus on the body.
+  const searchRef = useRef<HTMLInputElement>(null)
+
   // debounce search
   useEffect(() => {
     const t = setTimeout(() => setQuery(rawQuery), 300)
@@ -203,12 +207,26 @@ export function GamesView() {
     // never seen (see `useInstalledGames`). Safe to narrow here only because the
     // library is unpaginated — the endpoint returns the whole shelf, so nothing
     // that matches is left on a page this screen never fetched.
-    const shelf = installedOnly ? items.filter((g) => installed.ids.has(g.id)) : items
+    let shelf = installedOnly ? items.filter((g) => installed.ids.has(g.id)) : items
+
+    // The "instant" half of C4.3, and the reason the debounce above can stay.
+    // The endpoint is still the search — it owns the shelf — but between a
+    // keystroke and its answer sit 300ms of debounce plus the mock's latency,
+    // and for that beat the grid showed titles the player had already typed
+    // past. Re-applying the *current* term to the shelf on every render closes
+    // that gap: the same substring rule `fetchGames` uses (`needle` on a
+    // case-folded name), so the local pass can only ever narrow to a subset of
+    // what the server is about to return — never show a row the server would
+    // have excluded, and never hide one it keeps. Legal for the same reason the
+    // installed filter is: the shelf is the whole library, unpaginated.
+    const needle = rawQuery.trim().toLowerCase()
+    if (needle) shelf = shelf.filter((g) => g.name.toLowerCase().includes(needle))
+
     if (sort !== 'online') return shelf
     return [...shelf].sort(
       (a, b) => (players[b.id] ?? b.players) - (players[a.id] ?? a.players),
     )
-  }, [items, players, sort, installedOnly, installed.ids])
+  }, [items, players, sort, installedOnly, installed.ids, rawQuery])
 
   // Any filter on at all — drives the "Clear filters" action in the empty state,
   // which must not offer to clear a search box and a genre row that are already
@@ -242,8 +260,17 @@ export function GamesView() {
         // Counts what is on screen, so it counts `filtered`: `total` is the
         // endpoint's answer and would keep claiming 67 titles under a grid the
         // "Ready to play" chip has cut to nine.
+        // Wrapped in a live region rather than printed as plain text (C4.3):
+        // the count is the only thing on screen that answers "did my typing
+        // find anything", and a player who cannot see the grid narrow was
+        // typing into silence. `polite` so it waits for a pause in the
+        // keystrokes instead of interrupting every letter, and the whole
+        // sentence is inside the region because a number read on its own is not
+        // an answer.
         subtitle={
-          library.data ? tp('games.libraryCount', filtered.length) : t('games.subtitle')
+          <span role="status" aria-live="polite">
+            {library.data ? tp('games.libraryCount', filtered.length) : t('games.subtitle')}
+          </span>
         }
       />
 
@@ -329,12 +356,43 @@ export function GamesView() {
           <div className="glass flex min-w-0 items-center gap-2 rounded-md px-3.5 py-2 sm:w-56">
             <icons.search size={16} className="shrink-0 text-text-low" aria-hidden />
             <input
+              ref={searchRef}
               value={rawQuery}
               onChange={(e) => setRawQuery(e.target.value)}
+              // Escape empties the field and keeps the caret in it — the
+              // shortcut every search box on the platform has, and the one a
+              // player reaches for before hunting a small button with the mouse.
+              // `stopPropagation` because this view is rendered inside the
+              // shell: an unhandled Escape here travels up to whatever overlay
+              // is listening and closing a panel is not what clearing a search
+              // should do.
+              onKeyDown={(e) => {
+                if (e.key !== 'Escape' || rawQuery === '') return
+                e.stopPropagation()
+                setRawQuery('')
+              }}
               placeholder={t('games.searchPlaceholder')}
               aria-label={t('games.searchPlaceholder')}
               className="w-full min-w-0 bg-transparent text-sm text-text-high outline-none placeholder:text-text-low"
             />
+            {/* Present only while there is something to clear: a permanent × on
+                an empty field is a control that does nothing, and it sat where
+                the placeholder ends. Focus returns to the input rather than
+                being dropped on the body — the player clears a term to type
+                another one. */}
+            {rawQuery !== '' && (
+              <button
+                onClick={() => {
+                  setRawQuery('')
+                  searchRef.current?.focus()
+                }}
+                aria-label={t('games.searchClear')}
+                title={t('games.searchClear')}
+                className="shrink-0 rounded-[4px] p-0.5 text-text-low transition-colors hover:text-text-high"
+              >
+                <icons.close size={14} aria-hidden />
+              </button>
+            )}
           </div>
           {/* The product's own listbox, not a native `<select>` (C4.2).
               The trigger was already a glass plate; the list that dropped out of
@@ -414,11 +472,14 @@ export function GamesView() {
                 key={game.id}
                 game={game}
                 players={players[game.id] ?? game.players}
-                // The debounced `query`, not `rawQuery`: the highlight has to
-                // mark the term these results were actually fetched for,
-                // otherwise mid-typing it underlines a substring of a title the
-                // server has not filtered on yet.
-                query={query}
+                // `rawQuery`, not the debounced `query`: the grid is narrowed by
+                // the live term (see `filtered`), so marking the debounced one
+                // meant every row on screen already matched what the player had
+                // typed while the mark still underlined the term from 300ms ago
+                // — a title kept for "stri" with only "str" lit inside it. The
+                // two are now the same term, which is the whole point of the
+                // local pass.
+                query={rawQuery}
               />
             ))}
           </Grid>
@@ -465,19 +526,47 @@ function Grid({
  */
 function Highlight({ text, query }: { text: string; query: string }) {
   const term = query.trim()
-  const at = term ? text.toLowerCase().indexOf(term.toLowerCase()) : -1
-  if (at === -1) return <>{text}</>
+  // Every occurrence, not just the first: "Counter-Strike 2" against "st" left
+  // one of two matches marked, which reads as the mark meaning something other
+  // than "you typed this". Built with `useMemo` because it runs once per card
+  // per keystroke — sixty titles on a club shelf.
+  const parts = useMemo(() => {
+    if (!term) return null
+    const haystack = text.toLowerCase()
+    const needle = term.toLowerCase()
+    const out: { text: string; hit: boolean }[] = []
+    let from = 0
+    for (;;) {
+      const at = haystack.indexOf(needle, from)
+      if (at === -1) break
+      if (at > from) out.push({ text: text.slice(from, at), hit: false })
+      // The slice comes out of the *original* string — replacing the matched
+      // text with the query itself would reprint "elden ring" in the player's
+      // own casing over the catalogue's "Elden Ring".
+      out.push({ text: text.slice(at, at + needle.length), hit: true })
+      from = at + needle.length
+    }
+    if (out.length === 0) return null
+    if (from < text.length) out.push({ text: text.slice(from), hit: false })
+    return out
+  }, [text, term])
+
+  if (!parts) return <>{text}</>
   return (
     <>
-      {text.slice(0, at)}
-      {/* `mark` for the meaning, restyled because the UA default is a black-on-
-          yellow block that belongs to no palette here. The term is stated in the
-          brand red over a faint wash of it — the same "this is what you asked
-          for" colour the active filter uses. */}
-      <mark className="rounded-[2px] bg-primary/20 text-primary">
-        {text.slice(at, at + term.length)}
-      </mark>
-      {text.slice(at + term.length)}
+      {parts.map((part, i) =>
+        part.hit ? (
+          // `mark` for the meaning, restyled because the UA default is a black-
+          // on-yellow block that belongs to no palette here. The term is stated
+          // in the brand red over a faint wash of it — the same "this is what
+          // you asked for" colour the active filter uses.
+          <mark key={i} className="rounded-[2px] bg-primary/20 text-primary">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={i}>{part.text}</span>
+        ),
+      )}
     </>
   )
 }

@@ -1276,6 +1276,15 @@ export const en = {
     title: 'Games',
     subtitle: 'Everything installed on this station, ready to launch.',
     searchPlaceholder: 'Search games',
+    /**
+     * The reset control inside the search field (C4.3).
+     *
+     * An icon-only button, so this string exists for the screen reader and the
+     * tooltip and nowhere on the glass. "Clear search" and not "Clear" — the
+     * empty state a few rows down offers "Clear filters", and two unlabelled
+     * clears in one region is the pair a player has to guess between.
+     */
+    searchClear: 'Clear search',
 
     /* ---------------------------------------------------------------- *
      * Library grid chrome (C4.1)
