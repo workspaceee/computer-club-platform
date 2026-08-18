@@ -106,6 +106,12 @@ export function readClubHoursOverride(): ClubHoursOverride | null {
  * backoff, the queued backlog and the delayed banner all behave exactly as they
  * do in the product. Nothing about the outage is faked; only the moment it starts
  * is chosen for us.
+ *
+ * Both boot into the outage, which is the wrong moment for every scenario about
+ * *time*: offline sign-in is refused (C2.13), so a page that starts with the cable
+ * out never reaches a clock. Pulling it **mid-visit** is `Ctrl+Alt+L`, and it lives
+ * in `hooks/use-realtime.ts` next to the same `setLinkUp` (C2.19) — a hotkey rather
+ * than a flag precisely because it has to be pressed *after* the visit exists.
  */
 export type LinkOverride = 'cut' | 'blip'
 
