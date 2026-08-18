@@ -316,7 +316,7 @@ export function BusConsole() {
         <Panel eyebrow="REPORT" title="Ledger report">
           <p className="mb-4 text-xs leading-relaxed text-text-medium">
             {
-              'The client states a reading ("since anchor A, 30 seconds") and the server takes the maximum, so a repeat costs nothing and a reading from a replaced anchor moves nothing. There is no periodic caller yet (C2.15), so these are the only way to press the same report twice.'
+              'The client states a reading ("since anchor A, 30 seconds") and the server takes the maximum, so a repeat costs nothing and a reading from a replaced anchor moves nothing. The periodic caller (C2.15) only ever sends honest readings, so these buttons are the only way to press the same report twice.'
             }
           </p>
           <div className="flex flex-wrap gap-2">
