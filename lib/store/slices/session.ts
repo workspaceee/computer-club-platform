@@ -36,6 +36,7 @@
  */
 import {
   markSnapshotObserved,
+  monotonicSecondsSinceAnchor,
   remainingSeconds,
   secondsSince,
   secondsToMinutes,
@@ -263,7 +264,15 @@ function derive(s: {
   bankedSeconds: Seconds
 }): Seconds {
   if (!s.timerRunning) return s.bankedSeconds
-  if (s.billingMode === 'postpaid') return s.bankedSeconds + secondsSince(s.runningSince)
+  if (s.billingMode === 'postpaid') {
+    // The running span is measured monotonically (C2.18), with the wall clock as
+    // the fallback for a state that has no observed anchor. `runningSince` and the
+    // anchor stamp are written in the same instant, so this is the same span the
+    // report sends — a tab that grew by an hour on screen because someone fixed
+    // the kiosk's date would be a tab the club never agreed to.
+    const running = monotonicSecondsSinceAnchor(s.serverTime) ?? secondsSince(s.runningSince)
+    return s.bankedSeconds + running
+  }
   // Skew-corrected against the stamp the deadline arrived with, so a kiosk with a
   // wrong system clock still counts the time it was sold.
   return remainingSeconds({
@@ -307,6 +316,24 @@ function derive(s: {
  * with no deadline to measure against. Under-reporting is the safe direction: an
  * unreported second is time the club has not billed, while an over-reported one
  * is time a player paid for and lost.
+ *
+ * **Measured monotonically, not by subtracting wall clocks** (C2.18). The screen
+ * and the report are different questions with different right answers: the screen
+ * has to agree with the deadline the server sent, so it stays skew-corrected
+ * through `serverTime`; the report only has to say how long this station has been
+ * running, and asking `Date.now()` makes that answer a property of the kiosk's
+ * system clock. An admin fixing the date mid-visit — backwards — used to erase
+ * every minute since the last snapshot (the span goes negative, the floor below
+ * turns it into zero, and the club is never told); forwards, it billed the player
+ * for time nobody sat down for. `monotonicSecondsSinceAnchor()` cannot be set, so
+ * neither happens. It returns `null` when there is no observed anchor to measure
+ * from (tests, server renders), and the wall-clock arithmetic stays as the
+ * fallback for exactly those callers.
+ *
+ * The price is that a monotonic clock may not advance while the machine is
+ * suspended, so a station resumed from sleep can report *less* than the wall
+ * clock would. That is the under-reporting direction, which this function is
+ * already built to prefer, and the next snapshot settles the difference.
  */
 export function unreportedSeconds(s: {
   billingMode: BillingMode
@@ -317,11 +344,19 @@ export function unreportedSeconds(s: {
   bankedSeconds: Seconds
 }): Seconds {
   if (!s.timerRunning) return 0
-  if (s.billingMode === 'postpaid') return secondsSince(s.runningSince)
+  // Both anchors are stamped in the same instant the snapshot is observed, so one
+  // monotonic span answers for both modes.
+  const monotonic = monotonicSecondsSinceAnchor(s.serverTime)
+  if (s.billingMode === 'postpaid') return monotonic ?? secondsSince(s.runningSince)
   const deadline = Date.parse(s.expiresAt ?? '')
   const stamped = Date.parse(s.serverTime ?? '')
   if (Number.isNaN(deadline) || Number.isNaN(stamped)) return 0
+  // What the server said was left when this snapshot landed. Both terms are
+  // server-stamped, so the ceiling holds whatever the kiosk clock believes.
   const atAnchor = Math.max(0, Math.floor((deadline - stamped) / 1000))
+  // Capped at the anchor: a prepaid seat can never owe the club more than it was
+  // sold, however long the page has been open past its deadline.
+  if (monotonic !== null) return Math.min(atAnchor, monotonic)
   return Math.max(0, atAnchor - derive(s))
 }
 
