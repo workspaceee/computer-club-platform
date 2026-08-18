@@ -8,6 +8,7 @@ import { GameCover } from '@/components/game-cover'
 import { Skeleton } from '@/components/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionHeader } from '@/components/ui/section-header'
+import { useInstalledGames } from '@/hooks/use-agent'
 import { useApi } from '@/hooks/use-api'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
 import { useT } from '@/lib/i18n/provider'
@@ -93,6 +94,21 @@ const STATE_FILTERS: { id: StateFilter; key: TKey; hint: TKey }[] = [
   { id: 'friends', key: 'games.filterFriends', hint: 'games.filterFriendsHint' },
 ]
 
+/**
+ * One chip look for both filter rows.
+ *
+ * Extracted when the second row arrived, not before: two copies of the same six
+ * classes is how the genre pills and the state pills end up a pixel of padding
+ * apart, and two rows of chips that *nearly* match read as a mistake rather than
+ * a grouping. The applied state stays T3 (§4.4) — border, tint and colour, no
+ * bloom of its own, because this screen's T1 belongs to the launch button and an
+ * accent in two places is an accent in neither.
+ */
+const CHIP = 'label-mono rounded-md border px-3.5 py-1.5 text-[10px] transition-all'
+const CHIP_ON = 'border-primary bg-primary/15 text-primary'
+const CHIP_OFF =
+  'border-border bg-white/[0.03] text-text-medium hover:border-border-strong hover:text-text-high'
+
 export function GamesView() {
   const { t, tp } = useT()
   const [rawQuery, setRawQuery] = useState('')
@@ -149,7 +165,6 @@ export function GamesView() {
   )
 
   const items = useMemo(() => library.data?.items ?? [], [library.data])
-  const total = library.data?.total ?? 0
 
   // Seed a live counter for every title the endpoint returned.
   useEffect(() => {
@@ -223,7 +238,12 @@ export function GamesView() {
         // The count is the library's own readout, so it is stated only once the
         // endpoint has answered: "0 titles ready to launch" under a grid of
         // skeletons is a wrong number, not a loading state.
-        subtitle={library.data ? tp('games.libraryCount', total) : t('games.subtitle')}
+        // Counts what is on screen, so it counts `filtered`: `total` is the
+        // endpoint's answer and would keep claiming 67 titles under a grid the
+        // "Ready to play" chip has cut to nine.
+        subtitle={
+          library.data ? tp('games.libraryCount', filtered.length) : t('games.subtitle')
+        }
       />
 
       {/* Search and sort ride with the filters rather than in the header's
@@ -344,19 +364,22 @@ export function GamesView() {
             ))}
           </Grid>
         }
-        isEmpty={(page) => page.items.length === 0}
+        // `filtered`, not `page.items`: "Ready to play" narrows the answered page
+        // on the client, so a shelf of 67 titles none of which are on this disk is
+        // a page the endpoint filled and an empty grid — the boundary has to be
+        // told about the row it cannot see.
+        isEmpty={() => filtered.length === 0}
         empty={
           <EmptyState
             icon={icons.games}
             title={t('games.noResults')}
             description={t('games.noResultsBody')}
-            actionLabel={
-              rawQuery || category !== 'All' ? t('games.clearFilters') : undefined
-            }
-            onAction={() => {
-              setRawQuery('')
-              setCategory('All')
-            }}
+            // Offered only when something is actually on, and it clears all three
+            // rows: after C4.2 the grid can be empty with the search box blank and
+            // every genre showing, so a button that reset only those two would
+            // leave the player looking at the same empty grid.
+            actionLabel={anyFilter ? t('games.clearFilters') : undefined}
+            onAction={clearFilters}
           />
         }
       >
