@@ -837,6 +837,44 @@ export const lt: Dictionary = {
     // nekinta.
     inClubShort: 'klube',
 
+    // ---------------------------------------------------------------- //
+    // Detali žaidimo plokštė (C4.5). Išsamus paaiškinimas — `en.ts`.
+    //
+    // „Vieta“, o ne „kompiuteris“: vietos užrašą nustato pats klubas („PC #17“,
+    // „A1“), ir eilutė jį tik įrėmina, o ne perrašo. Verdiktas — viena frazė, ir
+    // antras sakinys yra tik prie „žemiau reikalavimų“: tai vienintelis atvejis,
+    // kai žaidėjui reikia pasakyti, ką su tuo daryti.
+    // ---------------------------------------------------------------- //
+    detailOpen: 'Daugiau',
+    detailOpenLabel: 'Daugiau apie „{name}“',
+    detailPending: 'Apie žaidimą',
+    detailAbout: 'Apie žaidimą',
+    detailNoDescription: 'Aprašymo dar nėra',
+    detailNoDescriptionBody: 'Klube dar niekas neparašė šio žaidimo aprašymo.',
+    detailHouseAccount: 'Klubo paskyra',
+    detailRequirements: 'Reikalavimai',
+    detailSeat: 'Ši vieta: {seat}',
+    detailSeatHas: 'Šioje vietoje: {v}',
+    detailReqCpu: 'Procesorius',
+    detailReqGpu: 'Vaizdo kortelė',
+    detailReqRam: 'Atmintis',
+    detailReqStorage: 'Laisva vieta diske',
+    detailGb: '{n} GB',
+    detailFitAbove: 'Ši vieta pranoksta žaidimo reikalavimus',
+    detailFitMeets: 'Ši vieta atitinka žaidimo reikalavimus',
+    detailFitBelow: 'Ši vieta nepasiekia žaidimo reikalavimų',
+    detailFitBelowBody:
+      'Žaidimas pasileis, bet nustatymus teks sumažinti. Administratorius gali perkelti jus į VIP vietą.',
+    detailStats: 'Jūsų statistika',
+    detailStatPlaytime: 'Žaista',
+    detailStatLaunches: 'Paleidimų',
+    detailStatLast: 'Paskutinis paleidimas',
+    detailNeverPlayed: 'Čia dar nežaidėte šio žaidimo',
+    detailNeverPlayedBody: 'Paleiskite — ir klubas nuo šiol skaičiuos valandas.',
+    detailFriends: 'Draugai šiame žaidime',
+    detailFriendsEmpty: 'Šiuo metu šiame žaidime nėra nė vieno jūsų draugo.',
+    detailFriendSeat: 'Vieta {seat}',
+
     favorites: 'Mėgstami',
     recent: 'Neseniai žaisti',
     allGames: 'Visi žaidimai',
