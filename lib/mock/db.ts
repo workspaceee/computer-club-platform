@@ -18,9 +18,11 @@ import type {
   GameLaunch,
   GameLauncher,
   GameRelease,
+  GameRequirements,
   HouseAccount,
   Product,
   ProductCategory,
+  StationFit,
 } from '@/lib/types/catalog'
 import type { Cents, Coins, ID, ISODateTime, Minutes } from '@/lib/types/common'
 import type {
@@ -379,6 +381,209 @@ function buildGames(): Game[] {
 }
 
 const games: Game[] = buildGames()
+
+/* ------------------------------------------------------------------ *
+ * Game detail: requirements, the club's blurbs, and the seat verdict (C4.5)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Three hardware classes, and the requirement text that goes with each.
+ *
+ * Not 67 hand-written requirement blocks: a club catalogue really does sort into
+ * "runs on anything the club owns" (the esports titles it exists for), "a current
+ * mid-range card" and "the heavy single-player releases", and writing sixty-seven
+ * of them by hand is sixty-seven chances to promise a 1060 will carry Cyberpunk.
+ * The strings are the publisher's kind of prose — printed verbatim beside the
+ * seat's own specs (F2.2) — and `power` is the only part the club compares
+ * against a machine.
+ */
+const REQUIREMENT_TIERS = {
+  esports: {
+    power: 1,
+    requirements: {
+      cpu: 'Intel Core i5-9400 / AMD Ryzen 5 2600',
+      gpu: 'NVIDIA GTX 1060 6GB / AMD RX 580',
+      ram: '8GB',
+      storageGb: 45,
+    },
+  },
+  modern: {
+    power: 2,
+    requirements: {
+      cpu: 'Intel Core i5-11400 / AMD Ryzen 5 3600',
+      gpu: 'NVIDIA RTX 2060 / AMD RX 5700',
+      ram: '16GB',
+      storageGb: 90,
+    },
+  },
+  heavy: {
+    power: 3,
+    requirements: {
+      cpu: 'Intel Core i7-12700 / AMD Ryzen 7 5800X3D',
+      gpu: 'NVIDIA RTX 3070 / AMD RX 6800',
+      ram: '32GB',
+      storageGb: 140,
+    },
+  },
+} satisfies Record<string, { power: number; requirements: GameRequirements }>
+
+type RequirementTier = keyof typeof REQUIREMENT_TIERS
+
+/**
+ * The genre a title belongs to is the club's first guess at what it asks of the
+ * machine — a MOBA is built to run on an office PC, a modern RPG is not.
+ */
+const TIER_BY_CATEGORY: Record<GameCategory, RequirementTier> = {
+  MOBA: 'esports',
+  Sports: 'esports',
+  Shooter: 'modern',
+  'Battle Royale': 'modern',
+  Strategy: 'modern',
+  MMO: 'modern',
+  Racing: 'heavy',
+  RPG: 'heavy',
+}
+
+/**
+ * The titles whose genre lies about their hardware appetite.
+ *
+ * Both directions matter: Minecraft and GTA Online are `RPG` rows that run on
+ * anything, while Tarkov and the two Total War-scale releases are the reason the
+ * VIP seats exist. Written per title because these are facts about the game, not
+ * about the shelf it sits on.
+ */
+const TIER_OVERRIDES: Partial<Record<ID, RequirementTier>> = {
+  cs2: 'esports',
+  valorant: 'esports',
+  lol: 'esports',
+  dota2: 'modern',
+  minecraft: 'esports',
+  hearthstone: 'esports',
+  rocket: 'esports',
+  fallguys: 'esports',
+  pokeunite: 'esports',
+  albion: 'esports',
+  gtaonline: 'modern',
+  gtav: 'modern',
+  tarkov: 'heavy',
+  cyberpunk: 'heavy',
+  rdr2: 'heavy',
+  witcher3: 'heavy',
+  starfield: 'heavy',
+  bg3: 'heavy',
+  elden: 'heavy',
+  totalwar: 'heavy',
+  cities2: 'heavy',
+  assetto: 'modern',
+  dune: 'heavy',
+  helldivers2: 'modern',
+}
+
+/**
+ * The club's own blurbs — admin-authored copy, printed as written (F2.2).
+ *
+ * Deliberately **partial**. The staff writes these one title at a time, and a
+ * genre template stamped over the remaining rows ("A Shooter title on Steam")
+ * would read as a description while carrying nothing — the panel is better off
+ * saying that nobody has written one yet. `fetchGameDetail` therefore answers
+ * `description: null` for anything absent here, and that is a real state rather
+ * than missing data.
+ */
+const GAME_BLURBS: Partial<Record<ID, string>> = {
+  cs2: 'The house game. Five against five, thirty seconds to plant, and the club runs the Vilnius ladder on it every Thursday.',
+  valorant:
+    'Tactical shooting with an agent roster on top. Ranked queues fill fastest between 18:00 and 23:00 here.',
+  dota2: 'Two lanes, one river and no forgiveness. Draft takes ten minutes; the game takes forty.',
+  lol: 'The MOBA everyone learned first. Quick queues, short games, and half the club can coach you through one.',
+  fortnite:
+    'Build, break, and be the last one standing. Zero-build queues are on for the seats without a mouse pad the size of a table.',
+  apex: 'Squad battle royale with movement worth learning. Three players, one respawn beacon, no time to argue.',
+  pubg: 'The original hundred-player drop. Slow, tense, and still the best game of hide-and-seek on the disks.',
+  ow2: 'Hero shooter, five a side, with a role queue that keeps the tanks honest.',
+  rocket: 'Football with rocket-powered cars. Nothing to learn and everything to master.',
+  minecraft: 'The club keeps a shared survival world running. Ask an admin for the seed.',
+  tarkov:
+    'Raid in, extract with your loot, or lose all of it. The heaviest title in the hall and the one worth a VIP seat.',
+  bg3: 'A hundred hours of turn-based role-playing. Saves live on your club profile, so pick up where you left off.',
+  cyberpunk: 'Night City, ray tracing on, and the reason the VIP seats have 4090s.',
+  elden: 'Open-world Souls. Bring a friend for co-op or suffer beautifully alone.',
+  witcher3: 'Still the benchmark for a story-driven RPG, and it runs at 240 fps on the standard seats.',
+  rdr2: 'The slowest, most beautiful game in the library. Sit down for three hours or do not sit down at all.',
+  gtav: 'The story mode, offline and complete. Online is a separate row on this shelf.',
+  gtaonline: 'Heists, cars and chaos with whoever else in the club is online.',
+  warzone: 'Free-to-play battle royale on the Call of Duty engine. Fast lobbies, faster deaths.',
+  r6: 'Breach walls, hold sites, and lose to a drone you never saw. The club runs 5v5 nights on it.',
+  bo6: 'Six-a-side arena Call of Duty, the club default for a twenty-minute visit.',
+  helldivers2: 'Co-op against the bugs, four players, friendly fire always on.',
+  marvelrivals: 'Hero shooter with destructible cover and a roster everyone already knows.',
+  thefinals: 'A game show where the level falls down. Loud, fast and best in a trio.',
+  dbd: 'Four survivors, one killer, and a generator that never finishes in time.',
+  lostark: 'Isometric MMO with a raid calendar. The club keeps the launcher patched.',
+  wowr: 'Twenty years deep and still filling seats. Bring your own account for the characters.',
+  ffxiv: 'The story-first MMO. Free trial covers more hours than a night pass does.',
+  civ7: 'One more turn. The club closes at 02:00 and this title does not care.',
+  aoe4: 'Real-time strategy the club plays 2v2 on Fridays.',
+  f124: 'Official Formula 1, with the wheel rigs on seats A1 and A2.',
+  forza: 'Open-world racing in Mexico, and the easiest game here to hand a first-timer.',
+  fifa25: 'Football on the couch seats. Two controllers per console station.',
+  diablo4: 'Season grind, shared world, and a stash that follows your account.',
+  pathofexile2: 'The deepest loot game on the shelf. Ask before you respec.',
+  stellaris: 'Grand strategy in space. Bring patience and a bar order.',
+  frostpunk2: 'City-building where the wrong law costs you the city.',
+  palworld: 'Survival crafting with creatures that carry guns. Co-op up to four.',
+  deadlock: 'Third-person MOBA shooter, six a side, still in test — patches land weekly.',
+}
+
+/**
+ * How much machine a seat actually has, on the same 1–3 scale as the tiers.
+ *
+ * Read off the GPU string because that is the field the club fills in when it
+ * builds a seat, and every value in `SPECS` is one of the club's own four
+ * configurations — so the match is exact rather than a guess at parsing. A seat
+ * whose card is not on the list is treated as `modern`: the honest default for
+ * hardware nobody has classified is "it runs the shelf", not "it runs nothing".
+ */
+function seatPower(specs: MachineSpecs): number {
+  if (specs.gpu.includes('4090') || specs.gpu.includes('4080')) return 3
+  // The standard seats' 4070, the console block, and anything the club has not
+  // classified. One branch, because "it runs the shelf" is the honest default and
+  // a third rung nobody's hardware falls into would just be dead code.
+  return 2
+}
+
+/** The requirement tier of a title: genre, unless the title says otherwise. */
+function requirementTier(game: Game): RequirementTier {
+  return TIER_OVERRIDES[game.id] ?? TIER_BY_CATEGORY[game.category]
+}
+
+/**
+ * Requirements, the club's blurb and the verdict for one seat (C4.5).
+ *
+ * The comparison lives here and not in the panel for the reason written on
+ * `GameDetail.fit`: the requirement rows are prose, and only the club knows what
+ * it put in each machine.
+ */
+export function getGameRequirements(game: Game): {
+  requirements: GameRequirements
+  description: string | null
+  power: number
+} {
+  const tier = REQUIREMENT_TIERS[requirementTier(game)]
+  return {
+    requirements: tier.requirements,
+    description: GAME_BLURBS[game.id] ?? null,
+    power: tier.power,
+  }
+}
+
+/** `above` / `meets` / `below` — the seat against the title. */
+export function getStationFit(game: Game, specs: MachineSpecs): StationFit {
+  const seat = seatPower(specs)
+  const needed = getGameRequirements(game).power
+  if (seat > needed) return 'above'
+  if (seat === needed) return 'meets'
+  return 'below'
+}
 
 /**
  * "New at the club" — the curated novelty shelf behind the hero's third kind of

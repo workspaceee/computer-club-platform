@@ -1,4 +1,5 @@
 import type { Cents, ID, ISODateTime, Minutes } from './common'
+import type { MachineSpecs } from './machine'
 
 export type GameCategory =
   | 'Shooter'
@@ -71,6 +72,101 @@ export interface Game {
    * the question will be asked at all.
    */
   needsHouseAccount: boolean
+}
+
+/**
+ * `game_requirements` — what a title asks of the machine (C4.5).
+ *
+ * Strings and not a parsed spec: these are the publisher's own words, printed
+ * verbatim beside the club's own hardware the way a store page prints them, and
+ * the club is not in the business of normalising "RTX 2060 / RX 5700" into a
+ * number. The *comparison* is a separate field (`GameDetail.fit`) precisely
+ * because it cannot be done on these strings by a component — see there.
+ */
+export interface GameRequirements {
+  cpu: string
+  gpu: string
+  ram: string
+  /** Free disk space, in whole GB. A number so the UI can localise the unit. */
+  storageGb: number
+}
+
+/**
+ * How the seat this launcher runs on stands against a title's requirements.
+ *
+ * Three values and not a boolean, because "it will run" and "it will run well"
+ * are different sentences to a player choosing between a standard seat and a VIP
+ * one — and because `below` is the only one that has to say something else
+ * (lower settings, and an admin can move you).
+ */
+export type StationFit = 'above' | 'meets' | 'below'
+
+/**
+ * `GET /api/games/:id/detail` — everything the detail panel states (C4.5).
+ *
+ * Extends `Game` rather than sitting beside it: the panel prints the shelf facts
+ * (cover, genre, rating, launcher, whether a club login is needed) *and* the long
+ * ones, and two reads would have let it render a name from one instant next to a
+ * requirement list from another.
+ *
+ * `fit` is a **server** verdict and this is the whole point of the field. The
+ * requirement rows are publisher prose, so a client that wanted to answer "does
+ * my seat pass" would have to parse "RTX 2060 / RX 5700" against
+ * "NVIDIA RTX 4070 12GB" in the view — a comparison that is wrong the first time
+ * a launcher writes its GPU differently, and wrong *differently* here, in the
+ * launch dialog (C4.7) and on the counter's screen. The club knows what it put in
+ * each seat; it answers.
+ */
+export interface GameDetail extends Game {
+  /**
+   * The club's own blurb, admin-authored and printed as written (F2.2) — or
+   * `null` where nobody has written one yet.
+   *
+   * Nullable rather than defaulted to a generated sentence: a genre template
+   * ("A Strategy title on Steam") reads as a description and carries no
+   * information, which is worse than the panel omitting the block. The absence is
+   * a real state and the surface must show it as one.
+   */
+  description: string | null
+  requirements: GameRequirements
+  /** The verdict for this seat. See `StationFit`. */
+  fit: StationFit
+  /** Seat the verdict is about, e.g. `PC #17` — a label, never built from an id. */
+  fitSeatLabel: string
+  /** What the seat actually has, so the panel can set the two columns side by side. */
+  seatSpecs: MachineSpecs
+  /**
+   * `/screens/<id>/<n>.webp`, and **empty for every title today**.
+   *
+   * The club ships one cover per game (`public/covers/`) and no screenshots, so
+   * the honest answer is an empty list and a panel with no gallery — the same move
+   * the card's presence badge makes at zero. Generating 67×3 stills is an asset
+   * run, and it belongs to the open `C4.1`.
+   */
+  screenshots: string[]
+}
+
+/**
+ * `GET /api/games/:id/stats` — the member's own history with one title (C4.5).
+ *
+ * Its own read rather than a block inside `GameDetail`: the detail is a club fact
+ * (same answer for everyone, cacheable per title), this is personal and has to be
+ * dropped when the visit ends. Folding them together would cache one player's
+ * playtime under the title's key.
+ *
+ * Reduced from `game_launches` server-side. A panel that fetched the launch table
+ * to sum it would be the same mistake `sortGames` exists to prevent: history is
+ * the server's to aggregate, and an open-ended launch (`endedAt: null`) has to be
+ * counted against *server* now, not the station's clock.
+ */
+export interface GameStats {
+  gameId: ID
+  /** Times this member started the title at the club, ever. */
+  launches: number
+  /** Total seconds played, open-ended launches included up to now. */
+  seconds: number
+  /** Start of the most recent launch, or `null` for a title never played here. */
+  lastPlayedAt: ISODateTime | null
 }
 
 /**
