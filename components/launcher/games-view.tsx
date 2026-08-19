@@ -1,10 +1,8 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { icons } from '@/lib/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DataBoundary } from '@/components/data-boundary'
-import { GameCover } from '@/components/game-cover'
+import { GameCard } from '@/components/launcher/game-card'
 import { Skeleton } from '@/components/skeleton'
 import { Dropdown } from '@/components/ui/dropdown'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -12,47 +10,15 @@ import { SectionHeader } from '@/components/ui/section-header'
 import { useInstalledGames } from '@/hooks/use-agent'
 import { useApi } from '@/hooks/use-api'
 import { useRovingFocus } from '@/hooks/use-roving-focus'
+import { GAME_CATEGORIES } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
+import { icons } from '@/lib/icons'
 import { navItem } from '@/lib/launcher-nav'
-import { fetchGames, type GameSort } from '@/lib/mock/api'
-import { useStore } from '@/lib/store'
-import type { Game, GameCategory } from '@/lib/types/catalog'
+import { fetchGamePresence, fetchGames, type GameSort } from '@/lib/mock/api'
+import { FLOOR_REFRESH_MS } from '@/lib/presence'
+import type { GameCategory } from '@/lib/types/catalog'
 import { cn } from '@/lib/utils'
-
-/**
- * The filter row: the value the endpoint filters on, plus the key it is *named*
- * by (C4.1).
- *
- * The two are deliberately separate. `GameCategory` is data — it travels to
- * `GET /api/games` as a query param and matches rows in the catalogue — and
- * printing that value into the button is what left nine English words standing
- * on a Russian screen. Pairing each with a dictionary key keeps the query honest
- * and the label translated, and makes the next category added to the catalogue a
- * compile error in three dictionaries rather than silent English.
- */
-const CATEGORIES: { value: GameCategory | 'All'; key: TKey }[] = [
-  { value: 'All', key: 'games.catAll' },
-  { value: 'Shooter', key: 'games.catShooter' },
-  { value: 'MOBA', key: 'games.catMoba' },
-  { value: 'Battle Royale', key: 'games.catBattleRoyale' },
-  { value: 'Sports', key: 'games.catSports' },
-  { value: 'Racing', key: 'games.catRacing' },
-  { value: 'Strategy', key: 'games.catStrategy' },
-  { value: 'MMO', key: 'games.catMmo' },
-  { value: 'RPG', key: 'games.catRpg' },
-]
-
-/**
- * Category → label key, for the badge on each card.
- *
- * Derived from `CATEGORIES` rather than written out again: two hand-kept lists
- * of the same eight genres is the setup where the filter row says
- * "Королевская битва" and the badge under the cover still says "Battle Royale".
- */
-const CATEGORY_KEYS = Object.fromEntries(
-  CATEGORIES.map((c) => [c.value, c.key]),
-) as Record<GameCategory | 'All', TKey>
 
 type Sort = 'popularity' | 'az' | 'recent' | 'rating' | 'online'
 
@@ -74,8 +40,12 @@ const SORT_PARAM: Record<Sort, GameSort> = {
   // title. The client has never seen that table and must not learn to.
   recent: 'recent',
   rating: 'rating',
-  // The live counter is a client-side simulation, so the server sorts by
-  // popularity and the fluctuating value is applied on top below.
+  // "By players in the club" has no `sort` of its own: presence is a separate read
+  // (`fetchGamePresence`) and the endpoint would have to join it per request. The
+  // server hands back the shelf ordered by popularity — a stable tiebreak for the
+  // sixty titles nobody is in — and `filtered` re-orders it by the presence map
+  // below. Legal for the same reason the local search pass is: the library is
+  // unpaginated, so nothing that would sort to the top is on a page never fetched.
   online: 'popular',
 }
 
@@ -116,7 +86,6 @@ export function GamesView() {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<GameCategory | 'All'>('All')
   const [sort, setSort] = useState<Sort>('popularity')
-  const [players, setPlayers] = useState<Record<string, number>>({})
   // The three toggles are independent, so they are a set and not one more
   // single-choice row: "ready to play, and a friend is in it" is the question
   // someone with twenty minutes left actually asks.
@@ -171,35 +140,37 @@ export function GamesView() {
 
   const items = useMemo(() => library.data?.items ?? [], [library.data])
 
-  // Seed a live counter for every title the endpoint returned.
-  useEffect(() => {
-    if (items.length === 0) return
-    setPlayers((prev) => {
-      const next = { ...prev }
-      let added = false
-      for (const g of items) {
-        if (next[g.id] === undefined) {
-          next[g.id] = g.players
-          added = true
-        }
-      }
-      return added ? next : prev
-    })
-  }, [items])
-
-  // live player counters fluctuate every 5s
-  useEffect(() => {
-    const t = setInterval(() => {
-      setPlayers((prev) => {
-        const next: Record<string, number> = {}
-        for (const [id, value] of Object.entries(prev)) {
-          next[id] = Math.max(50, value + Math.floor(Math.random() * 21) - 10)
-        }
-        return next
-      })
-    }, 5000)
-    return () => clearInterval(t)
-  }, [])
+  /**
+   * Who is in what, **in the hall**, right now (C4.4).
+   *
+   * This read is the whole reason the card's counter is trustworthy. What stood
+   * here before was `Game.players` — a lifetime play count in the thousands —
+   * seeded into local state and nudged by ±10 every five seconds, so a forty-seat
+   * club showed "1 204 playing" under a `Users` glyph and showed it *moving*. Two
+   * orders of magnitude wrong, and animated.
+   *
+   * One request for the whole shelf, not one per tile: presence is a single sparse
+   * map keyed by game id, so sixty cards cost one fetch.
+   *
+   * Keyed under the `social` family on purpose — that is what makes a pushed
+   * `session.moved` (somebody changed seats) revalidate it without a subscription
+   * of its own (`EVENT_INVALIDATES`), and `FLOOR_REFRESH_MS` is the same cadence
+   * the "Club now" card reads the floor with, because both are readings of the
+   * same seated players.
+   *
+   * Not keyed to the member: the answer is the room's, identical for whoever is
+   * signed in, so a sign-out must not throw it away.
+   */
+  const presence = useApi(['social/game-presence'], fetchGamePresence, {
+    refreshInterval: FLOOR_REFRESH_MS,
+    keepPreviousData: true,
+  })
+  // `?? {}` and never a loading state of its own: the grid must not wait on the
+  // counter, and a title with nobody in it renders exactly like a title the
+  // presence read has not answered for yet — no chip at all. Memoised because the
+  // sort below depends on it, and a fresh `{}` every render would re-sort the
+  // whole shelf on every keystroke while the read is still in flight.
+  const inClub = useMemo(() => presence.data ?? {}, [presence.data])
 
   const filtered = useMemo(() => {
     // The one filter applied to the page instead of asked for: disk state comes
@@ -222,11 +193,12 @@ export function GamesView() {
     const needle = rawQuery.trim().toLowerCase()
     if (needle) shelf = shelf.filter((g) => g.name.toLowerCase().includes(needle))
 
+    // "By players in the club" is ordered here rather than by the endpoint (see
+    // `SORT_PARAM`): presence is its own read, and the server's `popular` order is
+    // what breaks the tie between the many titles nobody is in.
     if (sort !== 'online') return shelf
-    return [...shelf].sort(
-      (a, b) => (players[b.id] ?? b.players) - (players[a.id] ?? a.players),
-    )
-  }, [items, players, sort, installedOnly, installed.ids, rawQuery])
+    return [...shelf].sort((a, b) => (inClub[b.id] ?? 0) - (inClub[a.id] ?? 0))
+  }, [items, inClub, sort, installedOnly, installed.ids, rawQuery])
 
   // Any filter on at all — drives the "Clear filters" action in the empty state,
   // which must not offer to clear a search box and a genre row that are already
@@ -291,7 +263,7 @@ export function GamesView() {
             role="group"
             aria-label={t('games.categoryFilter')}
           >
-            {CATEGORIES.map((c) => (
+            {GAME_CATEGORIES.map((c) => (
               <button
                 key={c.value}
                 onClick={() => setCategory(c.value)}
@@ -471,7 +443,10 @@ export function GamesView() {
               <GameCard
                 key={game.id}
                 game={game}
-                players={players[game.id] ?? game.players}
+                // The seated count from `fetchGamePresence`, defaulted to zero —
+                // never `game.players`, which is the catalogue's lifetime tally
+                // and belongs to a different sentence entirely.
+                playersInClub={inClub[game.id] ?? 0}
                 // `rawQuery`, not the debounced `query`: the grid is narrowed by
                 // the live term (see `filtered`), so marking the debounced one
                 // meant every row on screen already matched what the player had
@@ -515,178 +490,3 @@ function Grid({
   )
 }
 
-function RemovedHighlight({ text, query }: { text: string; query: string }) {
-  const term = query.trim()
-  // Every occurrence, not just the first: "Counter-Strike 2" against "st" left
-  // one of two matches marked, which reads as the mark meaning something other
-  // than "you typed this". Built with `useMemo` because it runs once per card
-  // per keystroke — sixty titles on a club shelf.
-  const parts = useMemo(() => {
-    if (!term) return null
-    const haystack = text.toLowerCase()
-    const needle = term.toLowerCase()
-    const out: { text: string; hit: boolean }[] = []
-    let from = 0
-    for (;;) {
-      const at = haystack.indexOf(needle, from)
-      if (at === -1) break
-      if (at > from) out.push({ text: text.slice(from, at), hit: false })
-      // The slice comes out of the *original* string — replacing the matched
-      // text with the query itself would reprint "elden ring" in the player's
-      // own casing over the catalogue's "Elden Ring".
-      out.push({ text: text.slice(at, at + needle.length), hit: true })
-      from = at + needle.length
-    }
-    if (out.length === 0) return null
-    if (from < text.length) out.push({ text: text.slice(from), hit: false })
-    return out
-  }, [text, term])
-
-  if (!parts) return <>{text}</>
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.hit ? (
-          // `mark` for the meaning, restyled because the UA default is a black-
-          // on-yellow block that belongs to no palette here. The term is stated
-          // in the brand red over a faint wash of it — the same "this is what
-          // you asked for" colour the active filter uses.
-          <mark key={i} className="rounded-[2px] bg-primary/20 text-primary">
-            {part.text}
-          </mark>
-        ) : (
-          <span key={i}>{part.text}</span>
-        ),
-      )}
-    </>
-  )
-}
-
-function GameCard({
-  game,
-  players,
-  query,
-}: {
-  game: Game
-  players: number
-  query: string
-}) {
-  const { t, formatNumber } = useT()
-  const setLaunchGame = useStore((s) => s.setLaunchGame)
-  const prev = useRef(players)
-  const rising = players > prev.current
-  useEffect(() => {
-    prev.current = players
-  }, [players])
-
-  return (
-    <motion.div
-      whileHover={{ y: -6 }}
-      // Lifting the card used to add a second red bloom directly under the
-      // launch button's own halo, so the hovered tile glowed twice for one
-      // action. The raise is depth now — a black elevation shadow, the same
-      // language every other floating surface uses — and the red is left to the
-      // control (§4.4).
-      className="glass group relative overflow-hidden rounded-lg transition-shadow hover:border-border-strong hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.95)]"
-    >
-      {/* `aspect-video`, not a fixed height: the covers are generated at 800×450,
-          so a 16:9 box is the one shape that neither crops the art nor
-          letterboxes it, and it holds its own space before the file decodes —
-          the tile reserves its slot in the grid whether the image arrives,
-          arrives late, or never arrives at all. */}
-      <GameCover
-        game={game}
-        className="aspect-video w-full"
-        // The card writes the name into its own copy strip three lines down, so
-        // the cover's built-in caption printed it twice per tile —
-        // "CIVILIZATION VII" burned across the art with "Civilization VII"
-        // directly beneath it. `hideTitle` is the documented way out: this
-        // caller owns the heading, the cover stays pure art.
-        hideTitle
-        // Mirrors the breakpoints of `Grid` above — in pixels at the top end,
-        // not `20vw`, because the shell caps its content at `max-w-6xl`: past
-        // ~1150px the column stops growing with the window, so a tile on the
-        // club's 2560px display is ~205px wide and not the 512px `20vw` claims.
-        // Wrong `sizes` is not a cosmetic bug — it makes the browser pick a
-        // candidate for a width the tile never has, and the station downloads a
-        // 2× file for every one of 67 covers.
-        sizes="(min-width: 1536px) 210px, (min-width: 1024px) 265px, (min-width: 640px) 33vw, 50vw"
-      />
-      <div className="flex flex-col gap-1.5 p-3">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="label-mono shrink-0 rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
-            {t(CATEGORY_KEYS[game.category])}
-          </span>
-          {/* Which launcher the title starts through (C4.4) — the club runs Steam,
-              Epic, Riot and Battle.net side by side, and it decides whether a
-              start needs a house account at all, so it belongs on the tile and
-              not only in the launch modal.
-              Printed verbatim from the catalogue and never translated: these are
-              product names, the same rule the club's own copy follows (F2.2).
-              `title` because a 2-column phone truncates "Battle.net". */}
-          <span
-            className="label-mono truncate text-[8px] text-text-low"
-            title={game.launcher}
-          >
-            {game.launcher}
-          </span>
-        </div>
-        <h3 className="truncate font-display text-sm font-semibold text-text-high">
-          <Highlight text={game.name} query={query} />
-        </h3>
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1 text-warning">
-            <icons.rating size={12} fill="currentColor" />
-            {game.rating.toFixed(1)}
-          </span>
-          <motion.span
-            key={players}
-            initial={{ color: rising ? 'var(--success)' : 'var(--text-low)' }}
-            animate={{ color: 'var(--text-medium)' }}
-            transition={{ duration: 1 }}
-            className="flex items-center gap-1 tabular-nums"
-          >
-            <icons.community size={12} />
-            {/* `formatNumber`, not `toLocaleString()`: the latter groups by the
-                *browser's* locale, so a station whose Chrome is English printed
-                "1,204" under a Russian interface. The provider's formatter
-                follows the session language like every other number in the
-                shell. */}
-            {formatNumber(players)}
-          </motion.span>
-        </div>
-      </div>
-      {/* `group-focus-within` is not a nicety here: the launch button — the only
-          action on a card — was revealed by hover alone, so a keyboard player
-          focused a control they could not see press. The overlay now follows
-          focus as well as the pointer. */}
-      {/* Spans the whole card, not just the cover. Scoped to the art, the bottom
-          third of every tile — the strip carrying the name, the rating and the
-          live counter, i.e. the part a player reads before deciding — was a dead
-          zone that dismissed the only action on the card the moment the pointer
-          reached it. */}
-      {/* `scrim` (§3.3): the tile is darkened so a raised control on top of it
-          reads — the same job a modal backdrop does, so the same depth. */}
-      {/* `pointer-events-none` while it is invisible, `auto` once it is shown: at
-          `opacity-0` the layer is still a layer, so an untouched tile had a
-          transparent sheet over its whole face swallowing every click and
-          text selection. It only becomes a surface when it is actually visible —
-          and because the trigger is `group-hover`, the same pointer that reveals
-          it is the one that then reaches the button. */}
-      <div className="scrim pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-        <button
-          onClick={() => setLaunchGame(game.id)}
-          // The card carries the title, but a button announcing just "Play"
-          // repeats itself sixty times in the accessibility tree.
-          aria-label={`${t('games.launch')} ${game.name}`}
-          // The card is the roving item, via its only control (F6.7).
-          data-roving-item
-          className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
-        >
-          <icons.play size={15} fill="currentColor" />
-          {t('games.launch')}
-        </button>
-      </div>
-    </motion.div>
-  )
-}

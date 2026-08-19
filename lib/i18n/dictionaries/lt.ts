@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina ����aidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ������aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -817,6 +817,18 @@ export const lt: Dictionary = {
     catStrategy: 'Strategijos',
     catMmo: 'MMO',
     catRpg: 'RPG',
+
+    // Pati kortelė (C4.4). Paaiškinimas — `en.ts`. Paleidyklės pavadinimas į
+    // žodyną nekeliauja: „Steam“, „Epic“, „Battle.net“ yra produktų pavadinimai ir
+    // spausdinami taip, kaip yra (F2.2); žodynas turi tik žodį, paaiškinantį, kas
+    // tai už eilutė, — `title` ženkleliui, kurį dviejų stulpelių ekranas nukerpa.
+    // Kitos dvi frazės — skaitytojui be ikonų: žvaigždė prie „4,8“ ir žalias
+    // taškas prie „2“ nieko nereiškia, jei jų nematai.
+    launcherLabel: 'Paleidyklė',
+    ratingOutOf: 'Reitingas {v} iš 5',
+    // formos: one | few | other
+    inClubNow:
+      'Šiame žaidime klube dabar {n} žaidėjas|Šiame žaidime klube dabar {n} žaidėjai|Šiame žaidime klube dabar {n} žaidėjų',
 
     favorites: 'Mėgstami',
     recent: 'Neseniai žaisti',
