@@ -193,201 +193,126 @@ function DetailBody({
   const fit = FIT[detail.fit]
 
   return (
-    // `gap-3`, not `gap-6`: five sections at 24 px each spent 120 px of a
-    // 693 px station screen on nothing but air, which is what pushed the member's
-    // own hours and the friends in the title below the fold (§ the header's point
-    // 4 — the panel should fit, not scroll). The last 12 px came off with the
-    // stats strip and the shorter cover, and together they are what closes the
-    // gap: the whole panel now ends above the launch bar on the club's own screen
-    // instead of a scroll below it.
-    <div className="flex flex-col gap-3">
-      {/* ── The title, in one look ───────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <GameCover
-          game={detail}
-          // A band, not a hero. At the dialog's own width a full 16:9 cover is
-          // ~350 px tall and ate two thirds of the scroll body on the club's
-          // 693 px-high station screen: the verdict, the member's hours and the
-          // friends in the title — everything the panel exists to answer — opened
-          // below the fold, under art the player already saw on the tile they
-          // clicked. `max-h` crops through `object-cover` instead of letterboxing,
-          // and the ratio still governs on a phone, where height is not the
-          // scarce axis.
-          // 96 px, down from 128: the art is a reminder of the tile the player
-          // just clicked, not a hero, and every pixel it spends is a pixel the
-          // verdict and the member's own history have to scroll for. The cap is
-          // deliberately *not* raised at `lg` — the club's own station is
-          // 1216 × 693, so a `lg:` bump would hand the tallest cover back to
-          // exactly the screen that has the least room for it.
-          className="aspect-video max-h-24 w-full rounded-lg"
-          // The dialog header already prints the name in the display face; the
-          // cover's own caption would print it a second time, two centimetres
-          // below the first.
-          hideTitle
-          sizes="(min-width: 1024px) 640px, 100vw"
-          priority
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="neutral" variant="soft" size="sm">
-            {t(CATEGORY_KEYS[detail.category])}
-          </Badge>
-          <span className="flex items-center gap-1 text-xs text-warning">
-            <icons.rating size={13} fill="currentColor" aria-hidden />
-            <span aria-hidden>
-              {formatNumber(detail.rating, {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}
-            </span>
-            <span className="sr-only">
-              {t('games.ratingOutOf', {
-                v: formatNumber(detail.rating, {
+    // Two columns from `lg` up, one below it — and that is what finally makes the
+    // panel *fit*.
+    //
+    // Stacked, the five sections came to ~580 px of body against the 505 px the
+    // dialog has on the club's own 1216 × 693 station, so the member's own hours
+    // and the friends in the title opened below the fold no matter how much air
+    // came out of the gaps: a single column of half-width tables simply cannot be
+    // shortened past the sum of its rows. Side by side the two stacks are ~350 and
+    // ~390 px, the tallest of them is what the dialog has to hold, and everything
+    // the panel exists to answer is on screen at once above the launch bar.
+    //
+    // The split is by *kind*, not by size: the left column is the title itself —
+    // its art, the club's blurb, the member's own history with it — and the right
+    // is the machine question, verdict first with its evidence under it, then who
+    // is in the title now. Under `lg` (phones, and the counter's own narrow
+    // window) they stack in that same order, where prose two columns wide would be
+    // narrower than the words in it.
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-5">
+      {/* ── The title: art, blurb, the member's own hours ─────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {/* ── The title, in one look ───────────────────────────────────── */}
+        <div className="flex flex-col gap-2">
+          <GameCover
+            game={detail}
+            // A band, not a hero. At the dialog's own width a full 16:9 cover is
+            // ~350 px tall and ate two thirds of the scroll body on the club's
+            // 693 px-high station screen: the verdict, the member's hours and the
+            // friends in the title — everything the panel exists to answer — opened
+            // below the fold, under art the player already saw on the tile they
+            // clicked. `max-h` crops through `object-cover` instead of letterboxing,
+            // and the ratio still governs on a phone, where height is not the
+            // scarce axis.
+            // 96 px stacked, and its natural 16:9 height once the body splits in
+            // two: the cap exists to stop the art from pushing the verdict off a
+            // 693 px screen, and in the two-column layout it no longer can —
+            // the *other* column is what sets the panel's height, so the pixels
+            // the cover takes here are pixels that were empty anyway. `max-h-40`
+            // is the ceiling for the in-between widths, where the column is wide
+            // enough for the ratio to overshoot again.
+            className="aspect-video max-h-24 w-full rounded-lg lg:max-h-40"
+            // The dialog header already prints the name in the display face; the
+            // cover's own caption would print it a second time, two centimetres
+            // below the first.
+            hideTitle
+            sizes="(min-width: 1024px) 640px, 100vw"
+            priority
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="neutral" variant="soft" size="sm">
+              {t(CATEGORY_KEYS[detail.category])}
+            </Badge>
+            <span className="flex items-center gap-1 text-xs text-warning">
+              <icons.rating size={13} fill="currentColor" aria-hidden />
+              <span aria-hidden>
+                {formatNumber(detail.rating, {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,
-                }),
-              })}
+                })}
+              </span>
+              <span className="sr-only">
+                {t('games.ratingOutOf', {
+                  v: formatNumber(detail.rating, {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  }),
+                })}
+              </span>
             </span>
-          </span>
-          {/* The launcher, as the brand's own mark where the registry has one and
-              as the printed name where it does not — the tile's rule (C4.4), and
-              product names never travel through the dictionaries (F2.2). */}
-          <span
-            className="flex items-center gap-1.5 text-text-medium"
-            title={`${t('games.launcherLabel')}: ${detail.launcher}`}
-          >
-            {LAUNCHER_MARKS[detail.launcher] ? (
-              <LauncherMark launcher={detail.launcher} size={14} />
-            ) : (
-              <span className="label-mono text-[9px] text-text-low">{detail.launcher}</span>
-            )}
-            <span className="sr-only">{`${t('games.launcherLabel')}: ${detail.launcher}`}</span>
-          </span>
-          {/* Stated here and not only in the launch dialog: whether a start needs
-              one of the club's shared logins changes what the player is about to
-              queue for (C4.7), and this is the screen where they decide. */}
-          {detail.needsHouseAccount && (
-            <Badge tone="info" variant="soft" size="sm">
-              {t('games.detailHouseAccount')}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* ── The club's blurb, or the honest absence of one ───────────── */}
-      <section className="flex flex-col gap-2">
-        <h3 className="label-mono text-[9px] text-text-low">{t('games.detailAbout')}</h3>
-        {detail.description ? (
-          // Admin-authored copy, printed as written (F2.2) — the panel frames it,
-          // it does not rewrite it.
-          <p className="text-pretty text-sm leading-relaxed text-text-medium">
-            {detail.description}
-          </p>
-        ) : (
-          // One quiet line, the same move the friends block already makes: as a
-          // centred two-line `EmptyState` this absence was taller than the
-          // requirement grid beside it and read as the panel's headline — "НЕТ
-          // ОПИСАНИЯ" set larger than anything the panel does know.
-          <p className="text-pretty text-xs leading-relaxed text-text-low">
-            {t('games.detailNoDescription')}
-          </p>
-        )}
-      </section>
-
-      {/* ── What it asks for, against what this seat has ─────────────── */}
-      <section className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="label-mono text-[9px] text-text-low">
-            {t('games.detailRequirements')}
-          </h3>
-          <span className="label-mono text-[9px] text-text-low">
-            {t('games.detailSeat', { seat: detail.fitSeatLabel })}
-          </span>
-        </div>
-
-        {/* The verdict, first: it is the one line a player standing at the seat
-            actually needs, and the four rows below are the evidence for it. */}
-        <div
-          className={cn(
-            'flex items-start gap-2.5 rounded-md border px-3 py-2',
-            fit.tone === 'warning'
-              ? 'border-warning/40 bg-warning/10'
-              : 'border-success/40 bg-success/10',
-          )}
-        >
-          {fit.tone === 'warning' ? (
-            <icons.warning size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden />
-          ) : (
-            <icons.check size={15} className="mt-0.5 shrink-0 text-success" aria-hidden />
-          )}
-          <div className="flex min-w-0 flex-col gap-1">
-            <p
-              className={cn(
-                'text-pretty text-sm font-semibold leading-snug',
-                fit.tone === 'warning' ? 'text-warning' : 'text-success',
-              )}
+            {/* The launcher, as the brand's own mark where the registry has one and
+                as the printed name where it does not — the tile's rule (C4.4), and
+                product names never travel through the dictionaries (F2.2). */}
+            <span
+              className="flex items-center gap-1.5 text-text-medium"
+              title={`${t('games.launcherLabel')}: ${detail.launcher}`}
             >
-              {t(fit.key)}
-            </p>
-            {fit.body && (
-              <p className="text-pretty text-xs leading-relaxed text-text-medium">
-                {t(fit.body)}
-              </p>
+              {LAUNCHER_MARKS[detail.launcher] ? (
+                <LauncherMark launcher={detail.launcher} size={14} />
+              ) : (
+                <span className="label-mono text-[9px] text-text-low">{detail.launcher}</span>
+              )}
+              <span className="sr-only">{`${t('games.launcherLabel')}: ${detail.launcher}`}</span>
+            </span>
+            {/* Stated here and not only in the launch dialog: whether a start needs
+                one of the club's shared logins changes what the player is about to
+                queue for (C4.7), and this is the screen where they decide. */}
+            {detail.needsHouseAccount && (
+              <Badge tone="info" variant="soft" size="sm">
+                {t('games.detailHouseAccount')}
+              </Badge>
             )}
           </div>
         </div>
 
-        {/* Two values per row rather than two columns of a table: on a 390 px
-            phone a real table either scrolls sideways or truncates the GPU
-            strings, which are the longest copy in the panel and the whole reason
-            the block exists. */}
-        <dl className="grid gap-2 sm:grid-cols-2">
-          <ReqRow
-            icon={<icons.hardware size={13} aria-hidden />}
-            label={t('games.detailReqCpu')}
-            asks={detail.requirements.cpu}
-            has={detail.seatSpecs.cpu}
-          />
-          <ReqRow
-            icon={<icons.performance size={13} aria-hidden />}
-            label={t('games.detailReqGpu')}
-            asks={detail.requirements.gpu}
-            has={detail.seatSpecs.gpu}
-          />
-          <ReqRow
-            icon={<icons.status size={13} aria-hidden />}
-            label={t('games.detailReqRam')}
-            asks={detail.requirements.ram}
-            has={detail.seatSpecs.ram}
-          />
-          <ReqRow
-            icon={<icons.save size={13} aria-hidden />}
-            label={t('games.detailReqStorage')}
-            // A number, so the unit is localised here rather than baked into the
-            // seed the way the prose rows are.
-            asks={t('games.detailGb', { n: formatNumber(detail.requirements.storageGb) })}
-            // Free space on the seat is the station agent's answer, not the
-            // club's, and this payload is the club's — so the row states what the
-            // title asks for and claims nothing about the disk.
-            has={null}
-          />
-        </dl>
-      </section>
+        {/* ── The club's blurb, or the honest absence of one ───────────── */}
+        <section className="flex flex-col gap-2">
+          <h3 className="label-mono text-[9px] text-text-low">{t('games.detailAbout')}</h3>
+          {detail.description ? (
+            // Admin-authored copy, printed as written (F2.2) — the panel frames it,
+            // it does not rewrite it.
+            <p className="text-pretty text-sm leading-relaxed text-text-medium">
+              {detail.description}
+            </p>
+          ) : (
+            // One quiet line, the same move the friends block already makes: as a
+            // centred two-line `EmptyState` this absence was taller than the
+            // requirement grid beside it and read as the panel's headline — "НЕТ
+            // ОПИСАНИЯ" set larger than anything the panel does know.
+            <p className="text-pretty text-xs leading-relaxed text-text-low">
+              {t('games.detailNoDescription')}
+            </p>
+          )}
+        </section>
 
-      {/* The member's own history and who is in it now sit side by side, because
-          on most of the shelf both are a single dim line — stacked, two
-          near-empty sections cost ~100 px of a 693 px station screen and pushed
-          the pair below the fold, which is the one place they are useless: a
-          player deciding whether to walk over cannot scroll for it. Paired, the
-          panel ends above the launch bar. They stack again under `sm`, where two
-          columns of prose would be narrower than the words. */}
-      <div className="grid gap-3 sm:grid-cols-2">
         {/* ── The member's own history with it ─────────────────────────── */}
         <section className="flex flex-col gap-2">
           <h3 className="label-mono text-[9px] text-text-low">{t('games.detailStats')}</h3>
           {stats === undefined ? (
-            // The height of the strip it stands in for, so the panel does not
-            // resettle by 60 px the moment the member's own read lands.
-            <Skeleton className="h-14" />
+            // The height of the three-row table it stands in for, so the panel
+            // does not resettle the moment the member's own read lands.
+            <Skeleton className="h-20" />
           ) : stats.launches === 0 ? (
             // "You have not played this here" is an answer, not an error — the
             // endpoint returns zeroes rather than a 404 for exactly this block.
@@ -399,31 +324,122 @@ function DetailBody({
               {t('games.detailNeverPlayed')}
             </p>
           ) : (
-            // Three facts on one strip, not three `StatTile`s.
+            // Three facts as three rows, not three columns.
             //
-            // The tiles were the wrong instrument here and it showed: `StatTile`
-            // is `justify-between` with a `text-xl` figure, built for a dashboard
-            // column ~200 px wide. Squeezed into a third of half a dialog, "25
-            // июл., 22:00" wrapped onto three lines, that tile set the row's
-            // height, and `justify-between` stretched the other two into tall
-            // boxes with a number pinned to the floor — 130 px of panel spent on
-            // "4 hours, twice, in July". This strip states the same three facts in
-            // ~56 px, at the size a supporting fact should be.
-            <dl className="well-shallow grid grid-cols-3 gap-3 rounded-md border border-border px-3 py-2">
+            // Columns were tried twice and failed for the same reason both times:
+            // this section is half a dialog wide (~290 px on the club's own 1216 px
+            // screen), so a third of it is ~85 px — narrower than either of the two
+            // longest strings it has to carry. "ПОСЛЕДНИЙ ЗАПУСК" clipped to
+            // "ПОСЛЕДНИ…", which names nothing, and "25 июл., 22:00" wrapped onto
+            // two lines directly under it, so the strip's own height was set by the
+            // one fact it had failed to label. A row gives the label the horizontal
+            // room it needs and pins the value to the opposite edge, where the eye
+            // reads three figures down one line — and the hairlines make it a small
+            // table instead of three floating fragments.
+            <dl className="well-shallow divide-y divide-border/60 rounded-md border border-border px-3 py-1">
               <PlayedFact seconds={stats.seconds} />
-              <MiniFact
+              <FactRow
                 icon={<icons.play size={12} aria-hidden />}
                 label={t('games.detailStatLaunches')}
                 value={formatNumber(stats.launches)}
                 mono
               />
-              <MiniFact
+              <FactRow
                 icon={<icons.calendar size={12} aria-hidden />}
                 label={t('games.detailStatLast')}
                 value={<LastPlayed at={stats.lastPlayedAt} />}
               />
             </dl>
           )}
+        </section>
+      </div>
+
+      {/* ── The machine question: the verdict, its evidence, and who is in
+          the title right now ─────────────────────────────────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {/* ── What it asks for, against what this seat has ─────────────── */}
+        <section className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="label-mono text-[9px] text-text-low">
+              {t('games.detailRequirements')}
+            </h3>
+            <span className="label-mono text-[9px] text-text-low">
+              {t('games.detailSeat', { seat: detail.fitSeatLabel })}
+            </span>
+          </div>
+
+          {/* The verdict, first: it is the one line a player standing at the seat
+              actually needs, and the four rows below are the evidence for it. */}
+          <div
+            className={cn(
+              'flex items-start gap-2.5 rounded-md border px-3 py-2',
+              fit.tone === 'warning'
+                ? 'border-warning/40 bg-warning/10'
+                : 'border-success/40 bg-success/10',
+            )}
+          >
+            {fit.tone === 'warning' ? (
+              <icons.warning size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden />
+            ) : (
+              <icons.check size={15} className="mt-0.5 shrink-0 text-success" aria-hidden />
+            )}
+            <div className="flex min-w-0 flex-col gap-1">
+              <p
+                className={cn(
+                  'text-pretty text-sm font-semibold leading-snug',
+                  fit.tone === 'warning' ? 'text-warning' : 'text-success',
+                )}
+              >
+                {t(fit.key)}
+              </p>
+              {fit.body && (
+                <p className="text-pretty text-xs leading-relaxed text-text-medium">
+                  {t(fit.body)}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Two values per row rather than two columns of a table: on a 390 px
+              phone a real table either scrolls sideways or truncates the GPU
+              strings, which are the longest copy in the panel and the whole reason
+              the block exists.
+              One column again from `lg`, where the section itself is half the
+              dialog: two columns of ~140 px would break "Intel Core i5-9400 / AMD
+              Ryzen 5 2600" over three lines and make the pair taller than the four
+              rows stacked. Two columns are for the middle width, where the dialog
+              is wide and the layout is still one stack. */}
+          <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <ReqRow
+              icon={<icons.hardware size={13} aria-hidden />}
+              label={t('games.detailReqCpu')}
+              asks={detail.requirements.cpu}
+              has={detail.seatSpecs.cpu}
+            />
+            <ReqRow
+              icon={<icons.performance size={13} aria-hidden />}
+              label={t('games.detailReqGpu')}
+              asks={detail.requirements.gpu}
+              has={detail.seatSpecs.gpu}
+            />
+            <ReqRow
+              icon={<icons.status size={13} aria-hidden />}
+              label={t('games.detailReqRam')}
+              asks={detail.requirements.ram}
+              has={detail.seatSpecs.ram}
+            />
+            <ReqRow
+              icon={<icons.save size={13} aria-hidden />}
+              label={t('games.detailReqStorage')}
+              // A number, so the unit is localised here rather than baked into the
+              // seed the way the prose rows are.
+              asks={t('games.detailGb', { n: formatNumber(detail.requirements.storageGb) })}
+              // Free space on the seat is the station agent's answer, not the
+              // club's, and this payload is the club's — so the row states what the
+              // title asks for and claims nothing about the disk.
+              has={null}
+            />
+          </dl>
         </section>
 
         {/* ── Who is in it right now ───────────────────────────────────── */}
@@ -513,14 +529,15 @@ function ReqRow({
 }
 
 /**
- * One of the member's own three facts, at supporting weight.
+ * One of the member's own three facts, as a labelled row.
  *
- * A label row and a value, and nothing that can stretch: the strip's height is
- * whatever the longest of the three wraps to, so a wrapped date costs a line
- * rather than forcing two neighbours into tall boxes with the figure at the
- * bottom (see the strip's own note).
+ * Label left, value hard right, one line each and nothing that wraps: the value
+ * is `whitespace-nowrap` because "25 июл., 22:00" broken after the comma reads as
+ * two facts, and the *label* is the side that truncates if either has to — a
+ * clipped word next to a legible figure still points at the figure, while the
+ * reverse loses the fact itself.
  */
-function MiniFact({
+function FactRow({
   icon,
   label,
   value,
@@ -533,14 +550,14 @@ function MiniFact({
   mono?: boolean
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <dt className="label-mono flex items-center gap-1 text-[9px] text-text-low">
-        <span className="text-text-medium">{icon}</span>
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <dt className="label-mono flex min-w-0 items-center gap-1.5 text-[9px] text-text-low">
+        <span className="shrink-0 text-text-medium">{icon}</span>
         <span className="truncate">{label}</span>
       </dt>
       <dd
         className={cn(
-          'text-pretty text-sm font-semibold leading-snug tabular-nums text-text-high',
+          'shrink-0 whitespace-nowrap text-xs font-semibold leading-none tabular-nums text-text-high',
           mono ? 'font-clock' : 'font-display',
         )}
       >
@@ -562,7 +579,7 @@ function PlayedFact({ seconds }: { seconds: number }) {
   const { hours, minutes } = formatDurationParts(seconds)
 
   return (
-    <MiniFact
+    <FactRow
       icon={<icons.timer size={12} aria-hidden />}
       label={t('games.detailStatPlaytime')}
       value={hours > 0 ? tp('common.hours', hours) : tp('common.minutes', minutes)}

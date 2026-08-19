@@ -177,6 +177,16 @@ export function SessionPaused({
   const [live, setLive] = useState(visit)
   useEffect(() => setLive(visit), [visit])
 
+  /**
+   * The remainder as a running reading, re-derived from the club's last answer.
+   *
+   * Called here, at the top of the component, and not inside the JSX branch that
+   * prints it: the hook owns an interval and a ref, so a conditional call would be
+   * an order violation the first time the card flipped between its keypad and its
+   * "door closed" state.
+   */
+  const liveSeconds = useLiveRemainder(live.secondsLeft)
+
   useEffect(() => {
     let alive = true
     const id = setInterval(() => {
@@ -216,7 +226,11 @@ export function SessionPaused({
    * is the honest thing to say. Silently falling back to a login form would make
    * the club's refusal look like the screen forgetting the visit existed.
    */
-  const spent = live.secondsLeft <= 0
+  // Read off the live figure, not the raw payload: a visit parked at 00:00:12 runs
+  // out while the player is standing here, and the door has to close on the same
+  // instant the card prints zero — otherwise the keypad stays up over a clock that
+  // reads 00:00:00 and the club's refusal arrives only after four typed digits.
+  const spent = liveSeconds <= 0
   /**
    * The keypad has no reason to exist: budget spent, or clock spent. One name for
    * the two, because every branch below cares about the *door*, not about which
@@ -335,7 +349,7 @@ export function SessionPaused({
             `tabular-nums`, like every billed clock in the shell. */}
         <div className="flex shrink-0 flex-col items-end gap-0.5">
           <span className="font-clock text-2xl font-semibold leading-none tabular-nums text-text-high">
-            {formatRemainder(live.secondsLeft)}
+            {formatRemainderLive(liveSeconds)}
           </span>
           <span className="label-mono text-[9px] text-text-low">
             {t('session.timeLeft')}

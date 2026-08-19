@@ -31,7 +31,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GameCover } from '@/components/game-cover'
 import { CATEGORY_KEYS } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
@@ -86,6 +86,24 @@ export function GameCard({
   const detailOpen = useStore((s) => s.detailGameId !== null)
   const dialogOpen = launchOpen || detailOpen
 
+  /**
+   * When the last dialog closed, for `onFocus` to disqualify the focus a modal
+   * hands back to the button it was opened from.
+   *
+   * A ref, not state: nothing renders from it, and it has to be readable by the
+   * `focus` handler that fires in the same commit the overlay unmounts in.
+   */
+  const dialogClosedAt = useRef(0)
+  const wasDialogOpen = useRef(false)
+  useEffect(() => {
+    // Only the open → closed *transition* is stamped. Writing it on every render
+    // with no dialog up would include the card's own mount, and a member who
+    // reaches the shelf by Tab would find the first tile refusing to light for
+    // 400 ms.
+    if (wasDialogOpen.current && !dialogOpen) dialogClosedAt.current = performance.now()
+    wasDialogOpen.current = dialogOpen
+  }, [dialogOpen])
+
   // Focus that arrives from a mouse press, or is restored to the button after a
   // dialog closes, must not light the overlay — only real keyboard navigation
   // does. `:focus-visible` alone is not enough (Chrome grants it to restored
@@ -93,6 +111,12 @@ export function GameCard({
   const onFocus = useCallback(
     (e: React.FocusEvent<HTMLDivElement>) => {
       if (hovered) return
+      // Focus that a closing dialog *gave back* to the button it was opened from
+      // is not navigation, and Chrome grants it `:focus-visible` anyway. It
+      // arrives in the same tick the overlay unmounts, so a short window after
+      // the dialog closed is enough to tell it apart from a deliberate Tab —
+      // which no player can produce inside 400 ms of pressing Escape.
+      if (performance.now() - dialogClosedAt.current < 400) return
       const target = e.target as HTMLElement
       setKeyboardFocus(typeof target.matches === 'function' && target.matches(':focus-visible'))
     },
@@ -108,8 +132,20 @@ export function GameCard({
   // The overlay is gone while a dialog is open, and it must not come *back* by
   // itself when that dialog closes: the focus the modal restores would otherwise
   // leave a stale tile lit. Cleared here so the next pointer or Tab decides.
+  //
+  // `hovered` is cleared for the same reason, and it is the half that actually
+  // shipped the bug: the tile the dialog was opened *from* never receives a
+  // `pointerleave`. The backdrop mounts under the stationary pointer without a
+  // mouse event, and once it unmounts the browser's next move dispatches
+  // `leave` for the element the pointer was last *over* — the backdrop, which no
+  // longer exists — so the tile underneath kept a `hovered` that nothing could
+  // ever take away, and lit a second Launch button the moment the player hovered
+  // the next title. Cleared on open, and `onPointerMove` below is what hands it
+  // back if the pointer really is still sitting on this tile.
   useEffect(() => {
-    if (dialogOpen) setKeyboardFocus(false)
+    if (!dialogOpen) return
+    setKeyboardFocus(false)
+    setHovered(false)
   }, [dialogOpen])
 
   const revealed = !dialogOpen && (hovered || keyboardFocus)
@@ -121,6 +157,18 @@ export function GameCard({
         // Touch is a tap, not a hover: a finger that "enters" a tile would leave
         // the overlay stuck open on it after the player scrolled away.
         if (e.pointerType !== 'touch') setHovered(true)
+      }}
+      // The recovery path for the state cleared above: after a cancelled dialog
+      // the pointer can already be inside this tile, and `pointerenter` only
+      // fires on a *crossing*, so a player whose mouse never leaves the card
+      // would be left with a tile that offers nothing. A move inside it is the
+      // same fact as an enter. `setHovered(true)` on an already-`true` state is a
+      // bail-out in React, so this does not re-render on every mouse move.
+      // Ignored while a dialog is up: a pointer travelling across the grid on its
+      // way to the modal would otherwise re-arm every tile it crossed, and the
+      // last one would light up again the moment the dialog closed.
+      onPointerMove={(e) => {
+        if (e.pointerType !== 'touch' && !dialogOpen) setHovered(true)
       }}
       onPointerLeave={() => setHovered(false)}
       onFocus={onFocus}
@@ -134,7 +182,7 @@ export function GameCard({
     >
       {/* `aspect-video`, not a fixed height: the covers are generated at 800×450,
           so a 16:9 box is the one shape that neither crops the art nor
-          letterboxes it, and it holds its own space before the file decodes —
+          letterboxes it, and it holds its own space before the file decodes ���
           the tile reserves its slot in the grid whether the image arrives,
           arrives late, or never arrives at all. */}
       <GameCover
