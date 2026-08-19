@@ -41,6 +41,7 @@
 
 import { motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
+import { mockAgent } from '@/lib/agent/mock-agent'
 import { useApi } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
 import { fetchGame } from '@/lib/mock/api'
@@ -88,6 +89,17 @@ export function InGameStrip() {
         </p>
         <button
           onClick={() => {
+            /**
+             * The agent has to hear about it too, or the seat it claimed in
+             * `launchGame` stays claimed: from C4.6 on the launch is a real
+             * bridge call, so a player who pressed this button and started the
+             * same title again was answered with `gameAlreadyRunning` while the
+             * launcher itself showed nothing running. Fire-and-forget on
+             * purpose — the state is the player's to leave, and a station that
+             * already lost the process (`gameNotRunning`) must not turn that
+             * into an error the player has to dismiss.
+             */
+            void mockAgent.killGame(runningGameId).catch(() => {})
             setRunningGame(null)
             // Sound is back, and the toast that says so is itself the proof —
             // it is the first cue heard since the launch, so the player learns
