@@ -194,10 +194,10 @@ export function GameCard({
           )}
         </div>
       </div>
-      {/* `group-focus-within` is not a nicety here: the launch button — the only
+      {/* Following focus is not a nicety here: the launch button — the only
           action on a card — was revealed by hover alone, so a keyboard player
           focused a control they could not see press. The overlay now follows
-          focus as well as the pointer. */}
+          keyboard focus as well as the pointer. */}
       {/* Spans the whole card, not just the cover. Scoped to the art, the bottom
           third of every tile — the strip carrying the name, the rating and the
           live counter, i.e. the part a player reads before deciding — was a dead
