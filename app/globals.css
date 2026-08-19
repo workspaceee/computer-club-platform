@@ -389,6 +389,60 @@
   );
 }
 
+/* ---------------------------------------------------------------------------
+   Asset paint ramp (F7.5)
+   ---------------------------------------------------------------------------
+   The opacity ramp for art that has a *designed layer underneath* — a cover's
+   hashed gradient, a product card's category icon. `AssetImage` owns when it
+   runs; this is only the curve.
+
+   Why it is a class and not an inline transition: the ramp has to be off in two
+   independent cases the component cannot express in a single className without
+   losing to Tailwind's source order — a file that came from cache, and a player
+   who asked for less motion. Both are `[data-paint]`/media overrides below, and
+   both are unlayered so they beat the `@utility` they correct.
+
+   220 ms, not the 500 ms this once shipped as. Half a second across a
+   sixty-seven tile shelf read as the whole grid dissolving into place, and every
+   cover the player scrolled past sat soft and unfinished exactly while they were
+   deciding what to click. 220 ms is long enough to remove the hard swap and
+   short enough that a tile is settled before the eye arrives.
+
+   Deliberately opacity-only: the covers sit in a CSS grid, so a transform or a
+   filter here would either invite layout work per tile or force sixty-seven
+   simultaneous blur passes on a kiosk GPU. */
+@utility asset-fade {
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  /* Keeps the ramp off the main thread on a shelf that lands many at once. */
+  will-change: opacity;
+}
+
+/* Fetched over the wire: ramp it. */
+.asset-fade[data-paint='ramp'] {
+  opacity: 1;
+  will-change: auto;
+}
+
+/* Already decoded when React attached (cache, or a revisit to a shelf the
+   player has scrolled before). There is nothing to cover, and ramping a file
+   that is *already there* is the one case that reads as sluggish rather than
+   smooth — so it is painted, hard, on the first frame. */
+.asset-fade[data-paint='instant'] {
+  opacity: 1;
+  transition: none;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-fade {
+    transition: none;
+  }
+}
+:root[data-reduce-motion='true'] .asset-fade {
+  transition: none;
+}
+
 /* CRT / broadcast texture: 1 px line every 3 px. Opacity and blend mode are
    baked in rather than left to the caller — they *are* the effect, and the two
    times this shipped as loose utility classes in JSX is exactly how a texture
