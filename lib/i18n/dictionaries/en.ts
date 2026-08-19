@@ -1354,6 +1354,16 @@ export const en = {
     ratingOutOf: 'Rating {v} out of 5',
     // plural: one | other
     inClubNow: '{n} player in this game in the club now|{n} players in this game in the club now',
+    /**
+     * The words printed *inside* the badge, next to the digit.
+     *
+     * Not a plural string on purpose: it labels what is being counted rather than
+     * making a sentence about the count, so it never has to agree with the number
+     * beside it — which is what keeps the badge the same width in all three
+     * languages on a two-column phone. The sentence is `inClubNow` above, and it
+     * is the one a screen reader gets.
+     */
+    inClubShort: 'in club',
 
     favorites: 'Favorites',
     recent: 'Recently played',
