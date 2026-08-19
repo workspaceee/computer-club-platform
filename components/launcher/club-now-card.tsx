@@ -58,19 +58,12 @@ import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { icons } from '@/lib/icons'
 import { callToParty, fetchClubNow, toApiError } from '@/lib/mock/api'
+import { FLOOR_REFRESH_MS } from '@/lib/presence'
 import { useStore } from '@/lib/store'
 import type { ID } from '@/lib/types/common'
 import type { ZoneOccupancy } from '@/lib/types/machine'
 import type { ClubFriend } from '@/lib/types/social'
 import { cn } from '@/lib/utils'
-
-/**
- * Seats change when *other* people sit down, and those events are scoped to their
- * own stations — no push reaches this client for them (`matchesScope`). So the one
- * card on the screen that reports the room polls, at the same cadence the attract
- * screen reads occupancy with.
- */
-const CLUB_NOW_REFRESH_MS = 30_000
 
 /** Skeleton row counts — the club's own shape, so the panel does not jump (C3.11). */
 const ZONE_SKELETON_ROWS = 3
@@ -86,7 +79,10 @@ export function ClubNowCard({ index }: { index: string }) {
   // `party.invite` or `friend.request` land here without a subscription of its own
   // (`EVENT_INVALIDATES`).
   const board = useApi(user ? ['social/club-now', user.email] : null, fetchClubNow, {
-    refreshInterval: CLUB_NOW_REFRESH_MS,
+    // The floor cadence, shared with the library's presence read (C4.4): both are
+    // readings of the same seated players, and two intervals would let the two
+    // screens disagree about the same evening while both looked live.
+    refreshInterval: FLOOR_REFRESH_MS,
   })
   const invalidate = useInvalidate()
 

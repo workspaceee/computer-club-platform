@@ -19,8 +19,8 @@ import {
   type AgentBridge,
   type AgentCapabilities,
   type AgentInfo,
+  type AgentLauncherId,
   type AppliedDisplayMode,
-  type GameLauncher,
   type GameLaunchHandle,
   type GameLaunchPhase,
   type InstalledGame,
@@ -32,6 +32,9 @@ import {
   type SetDisplayModeOptions,
 } from '@/lib/agent/bridge'
 import { db, getMachine } from '@/lib/mock/db'
+// The *display* union, for the key side of `LAUNCHER_MAP` only — the agent itself
+// never speaks these strings.
+import type { GameLauncher } from '@/lib/types/catalog'
 import type { DisplayMode, MachineTelemetry } from '@/lib/types/machine'
 import type { ID } from '@/lib/types/common'
 
@@ -191,8 +194,18 @@ function capabilities(): AgentCapabilities {
  * Installed games
  * ------------------------------------------------------------------ */
 
-/** Catalogue launcher label → the `GameLauncher` union the agent speaks. */
-const LAUNCHER_MAP: Record<string, GameLauncher> = {
+/**
+ * The crossing between the two launcher vocabularies: the catalogue's display name
+ * (`GameLauncher`, printed on the tile) → the id the agent speaks
+ * (`AgentLauncherId`).
+ *
+ * `Partial`, not a total record: the catalogue lists fourteen stores and the agent
+ * has ids for six, so the six are named here and everything else falls through to
+ * `standalone` at the call site. Typing the *key* side with the catalogue union
+ * rather than `string` is what makes a store renamed in `db.ts` a compile error
+ * here instead of a silent `standalone`.
+ */
+const LAUNCHER_MAP: Partial<Record<GameLauncher, AgentLauncherId>> = {
   Steam: 'steam',
   Epic: 'epic',
   Riot: 'riot',

@@ -1335,6 +1335,26 @@ export const en = {
     catMmo: 'MMO',
     catRpg: 'RPG',
 
+    /* ---------------------------------------------------------------- *
+     * The card itself (C4.4)
+     *
+     * Three strings that exist because the tile prints glyphs. The launcher name
+     * is *not* here and never will be — "Steam", "Epic", "Battle.net" are product
+     * names, printed verbatim from the catalogue (F2.2); what the dictionary owns
+     * is the word that says what kind of thing that name is, for the `title` on a
+     * badge a two-column phone truncates.
+     *
+     * The other two are for a reader with no glyphs at all: a star beside "4.8"
+     * is a rating only if you can see the star, and a green dot beside "2" is
+     * "in the club now" only if you can see the dot. Both are `sr-only`
+     * sentences, so both carry their own number rather than leaning on the digit
+     * next to them.
+     * ---------------------------------------------------------------- */
+    launcherLabel: 'Launcher',
+    ratingOutOf: 'Rating {v} out of 5',
+    // plural: one | other
+    inClubNow: '{n} player in this game in the club now|{n} players in this game in the club now',
+
     favorites: 'Favorites',
     recent: 'Recently played',
     allGames: 'All games',
