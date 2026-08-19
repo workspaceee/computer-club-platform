@@ -131,6 +131,10 @@ function GameDetailModal({
   // and that answer belongs to the store rather than to a flag in this file.
   const blocked = launchingGameId !== null
 
+  // Read once into a local: the footer closes over the payload, and a callback
+  // reading `detail.data` again is not narrowed by the check above it.
+  const game = detail.data
+
   return (
     <Modal
       open={open}
@@ -139,19 +143,19 @@ function GameDetailModal({
       // The catalogue's own name, verbatim (F2.2). Until the payload lands the
       // dialog still needs an accessible name, so it opens with the generic one
       // rather than with an unnamed card.
-      title={detail.data?.name ?? t('games.detailPending')}
+      title={game?.name ?? t('games.detailPending')}
       size="lg"
       footer={
-        detail.data ? (
+        game ? (
           <Button
             variant="primary"
             size="md"
             disabled={blocked}
-            onClick={() => setLaunchGame(detail.data.id)}
+            onClick={() => setLaunchGame(game.id)}
             iconLeft={<icons.play aria-hidden />}
             // Sixty tiles and one dialog print the same two words, so the
             // accessible name carries which game is about to start.
-            aria-label={`${t('games.launch')} ${detail.data.name}`}
+            aria-label={`${t('games.launch')} ${game.name}`}
           >
             {t('games.launch')}
           </Button>
@@ -193,7 +197,15 @@ function DetailBody({
       <div className="flex flex-col gap-3">
         <GameCover
           game={detail}
-          className="aspect-video w-full rounded-lg"
+          // A band, not a hero. At the dialog's own width a full 16:9 cover is
+          // ~350 px tall and ate two thirds of the scroll body on the club's
+          // 693 px-high station screen: the verdict, the member's hours and the
+          // friends in the title — everything the panel exists to answer — opened
+          // below the fold, under art the player already saw on the tile they
+          // clicked. `max-h` crops through `object-cover` instead of letterboxing,
+          // and the ratio still governs on a phone, where height is not the
+          // scarce axis.
+          className="aspect-video max-h-52 w-full rounded-lg"
           // The dialog header already prints the name in the display face; the
           // cover's own caption would print it a second time, two centimetres
           // below the first.
@@ -355,11 +367,14 @@ function DetailBody({
         ) : stats.launches === 0 ? (
           // "You have not played this here" is an answer, not an error — the
           // endpoint returns zeroes rather than a 404 for exactly this block.
+          // No glyph either: with the icon this block was ~190 px tall — the
+          // tallest thing in the panel — and it is the normal state for most of
+          // the shelf. An absence should not outweigh the sections that carry
+          // facts.
           <EmptyState
             bare
             size="sm"
             className="py-3"
-            icon={icons.games}
             title={t('games.detailNeverPlayed')}
             description={t('games.detailNeverPlayedBody')}
           />
