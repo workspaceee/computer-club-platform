@@ -199,6 +199,58 @@ export interface HouseAccount {
   label: string
   status: 'available' | 'in-use'
   linkedUser?: string
+  /**
+   * The visit holding this row, when one does (C4.7).
+   *
+   * Without it `in-use` is a single fact covering two opposite situations —
+   * "another guest has it" and "this is the account assigned to *you*" — and the
+   * line the launcher prints ("Account IMBA_01 is yours for this session") is
+   * exactly that difference. It is also what makes a release safe: only the visit
+   * named here may hand the row back, so a stale client cannot free somebody
+   * else's login.
+   */
+  sessionId?: ID
+  /**
+   * The title the grant was made for, and when it was made. Stored on the row
+   * because the grant outlives the launch frame that produced it: the in-game
+   * strip asks the club "what is assigned to me" long after the dialog is gone,
+   * and a server that had to invent those two fields would be answering with
+   * placeholders.
+   */
+  grantedForGameId?: ID
+  grantedAt?: ISODateTime
+}
+
+/**
+ * What the club answers when it hands a shared login over (C4.7).
+ *
+ * A grant, not a selection: the endpoint takes a game id and the club decides
+ * which row of the pool is free, so nothing about *which* account this is exists
+ * on the client until this response arrives.
+ */
+export interface HouseAccountGrant {
+  accountId: ID
+  /** The club's label — the only part of an account a player ever sees. */
+  label: string
+  sessionId: ID
+  gameId: ID
+  grantedAt: ISODateTime
+}
+
+/**
+ * A place in line for a shared login (C4.7).
+ *
+ * `position` is the server's, recomputed on every read. A client that counted it
+ * would be inventing a number ("you are third") that only the club can know, and
+ * it would disagree with the counter's screen the moment anybody left the queue.
+ */
+export interface HouseAccountQueueTicket {
+  id: ID
+  gameId: ID
+  sessionId: ID
+  /** 1 = next in line. */
+  position: number
+  joinedAt: ISODateTime
 }
 
 /** `game_launches` — one row per start, used for playtime stats and quests. */

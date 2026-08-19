@@ -41,16 +41,23 @@
  *   a code, the agent answers with a code, and turning either into a sentence is
  *   the client's job.
  *
- * What it deliberately does *not* own: the house account. The endpoint takes only
- * a game id — availability is the server's to enforce — so the dialog's account
- * list is a *choice offered to the player*, not a parameter this sequence needs.
- * That is precisely why one click is allowed to skip it. The "Assigning an
- * account" line is fed by the endpoint's own confirmation here; C4.7 replaces
- * that source with `catalog.grantHouseAccount` and its offline branch.
+ *   **The house account** (C4.7). A title that needs one of the club's shared
+ *   logins gets it *before* anything is started, and always from the server: the
+ *   dialog's list is a view of the pool, never a choice, so one click from the
+ *   "Continue" card and a click in the dialog get the same account by the same
+ *   rule. Two consequences are load-bearing:
  *
- * There is no offline gate either, and that is on purpose: `catalog.launchGame`
- * is one of the two writes left out of `OFFLINE_BLOCKED` (C2.12), because losing
- * the club's network is the worst possible moment to take a player's game away.
+ *     - **A grant must never leak.** Every way out of the sequence after a
+ *       successful grant — a refused endpoint, a failed agent, the player's own
+ *       Cancel — releases the row. An `in-use` account nobody holds cannot be
+ *       repaired from inside the product: in the club it is a guest who cannot
+ *       play because a dead session still "has" the login.
+ *     - **The grant needs the link, the launch does not.** `catalog.launchGame`
+ *       is deliberately outside `OFFLINE_BLOCKED` (C2.12) — losing the club's
+ *       network is the worst moment to take a player's game away — but
+ *       `catalog.grantHouseAccount` is inside it. So the offline check below is
+ *       scoped to titles that need an account, and refuses *before* the checklist
+ *       appears rather than letting the player watch a start that cannot finish.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

@@ -20,6 +20,7 @@ import type {
   GameRelease,
   GameRequirements,
   HouseAccount,
+  HouseAccountQueueTicket,
   Product,
   ProductCategory,
   StationFit,
@@ -605,11 +606,32 @@ const GAME_RELEASES: GameRelease[] = [
   { gameId: 'frostpunk2', addedAt: atDays(-11), note: 'New on the two VIP machines' },
 ]
 
+/**
+ * The club's pool of shared launcher logins (C4.7).
+ *
+ * Labels are the club's own — `IMBA_01`, not `House Account #1` — because the
+ * label is the whole of what the player is told ("Account IMBA_01 is yours for
+ * this session"), and a generic "#1" reads as a slot number rather than as an
+ * account somebody can name at the counter.
+ *
+ * `house-2` is `in-use` with no `sessionId`: another guest's, so this station can
+ * neither be shown it as assigned nor release it. The `personal` row is a member's
+ * own linked Steam login and is deliberately left in the pool — it proves the
+ * grant skips `linkedUser` rows, which the club has no right to lend out.
+ */
 const houseAccounts: HouseAccount[] = [
-  { id: 'house-1', label: 'House Account #1', status: 'available' },
-  { id: 'house-2', label: 'House Account #2', status: 'in-use' },
+  { id: 'house-1', label: 'IMBA_01', status: 'available' },
+  { id: 'house-2', label: 'IMBA_02', status: 'in-use' },
+  { id: 'house-3', label: 'IMBA_03', status: 'available' },
   { id: 'personal', label: 'Personal Steam Account', status: 'available', linkedUser: 'demo_player_steam' },
 ]
+
+/**
+ * Waiting list for the pool above (C4.7). Empty in the fixture: a queue with a
+ * seeded ticket would put "you are 2nd in line" on a screen nobody asked to
+ * queue on.
+ */
+const houseAccountQueue: HouseAccountQueueTicket[] = []
 
 /* ------------------------------------------------------------------ *
  * Bar, kitchen and merch catalogue
@@ -2508,6 +2530,7 @@ export const db = {
   games,
   gameReleases: GAME_RELEASES,
   houseAccounts,
+  houseAccountQueue,
   gameLaunches,
   products,
   passes,

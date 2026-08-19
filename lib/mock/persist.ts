@@ -48,8 +48,14 @@ const STORAGE_KEY = 'imba.mock.state'
  * quietly ignored, forever, in every browser that had ever opened the demo. It
  * cannot be diagnosed from inside the product either: the clock keeps running
  * perfectly while the club stops being told anything.
+ *
+ * `7` reseeds `houseAccounts` with the club's own labels and adds
+ * `houseAccountQueue` (C4.7). A v6 snapshot restores `House Account #1` over the
+ * new pool *and* brings back rows without `sessionId`, so an account this visit
+ * holds would be indistinguishable from one another guest is on — the exact
+ * difference the "assigned to you" line is printed from.
  */
-const SCHEMA_VERSION = 6
+const SCHEMA_VERSION = 7
 
 /**
  * The slices a demo session can actually change. Everything else is rebuilt from
@@ -87,6 +93,12 @@ interface Snapshot {
   userPreferences: typeof db.userPreferences
   machineSettings: typeof db.machineSettings
   houseAccounts: typeof db.houseAccounts
+  /**
+   * Saved next to the pool it belongs to (C4.7). Left out, a reload would keep
+   * every account `in-use` and lose the tickets waiting on them — the pool stays
+   * occupied while the queue that explains it disappears.
+   */
+  houseAccountQueue: typeof db.houseAccountQueue
   gameLaunches: typeof db.gameLaunches
   auditLog: typeof db.auditLog
 }
@@ -141,6 +153,7 @@ function buildSnapshot(): Snapshot {
     userPreferences: db.userPreferences,
     machineSettings: db.machineSettings,
     houseAccounts: db.houseAccounts,
+    houseAccountQueue: db.houseAccountQueue,
     gameLaunches: db.gameLaunches,
     auditLog: db.auditLog,
   }
@@ -264,6 +277,7 @@ export function restoreDb(): boolean {
   replaceArray(db.userPreferences, snap.userPreferences)
   replaceArray(db.machineSettings, snap.machineSettings)
   replaceArray(db.houseAccounts, snap.houseAccounts)
+  replaceArray(db.houseAccountQueue, snap.houseAccountQueue)
   replaceArray(db.gameLaunches, snap.gameLaunches)
   replaceArray(db.auditLog, snap.auditLog)
 

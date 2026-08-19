@@ -61,6 +61,15 @@ export type ApiErrorCode =
   | 'insufficientCoins'
   | 'outOfStock'
   | 'creditLimit'
+  /**
+   * The pool of shared club logins is empty right now (C4.7).
+   *
+   * A sibling of `outOfStock`, and stated as its own code for the same reason:
+   * "the club ran out of a thing it lends" has a repair the player can take —
+   * take a place in line — and the launcher can only offer that panel if it can
+   * tell this refusal apart from a generic `conflict`.
+   */
+  | 'noFreeAccount'
 
 /** HTTP status the real endpoint will answer with — kept so the contract in
  * `docs/API-CONTRACT.md` (F3.8) can be written straight off these codes. */
@@ -82,6 +91,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   insufficientCoins: 402,
   outOfStock: 409,
   creditLimit: 402,
+  noFreeAccount: 409,
 }
 
 /**
@@ -304,9 +314,35 @@ const OFFLINE_BLOCKED: ReadonlySet<string> = new Set([
    *    the visit that has it; nothing here revokes one. Which is why *releasing* an
    *    account must never join this list — a release frees a club resource and is
    *    safe to honour late, exactly like `auth.logout` on the door side.
-   * Copy is reserved as `games.houseAccountOffline*`; the UI branch is C4.7/C4.8.
+   * Copy is `games.houseAccountOffline*`; the UI branch landed with C4.7.
    */
   'catalog.grantHouseAccount',
+  /**
+   * Taking a place in line, for the same reason (C4.7). The position is the club's
+   * to assign — a station that queued locally would be promising "you are third"
+   * against a list it cannot see, and two stranded seats would both be told they
+   * are next.
+   *
+   * `catalog.releaseHouseAccount` and `catalog.leaveHouseAccountQueue` stay out of
+   * this list on purpose: both give a club resource *back*, and a refusal would
+   * leave the row and the ticket held for the rest of the evening.
+   */
+  'catalog.joinHouseAccountQueue',
+])
+
+/**
+ * The account half of `OFFLINE_BLOCKED` — which of its entries are about a shared
+ * login rather than about money (C4.7).
+ *
+ * It exists so the refusal that reaches the player is the truth: both entries
+ * above are in the money list, and without this split a refused grant would raise
+ * `realtime.salesRefused` — **"nothing was charged"** printed over the start of a
+ * game that never asked for a cent. The same mistake `RefusalKind` was invented to
+ * fix for the door in C2.13, one feature later.
+ */
+const OFFLINE_ACCOUNT_ENDPOINTS: ReadonlySet<string> = new Set([
+  'catalog.grantHouseAccount',
+  'catalog.joinHouseAccountQueue',
 ])
 
 /**
@@ -394,8 +430,13 @@ export function isTransportOffline(): boolean {
   return linkOffline
 }
 
-/** Which of the two offline block-lists refused a write. */
-export type RefusalKind = 'sales' | 'entry'
+/**
+ * What the refused write was *about*. Three answers, because there are three
+ * different sentences a player has to read: money that did not move (`sales`), a
+ * door that needs the club (`entry`, C2.13), and a shared club login that cannot
+ * be handed over (`account`, C4.7).
+ */
+export type RefusalKind = 'sales' | 'entry' | 'account'
 
 /**
  * Told when a write was refused before it left the station.
@@ -489,7 +530,10 @@ export async function mutate<T>(endpoint: string, write: () => T): Promise<T> {
    */
   if (linkOffline) {
     if (OFFLINE_BLOCKED.has(endpoint)) {
-      reportRefusal?.(endpoint, 'sales')
+      reportRefusal?.(
+        endpoint,
+        OFFLINE_ACCOUNT_ENDPOINTS.has(endpoint) ? 'account' : 'sales',
+      )
       throw new ApiError('network')
     }
     if (OFFLINE_ENTRY_BLOCKED.has(endpoint)) {
