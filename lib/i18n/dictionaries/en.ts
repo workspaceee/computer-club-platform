@@ -1435,19 +1435,56 @@ export const en = {
     noResultsBody: 'Try a different name or clear the category filter.',
     clearFilters: 'Clear filters',
     openLibrary: 'Open library',
+    /**
+     * The pool is exhausted (C4.7) — a club fact, not the player's mistake.
+     *
+     * Re-worded away from "ask an admin": the launcher now has an answer of its
+     * own (the queue below), and sending a guest to the counter for something the
+     * product can do is the advice that made the old copy wrong.
+     */
     noAccounts: 'No accounts available',
-    noAccountsBody: 'Every club account for this game is in use. Ask an admin for a free seat.',
+    noAccountsBody: 'Every club account for this game is in use right now.',
 
     /**
-     * The same pool, refused for a different reason: no link (C4.7/C4.8).
+     * The queue for that pool (C4.7).
      *
-     * Reserved here alongside the block-list entry it belongs to
-     * (`catalog.grantHouseAccount` in `lib/mock/api/client.ts`), so the copy and
-     * the rule were decided in one breath rather than rediscovered later. The
-     * distinction *is* the message: the game still starts offline, only handing
-     * over a shared club login has to wait — and the way past it is a human, not
-     * a retry. An account already attached to this visit is untouched. The UI
-     * branch lands with C4.7/C4.8.
+     * A ticket, not a subscription: the club assigns the next account that frees
+     * up, and the promise of a nudge is deliberately worded as the launcher's —
+     * the push itself (`house-account.freed`) is still owed by a later stage, so
+     * the copy must not promise a notification the player will watch for in vain
+     * within one visit. `houseAccountBusy` is the quick-launch half: the
+     * "Continue" card has no room for a panel, so the toast says what happened
+     * and the dialog it opens carries the queue.
+     */
+    houseAccountBusy: 'No free club account for this game',
+    houseAccountQueueBody: 'Take the queue and the next account that frees up is assigned to you.',
+    houseAccountQueueJoin: 'Take the queue',
+    houseAccountQueuePosition: 'You are {n} in the queue',
+    houseAccountQueueLeave: 'Leave the queue',
+    houseAccountQueueJoined:
+      'You are in the queue — the launcher will tell you when an account frees up',
+
+    /**
+     * What the club prints once a login is attached to this visit (C4.7).
+     *
+     * The label is the whole message: "an account was assigned" is not something
+     * a player can check against the launcher in front of them, while "IMBA_01"
+     * is a name they can read off the screen and repeat at the counter. Shown in
+     * the launch dialog *and* in the in-game strip, because the grant outlives
+     * the dialog that produced it.
+     */
+    houseAccountAssigned: 'Account {label} is yours for this session',
+
+    /**
+     * The same pool, refused for a different reason: no link (C4.7).
+     *
+     * Sits next to the block-list entry it belongs to
+     * (`catalog.grantHouseAccount` in `lib/mock/api/client.ts`). The distinction
+     * *is* the message: the game still starts offline, only handing over a shared
+     * club login has to wait — and the way past it is a human, not a retry. An
+     * account already attached to this visit is untouched. Raised in two places:
+     * the launch hook refuses before the checklist appears, and the refusal
+     * reporter prints the body for the `'account'` kind.
      */
     houseAccountOfflineTitle: 'Account needs a connection',
     houseAccountOfflineBody:
@@ -1473,8 +1510,10 @@ export const en = {
      * screen for the seconds a start takes, so they were the last place in the
      * product that could afford a hardcoded English string (F2.4).
      *
-     * `launchStepAccount` is the one row the agent knows nothing about — it is
-     * the club's confirmation, and C4.7 moves it onto `grantHouseAccount`.
+     * `launchStepAccount` is the one row the agent knows nothing about: it is the
+     * club handing over a shared login (`grantHouseAccount`), which is also why
+     * that row is drawn only for titles that need one — three lines for a Steam
+     * game, four for a title on Riot or Battle.net (C4.7).
      */
     launchStepUpdates: 'Checking for updates…',
     launchStepAccount: 'Assigning an account…',
@@ -1506,13 +1545,15 @@ export const en = {
     launchCancelled: 'Launch cancelled',
 
     /**
-     * The house-account list (F3.4).
+     * The house-account list (F3.4), now a *view of the pool* (C4.7).
      *
-     * A *choice offered* to the player, not a parameter the launch needs — the
-     * endpoint takes a game id and the server owns availability. That is exactly
-     * why one click from the "Continue" card is allowed to skip this list.
+     * It stopped being a choice the moment the grant became real: the club picks
+     * the free row, the endpoint takes only a game id, and a list that looked
+     * selectable would have promised the player a decision the server was already
+     * making. What is left is worth showing — how many logins the club has and
+     * which are busy — so the heading names the pool instead of asking for a pick.
      */
-    selectAccount: 'Select account',
+    selectAccount: 'Club accounts',
     accountLinked: 'Linked: {name}',
     /**
      * Written out next to every row, because the other half of this signal is a
@@ -1521,7 +1562,6 @@ export const en = {
      */
     accountAvailable: 'Available',
     accountInUse: 'In use',
-    rememberAccount: 'Remember my choice for this game',
 
     // F8.4 — the strip that *names* the silence. A launcher that simply stops
     // making sounds is indistinguishable from a broken one, and the player has
@@ -1980,6 +2020,13 @@ export const en = {
     insufficientFunds: 'Not enough money on your balance',
     insufficientCoins: 'Not enough coins',
     outOfStock: 'Out of stock right now',
+    /**
+     * C4.7 — the club ran out of shared logins, the same shape of refusal as
+     * `outOfStock`. Rarely seen as a sentence: the launch dialog answers this code
+     * with the queue panel, and this line is the fallback for any surface that
+     * only knows how to print `errors.<code>`.
+     */
+    noFreeAccount: 'No free club account',
     creditLimit: 'Tab limit reached — settle it at the counter',
     invalidEmail: 'Enter a valid email address',
     required: 'This field is required',

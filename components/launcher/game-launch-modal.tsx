@@ -11,11 +11,17 @@
  * picked the right game, the club's house accounts, and the checklist, bar and
  * "Cancel" drawn from the hook's live view of the agent (C4.6).
  *
- * The one thing to notice about the account list: it is a *choice offered* to the
- * player, not something the sequence needs. `catalog.launchGame` takes a game id
- * and the server owns availability, so the selection never leaves this component
- * — which is exactly why the "Continue" card is allowed to skip the dialog and
- * still start the same game the same way.
+ * The account list stopped being a choice with C4.7. The club grants a login by
+ * itself — `grantHouseAccount` takes a game id and picks the free row — so a list
+ * that looked selectable would have offered the player a decision the server was
+ * already making, and one click from the "Continue" card would have "skipped" a
+ * step that never existed. What is left is a *view of the pool*: how many logins
+ * the club has and which are busy, printed without a single handler.
+ *
+ * The pool being empty gets a state of this same dialog rather than an overlay of
+ * its own, and that is the reason the dialog is the only home for the queue: the
+ * "Continue" card has nowhere to put a panel, so a refused quick launch opens this
+ * dialog (the hook does it) and the player finds the queue where it already lives.
  */
 
 import { motion } from "framer-motion";
@@ -27,15 +33,19 @@ import { Skeleton } from "@/components/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Overlay } from "@/components/ui/overlay";
 import { Progress } from "@/components/ui/progress";
-import { useApi } from "@/hooks/use-api";
+import { useApi, useInvalidate } from "@/hooks/use-api";
 import { useDismissableLayer } from "@/hooks/use-dismissable-layer";
-import {
-  LAUNCH_STEPS,
-  LAUNCH_STEP_KEYS,
-  useGameLaunch,
-} from "@/hooks/use-game-launch";
+import { LAUNCH_STEP_KEYS, useGameLaunch } from "@/hooks/use-game-launch";
 import { useT } from "@/lib/i18n/provider";
-import { fetchGame, fetchHouseAccounts } from "@/lib/mock/api";
+import type { TKey } from "@/lib/i18n/types";
+import {
+  fetchGame,
+  fetchHouseAccountQueueTicket,
+  fetchHouseAccounts,
+  joinHouseAccountQueue,
+  leaveHouseAccountQueue,
+  toApiError,
+} from "@/lib/mock/api";
 import { OVERLAY_MAX_H } from "@/lib/overlay";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -44,7 +54,19 @@ export function GameLaunchModal() {
   const { t } = useT();
   const launchGameId = useStore((s) => s.launchGameId);
   const setLaunchGame = useStore((s) => s.setLaunchGame);
-  const { launch, cancel, launchingId, stepStatus, percent } = useGameLaunch();
+  const toast = useStore((s) => s.toast);
+  const invalidate = useInvalidate();
+  const {
+    launch,
+    cancel,
+    launchingId,
+    steps,
+    stepStatus,
+    percent,
+    grant,
+    accountBusyId,
+    clearAccountBusy,
+  } = useGameLaunch();
 
   // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
   // conditional on the modal being open, so nothing is fetched while it is shut.
@@ -58,10 +80,25 @@ export function GameLaunchModal() {
   );
 
   const open = launchGameId !== null;
-  const houseAccounts = accounts.data ?? [];
 
-  const [account, setAccount] = useState<string | null>(null);
-  const [remember, setRemember] = useState(false);
+  /**
+   * The pool has nothing free for this title (C4.7) — set by whichever copy of the
+   * hook was refused, so a quick launch turned away on the home surface lands here
+   * with the panel already showing.
+   */
+  const queueing = launchGameId !== null && accountBusyId === launchGameId;
+
+  /**
+   * `GET /api/club/accounts/queue`. The ticket and its position are the server's:
+   * a client that counted "you are third" would be inventing the one number only
+   * the club can know, and it would disagree with the counter's screen the moment
+   * somebody ahead left the line.
+   */
+  const ticket = useApi(
+    queueing ? ["catalog/house-queue", launchGameId] : null,
+    () => fetchHouseAccountQueueTicket(launchGameId as string),
+  );
+  const [queuePending, setQueuePending] = useState(false);
 
   /**
    * Read from the store rather than kept locally, so "a launch is running" is the

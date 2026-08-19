@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina ��aidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ����aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -888,11 +888,29 @@ export const lt: Dictionary = {
     noResultsBody: 'Pabandykite kitą pavadinimą arba nuimkite kategorijos filtrą.',
     clearFilters: 'Išvalyti filtrus',
     openLibrary: 'Atidaryti biblioteką',
+    // Fondas išnaudotas (C4.7) — klubo faktas, o ne žaidėjo klaida. „Paprašykite
+    // administratoriaus“ pašalinta: paleidyklė turi savo atsakymą — eilę žemiau.
     noAccounts: 'Laisvų paskyrų nėra',
-    noAccountsBody: 'Visos klubo paskyros šiam žaidimui užimtos. Paprašykite administratoriaus laisvos vietos.',
+    noAccountsBody: 'Visos klubo paskyros šiam žaidimui šiuo metu užimtos.',
+
+    // Eilė tam fondui (C4.7): tai paraiška, o ne prenumerata — pranešimas apie
+    // atsilaisvinusią paskyrą ateis vėliau, todėl pažadas suformuluotas paleidyklės
+    // vardu. `houseAccountBusy` — greitojo paleidimo pusė: „Tęsti“ kortelėje nėra
+    // vietos panelei, todėl pranešimas pasako, kas nutiko, o eilė gyvena dialoge.
+    houseAccountBusy: 'Nėra laisvos klubo paskyros šiam žaidimui',
+    houseAccountQueueBody: 'Užimk eilę — atsilaisvinusi paskyra bus priskirta tau.',
+    houseAccountQueueJoin: 'Užimti eilę',
+    houseAccountQueuePosition: 'Tu {n} eilėje',
+    houseAccountQueueLeave: 'Palikti eilę',
+    houseAccountQueueJoined: 'Eilė užimta — paleidyklė pranešis, kai paskyra atsilaisvins',
+
+    // Ką klubas parašo priskyręs paskyrą šiam apsilankymui (C4.7). Etiketė ir yra
+    // visa žinia: „paskyra priskirta“ žaidėjui nepatikrinama, o „IMBA_01“ jis
+    // perskaito ekrane. Rodoma ir dialoge, ir „Žaidime“ juostoje.
+    houseAccountAssigned: 'Paskyra {label} priskirta tau šiai sesijai',
 
     // Tas pats paskyrų fondas, bet atsisakymas dėl kitos priežasties — nėra ryšio
-    // (C4.7/C4.8). Paaiškinimas — `en.ts`.
+    // (C4.7). Paaiškinimas — `en.ts`.
     houseAccountOfflineTitle: 'Paskyrai reikia ryšio',
     houseAccountOfflineBody:
       'Žaidimas paleidžiamas ir be ryšio, bet klubo paskyrą išduoti gali tik klubo serveris. Pakvieskite administratorių.',
@@ -904,7 +922,8 @@ export const lt: Dictionary = {
 
     // Keturios eilutės — septynių agento žingsnių grupės (C4.6), o ne laikmačio
     // užrašai; vienintelis dalykas, kurį žaidėjas mato tas sekundes (F2.4).
-    // „Priskiriama paskyra“ — ne agento žingsnis, o klubo patvirtinimas (C4.7).
+    // „Priskiriama paskyra“ — ne agento žingsnis, o klubo paskyros išdavimas
+    // (`grantHouseAccount`); Steam žaidimams ši eilutė nerodoma — jų trys (C4.7).
     launchStepUpdates: 'Tikrinami atnaujinimai…',
     launchStepAccount: 'Priskiriama paskyra…',
     launchStepLauncher: 'Prisijungiama prie paleidyklės…',
@@ -922,15 +941,14 @@ export const lt: Dictionary = {
     // todėl raudonas pranešimas jo sprendimą paskelbtų paleidyklės klaida.
     launchCancelled: 'Paleidimas atšauktas',
 
-    // Klubo paskyrų sąrašas (F3.4) — pasiūlytas pasirinkimas, o ne paleidimo
-    // parametras: užimtumą tvarko serveris. Todėl vienas paspaudimas jį praleidžia.
-    selectAccount: 'Pasirinkite paskyrą',
+    // Klubo paskyrų sąrašas (F3.4) — dabar fondo būsena, o ne pasirinkimas (C4.7):
+    // laisvą įrašą pasirenka klubas, o endpointas priima tik žaidimo id.
+    selectAccount: 'Klubo paskyros',
     accountLinked: 'Priskirta: {name}',
     // Parašyta žodžiais prie spalvoto taškelio: pats taškelis nieko nepasako nei
     // skaitytuvui, nei tam, kas tų dviejų atspalvių neatskiria (F6.6).
     accountAvailable: 'Laisva',
     accountInUse: 'Užimta',
-    rememberAccount: 'Įsiminti pasirinkimą šiam žaidimui',
 
     inGame: 'Žaidime',
     inGameNow: 'Veikia {name}',
@@ -1289,6 +1307,9 @@ export const lt: Dictionary = {
     insufficientFunds: 'Balanse nepakanka pinigų',
     insufficientCoins: 'Nepakanka monetų',
     outOfStock: 'Šiuo metu neturime',
+    // C4.7: klubo paskyrų neužteko — ta pati prasmė kaip „neturime“. Kaip sakinys
+    // beveik nematomas: paleidimo dialogas į šį kodą atsako eilės panele.
+    noFreeAccount: 'Nėra laisvos klubo paskyros',
     creditLimit: 'Sąskaitos limitas išnaudotas — apmokėkite prie baro',
     invalidEmail: 'Įveskite tinkamą el. pašto adresą',
     required: 'Šis laukas privalomas',
@@ -1308,7 +1329,7 @@ export const lt: Dictionary = {
   },
 
   // Avarijos ekranas (F6.5). Tonas — ramus ir operatyvinis: žaidėjas sumokėjo
-  // už minutes, todėl pirmiausia turi perskaityti, kad laikas neprarastas.
+  // už minutes, tod��l pirmiausia turi perskaityti, kad laikas neprarastas.
   crash: {
     eyebrow: 'Aplinkos klaida',
     title: 'Sąsaja',
