@@ -4,7 +4,7 @@
 // the club's own settings. Filtering and sorting live here on purpose — the real
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
-import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
+import { ApiError, mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
 import {
   db,
   getFriends,
@@ -24,6 +24,8 @@ import type {
   GameLaunch,
   GameStats,
   HouseAccount,
+  HouseAccountGrant,
+  HouseAccountQueueTicket,
 } from '@/lib/types/catalog'
 import type { ID, ISODateTime } from '@/lib/types/common'
 import type {
@@ -333,6 +335,165 @@ export function launchGame(gameId: ID, userId: ID = db.currentUserId): Promise<G
 /** `GET /api/club/accounts` — shared launcher logins available at the counter. */
 export function fetchHouseAccounts(): Promise<HouseAccount[]> {
   return query('catalog.fetchHouseAccounts', () => db.houseAccounts)
+}
+
+/* ------------------------------------------------------------------ *
+ * House accounts: the grant, the release, the queue (C4.7)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Rows of the pool the club is allowed to lend out.
+ *
+ * A `linkedUser` row is somebody's own launcher login that happens to be stored
+ * on this machine — handing it to the next guest is not a pool the club owns, it
+ * is giving away an account. So the grant never sees it, and the dialog's list
+ * still shows it, because "present but not ours to lend" is a true statement
+ * about the pool.
+ */
+function isGrantable(account: HouseAccount): boolean {
+  return account.linkedUser === undefined
+}
+
+/** The response shape, read off the row the club wrote when it lent it out. */
+function toGrant(account: HouseAccount): HouseAccountGrant {
+  return {
+    accountId: account.id,
+    label: account.label,
+    sessionId: account.sessionId as ID,
+    gameId: account.grantedForGameId as ID,
+    grantedAt: account.grantedAt as ISODateTime,
+  }
+}
+
+/**
+ * `POST /api/club/accounts/grant` — hand a shared login to this visit (C4.7).
+ *
+ * **Idempotent per visit, on purpose.** A player who alt-tabs out of CS2 and
+ * starts it again is one visit needing one account, not two: without the lookup
+ * below, three restarts would eat the whole pool and the fourth guest of the
+ * evening would be told the club is full while two of its accounts sat claimed by
+ * a session that only ever played one game at a time.
+ *
+ * The game id is taken but no account is reserved *per title*, which is the club's
+ * actual rule: one shared login per seat, whatever is running on it.
+ *
+ * Refuses with `noFreeAccount` rather than `conflict`: the launcher has a whole
+ * state for this refusal (the queue panel), and it can only tell it apart from a
+ * generic clash by the code.
+ */
+export function grantHouseAccount(gameId: ID): Promise<HouseAccountGrant> {
+  return mutate('catalog.grantHouseAccount', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const sessionId = db.currentSessionId
+
+    const held = db.houseAccounts.find((a) => a.sessionId === sessionId)
+    if (held) return toGrant(held)
+
+    const free = db.houseAccounts.find((a) => a.status === 'available' && isGrantable(a))
+    if (!free) throw new ApiError('noFreeAccount')
+
+    free.status = 'in-use'
+    free.sessionId = sessionId
+    free.grantedForGameId = game.id
+    free.grantedAt = serverTime()
+    return toGrant(free)
+  })
+}
+
+/**
+ * `POST /api/club/accounts/release` — give the login back (C4.7).
+ *
+ * Scoped to the caller's own visit and silent when it does not match: the client
+ * calls this from the failure path of a launch, where "the row is somebody else's
+ * now" is not an error the player can act on — but freeing a stranger's account
+ * because a stale id was retried would take a game away from whoever is playing
+ * on it.
+ *
+ * Deliberately **not** in `OFFLINE_BLOCKED` (`client.ts`): a release hands a club
+ * resource back and is safe to honour late, while blocking it would leak the row
+ * for the rest of the evening.
+ */
+export function releaseHouseAccount(accountId: ID): Promise<void> {
+  return mutate('catalog.releaseHouseAccount', () => {
+    const account = db.houseAccounts.find((a) => a.id === accountId)
+    if (!account || account.sessionId !== db.currentSessionId) return
+    account.status = 'available'
+    account.sessionId = undefined
+    account.grantedForGameId = undefined
+    account.grantedAt = undefined
+  })
+}
+
+/**
+ * `GET /api/club/accounts/mine` — the login attached to this visit, or `null`.
+ *
+ * The **server** owns the fact, which is why this read exists at all: the grant
+ * outlives the dialog that asked for it, so the in-game strip has to be able to
+ * learn about it a minute later and after a reload, without the launch frame that
+ * produced it still being on screen.
+ */
+export function fetchAssignedHouseAccount(): Promise<HouseAccountGrant | null> {
+  return query('catalog.fetchAssignedHouseAccount', () => {
+    const held = db.houseAccounts.find((a) => a.sessionId === db.currentSessionId)
+    return held ? toGrant(held) : null
+  })
+}
+
+/** Tickets in club order, with the position the server assigns on every read. */
+function queueOf(gameId: ID): HouseAccountQueueTicket[] {
+  return db.houseAccountQueue
+    .filter((ticket) => ticket.gameId === gameId)
+    .map((ticket, index) => ({ ...ticket, position: index + 1 }))
+}
+
+/**
+ * `POST /api/club/accounts/queue` — take a place in line (C4.7).
+ *
+ * Idempotent for the same reason the grant is: a second press must return the
+ * ticket the visit already has, or an impatient player would push themselves to
+ * the back of a queue they were already first in.
+ */
+export function joinHouseAccountQueue(gameId: ID): Promise<HouseAccountQueueTicket> {
+  return mutate('catalog.joinHouseAccountQueue', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const sessionId = db.currentSessionId
+
+    const existing = db.houseAccountQueue.find(
+      (ticket) => ticket.gameId === game.id && ticket.sessionId === sessionId,
+    )
+    if (!existing) {
+      db.houseAccountQueue.push({
+        id: newId('hq'),
+        gameId: game.id,
+        sessionId,
+        // Overwritten by `queueOf` on the way out; stored so a snapshot restored
+        // without a read still carries a sane number.
+        position: db.houseAccountQueue.length + 1,
+        joinedAt: serverTime(),
+      })
+    }
+
+    return required(queueOf(game.id).find((ticket) => ticket.sessionId === sessionId))
+  })
+}
+
+/** `DELETE /api/club/accounts/queue` — leave the line. Everyone behind moves up. */
+export function leaveHouseAccountQueue(gameId: ID): Promise<void> {
+  return mutate('catalog.leaveHouseAccountQueue', () => {
+    const sessionId = db.currentSessionId
+    const index = db.houseAccountQueue.findIndex(
+      (ticket) => ticket.gameId === gameId && ticket.sessionId === sessionId,
+    )
+    if (index >= 0) db.houseAccountQueue.splice(index, 1)
+  })
+}
+
+/** `GET /api/club/accounts/queue` — this visit's ticket for a title, or `null`. */
+export function fetchHouseAccountQueueTicket(gameId: ID): Promise<HouseAccountQueueTicket | null> {
+  return query(
+    'catalog.fetchHouseAccountQueueTicket',
+    () => queueOf(gameId).find((ticket) => ticket.sessionId === db.currentSessionId) ?? null,
+  )
 }
 
 /** `GET /api/club` */

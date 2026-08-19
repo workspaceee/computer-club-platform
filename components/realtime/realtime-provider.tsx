@@ -118,12 +118,14 @@ function useSocialBridge(): void {
  *  2. **Up** — a refusal comes back as an endpoint name and a `kind`, and *this* is
  *     where it becomes a sentence. The mock API never produces prose (`client.ts`
  *     rule 2), so the copy stays in the dictionaries and stays translated. The
- *     `kind` picks between the only two things a refused write can be about:
+ *     `kind` picks between the three things a refused write can be about:
  *     `realtime.salesRefused` says **nothing was charged** (the only fact a player
- *     needs when a payment they pressed did not happen), and
- *     `auth.offlineEntryRefused` says the door needs the club (C2.13). Before the
- *     split, a sign-in refused offline was told nothing had been charged — money
- *     talk over a door that never asked for a card.
+ *     needs when a payment they pressed did not happen),
+ *     `auth.offlineEntryRefused` says the door needs the club (C2.13), and
+ *     `games.houseAccountOfflineBody` says the game still starts but a shared club
+ *     login has to wait (C4.7). Before the split, a sign-in refused offline was
+ *     told nothing had been charged — money talk over a door that never asked for
+ *     a card, and the account grant would have repeated the mistake.
  *
  * Reaching (2) at all means a click beat a re-render, or a dialog was already
  * open: every one of these buttons is disabled by `useSalesGate()` or replaced by
@@ -145,7 +147,19 @@ function useMoneyBridge(offline: boolean): void {
   useEffect(
     () =>
       onPurchaseRefused((_endpoint, kind) =>
-        toast('error', t(kind === 'entry' ? 'auth.offlineEntryRefused' : 'realtime.salesRefused')),
+        toast(
+          'error',
+          t(
+            kind === 'entry'
+              ? 'auth.offlineEntryRefused'
+              : // C4.7: a shared club login is neither money nor a door. Without
+                // this branch a refused grant said "nothing was charged" over the
+                // start of a game that never asked for a cent.
+                kind === 'account'
+                ? 'games.houseAccountOfflineBody'
+                : 'realtime.salesRefused',
+          ),
+        ),
       ),
     [t, toast],
   )
