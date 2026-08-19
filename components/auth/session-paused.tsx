@@ -31,13 +31,17 @@ export function formatRemainder(seconds: number): string {
 }
 
 /**
- * The remainder as a running clock — "HH:MM:SS".
+ * The remainder as "HH:MM:SS" — the shape of every billed clock in the shell.
  *
- * The card used to print `formatRemainder`, and on a station that a player sits
- * in front of for a minute that reads as a dead screen: two digits that never
- * move, next to a keypad, with no way to tell a live surface from a frozen one.
- * Seconds are what make it legible as a *clock*, and they are also the cheapest
- * possible sign of life — nothing else on this screen moves.
+ * A *format*, not a countdown: it prints whatever second it is handed and does
+ * not tick. That is the whole point on this screen — a paused visit spends
+ * nothing (`pauseSession` stops the clock, `resumeSessionRow` restores this
+ * exact figure), so the number must stand still at the value a resume returns
+ * to. A running countdown here would drift below the club's frozen remainder
+ * and then jump back up the instant the player unlocked, telling them their
+ * break had cost them time it never did. Seconds are shown rather than the bare
+ * "HH:MM" so the reading is legible as a clock; the poll below is what keeps it
+ * honest when an admin actually moves the number.
  */
 function formatRemainderLive(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds))
@@ -45,46 +49,6 @@ function formatRemainderLive(seconds: number): string {
   const minutes = Math.floor((total % 3600) / 60)
   const secs = total % 60
   return [hours, minutes, secs].map((part) => String(part).padStart(2, '0')).join(':')
-}
-
-/**
- * The remainder, re-derived from the club's last answer once a second.
- *
- * **Derived, never decremented** — the same rule the one clock of the launcher
- * follows (`components/session-manager.tsx`, F6.3). The anchor is when the
- * server's number arrived; the reading is that number minus the wall-clock time
- * since. A station that slept, or a tab the browser throttled to one tick a
- * minute, comes back with the correct value on its very first frame instead of
- * however many ticks it managed to run.
- *
- * The poll every `REFRESH_MS` re-anchors it, so the display can drift by at most
- * ten seconds from what the club believes before it is corrected.
- */
-function useLiveRemainder(secondsLeft: number): number {
-  // `performance.now()` is monotonic: `Date.now()` can be stepped by an NTP
-  // correction on a station that has been up all evening, and a clock that jumps
-  // backwards would print a *growing* remainder on a paused visit.
-  const anchor = useRef({ at: 0, seconds: secondsLeft })
-  const [, setFrame] = useState(0)
-
-  // A fresh server answer replaces the anchor rather than adjusting the reading.
-  if (anchor.current.seconds !== secondsLeft) {
-    anchor.current = { at: performance.now(), seconds: secondsLeft }
-  }
-
-  useEffect(() => {
-    anchor.current = { at: performance.now(), seconds: secondsLeft }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secondsLeft])
-
-  useEffect(() => {
-    if (secondsLeft <= 0) return
-    const id = setInterval(() => setFrame((n) => n + 1), 1000)
-    return () => clearInterval(id)
-  }, [secondsLeft])
-
-  const elapsed = Math.floor((performance.now() - anchor.current.at) / 1000)
-  return Math.max(0, anchor.current.seconds - elapsed)
 }
 
 /**
