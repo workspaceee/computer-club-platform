@@ -251,7 +251,7 @@ function nextFault(endpoint: string): ApiErrorCode | null {
 }
 
 /* ------------------------------------------------------------------ *
- * Money while the link is down (C2.12)
+ * Money and the door while the link is down (C2.12 / C2.13)
  * ------------------------------------------------------------------ */
 
 /**
@@ -287,6 +287,56 @@ const OFFLINE_BLOCKED: ReadonlySet<string> = new Set([
   // Loyalty spends a balance the server owns, same as a card would.
   'loyalty.redeemReward',
   'loyalty.unlockPaidTrack',
+])
+
+/**
+ * The writes that open a *visit* — refused without a link to the club (C2.13).
+ *
+ * The same shape of rule as the till above, for the same reason, one step
+ * earlier: admission is a fact only the club can establish. A station that let
+ * somebody in on its own would be inventing three things it cannot know — that
+ * the credentials are real, that this account is not already playing on another
+ * machine (C1.12), and that the seat is this arrival's to take (C1.7). Every one
+ * of those is a server answer, and a local "yes" to any of them opens a visit
+ * whose clock, tab and identity the club never agreed to.
+ *
+ * So the door is closed rather than optimistic. `useEntryGate()` already replaces
+ * the form with a panel that says so, which means reaching this list is the same
+ * backstop `OFFLINE_BLOCKED` is: an `Enter` on a form that was already open, a
+ * click that beat a re-render, a QR ticket that arrived a frame late.
+ *
+ * Reads are **not** here and must not be. `auth.fetchPausedVisit`,
+ * `auth.checkNickname` and `auth.requestQrChallenge` fail on their own terms when
+ * the link is really down, and blocking them up front would only replace an
+ * honest timeout with a refusal that pretends to know more.
+ *
+ * `auth.unlockWithPin` is in the list, and it is the entry that took the most
+ * arguing. The visit is parked on *this* station and the four digits look like a
+ * local secret, so a station could plausibly check them itself — but the PIN
+ * proves who is typing, not how much time the club still owes them, and the
+ * remainder is exactly what an unlock adopts (`applySnapshot`). Unlocking offline
+ * would resume a visit against the client's banked seconds, which is the bug
+ * C1.10 was written to kill. Better a closed door for two minutes than a visit
+ * running on a clock nobody agreed to.
+ *
+ * `auth.logout` is deliberately absent: leaving is not admission, and a player
+ * who wants their account off a public machine must never be told to wait for
+ * the network.
+ */
+const OFFLINE_ENTRY_BLOCKED: ReadonlySet<string> = new Set([
+  // The three doors of C1.2.
+  'auth.login',
+  'auth.continueAsGuest',
+  'auth.completeRegistration',
+  // The repair path ends signed in (C1.3), so it is a door too.
+  'auth.completePasswordReset',
+  // The phone confirmed; the club still has to hand over the session (C1.5).
+  'auth.confirmQrChallenge',
+  // Resuming a paused visit adopts the club's remainder (C1.10) — see above.
+  'auth.unlockWithPin',
+  // The dev shortcut is a door as well, and must fail the same way the real ones
+  // do or the prototype would demo a recovery path the product does not have.
+  'auth.loginAsDemo',
 ])
 
 /**
