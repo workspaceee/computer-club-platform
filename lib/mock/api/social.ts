@@ -8,6 +8,7 @@ import {
   db,
   getFriends,
   getGame,
+  getGamePresence,
   getMachine,
   getPlayer,
   getPrivacy,
@@ -19,6 +20,7 @@ import type {
   ClubNowBoard,
   Friendship,
   FriendSummary,
+  GamePresence,
   Party,
   PartyMember,
 } from '@/lib/types/social'
@@ -46,6 +48,29 @@ function findFriendship(a: ID, b: ID): Friendship | undefined {
 /** `GET /api/social/friends` — accepted friends with live presence. */
 export function fetchFriends(userId: ID = db.currentUserId): Promise<FriendSummary[]> {
   return query('social.fetchFriends', () => getFriends(userId))
+}
+
+/**
+ * `GET /api/club/playing` — players per title in the hall right now (C4.4).
+ *
+ * Its own read rather than a field on the shelf `fetchGames` returns, and that is
+ * the whole design of the library card's counter:
+ *
+ *  - the catalogue is static between two reads and the hall is not, so the two
+ *    have different refresh cadences — folding them together would make the grid
+ *    refetch sixty-seven catalogue rows every half minute to learn one number;
+ *  - it is a *club* fact, so it is the same answer for every screen that asks and
+ *    can be cached under one key regardless of who is signed in;
+ *  - and it degrades on its own. When this read fails the library still renders —
+ *    the cards simply say nothing about presence, which is the honest outcome. A
+ *    counter folded into the shelf payload would have taken the whole grid down
+ *    with it.
+ *
+ * Sparse, from `getGamePresence()`: seated players only, so "playing from home"
+ * never inflates a number the player is about to walk across the room on.
+ */
+export function fetchGamePresence(): Promise<GamePresence> {
+  return query('social.fetchGamePresence', () => getGamePresence())
 }
 
 export interface FriendRequestSummary {
