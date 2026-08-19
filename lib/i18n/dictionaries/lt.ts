@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina ������aidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ��������aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -821,14 +821,21 @@ export const lt: Dictionary = {
     // Pati kortelė (C4.4). Paaiškinimas — `en.ts`. Paleidyklės pavadinimas į
     // žodyną nekeliauja: „Steam“, „Epic“, „Battle.net“ yra produktų pavadinimai ir
     // spausdinami taip, kaip yra (F2.2); žodynas turi tik žodį, paaiškinantį, kas
-    // tai už eilutė, — `title` ženkleliui, kurį dviejų stulpelių ekranas nukerpa.
-    // Kitos dvi frazės — skaitytojui be ikonų: žvaigždė prie „4,8“ ir žalias
-    // taškas prie „2“ nieko nereiškia, jei jų nematai.
+    // tai už eilutė, — kortelėje dabar stovi firminis ženklas, ir `launcherLabel`
+    // yra vienintelis dalykas, pasakantis, kieno tas ženklas: ir `title`, ir
+    // ekrano skaitytojui.
+    // `ratingOutOf` ir `inClubNow` — skaitytojui be ikonų: žvaigždė prie „4,8“
+    // nieko nereiškia, jei jos nematai.
     launcherLabel: 'Paleidyklė',
     ratingOutOf: 'Reitingas {v} iš 5',
     // formos: one | few | other
     inClubNow:
       'Šiame žaidime klube dabar {n} žaidėjas|Šiame žaidime klube dabar {n} žaidėjai|Šiame žaidime klube dabar {n} žaidėjų',
+    // Užrašas ženklelio viduje, prie skaitmens. Sąmoningai nelinksniuojamas ir
+    // nesiderina su skaičiumi: tai paaiškinimas, kas skaičiuojama, o ne frazė apie
+    // kiekį, — „2 klube“ vienodai teisinga ir prie 1, ir prie 5, o ženklelio plotis
+    // nekinta.
+    inClubShort: 'klube',
 
     favorites: 'Mėgstami',
     recent: 'Neseniai žaisti',
