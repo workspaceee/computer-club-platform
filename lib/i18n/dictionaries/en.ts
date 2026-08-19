@@ -1338,17 +1338,18 @@ export const en = {
     /* ---------------------------------------------------------------- *
      * The card itself (C4.4)
      *
-     * Three strings that exist because the tile prints glyphs. The launcher name
+     * Four strings that exist because the tile prints glyphs. The launcher name
      * is *not* here and never will be — "Steam", "Epic", "Battle.net" are product
      * names, printed verbatim from the catalogue (F2.2); what the dictionary owns
-     * is the word that says what kind of thing that name is, for the `title` on a
-     * badge a two-column phone truncates.
+     * is the word that says what kind of thing that name is. The tile now shows
+     * the brand's own mark, so `launcherLabel` is the only thing that says whose
+     * mark it is — in the `title` and for a screen reader, which would otherwise
+     * get a shape with no name at all.
      *
-     * The other two are for a reader with no glyphs at all: a star beside "4.8"
-     * is a rating only if you can see the star, and a green dot beside "2" is
-     * "in the club now" only if you can see the dot. Both are `sr-only`
-     * sentences, so both carry their own number rather than leaning on the digit
-     * next to them.
+     * `ratingOutOf` and `inClubNow` are for a reader with no glyphs: a star
+     * beside "4.8" is a rating only if you can see the star, and the badge reads
+     * "2 in club" only if you can see it. Both are `sr-only` sentences, so both
+     * carry their own number rather than leaning on the digit next to them.
      * ---------------------------------------------------------------- */
     launcherLabel: 'Launcher',
     ratingOutOf: 'Rating {v} out of 5',
