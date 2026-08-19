@@ -105,6 +105,16 @@ export interface UiSlice {
   setTourOpen: (open: boolean) => void
   setLaunchGame: (id: string | null) => void
   /**
+   * Open the detail panel on a title, or close it (`null`) — C4.5.
+   *
+   * Deliberately *not* folded into `setLaunchGame`: reading about a game and
+   * deciding to start it are two acts, and the panel exists to sit between them.
+   * The panel raises the launch dialog on top of itself, so both ids are set
+   * while the player confirms — and the panel closes itself the moment the start
+   * actually reaches the agent, because "reading about it" is over by then.
+   */
+  setDetailGame: (id: string | null) => void
+  /**
    * A title took the machine (`id`) or handed it back (`null`) — F8.4.
    *
    * Not folded into `setLaunchGame`: the dialog closes as the game comes up, so
@@ -134,6 +144,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
   notificationsOpen: false,
   tourOpen: false,
   launchGameId: null,
+  detailGameId: null,
   runningGameId: null,
   launchingGameId: null,
 
@@ -151,6 +162,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
   setNotificationsOpen: (open) => set({ notificationsOpen: open }),
   setTourOpen: (open) => set({ tourOpen: open }),
   setLaunchGame: (id) => set({ launchGameId: id }),
+  setDetailGame: (id) => set({ detailGameId: id }),
   setRunningGame: (id) => set({ runningGameId: id }),
   setLaunchingGame: (id) => set({ launchingGameId: id }),
 
@@ -169,6 +181,10 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
       // nothing re-opens it behind them (C3.12).
       tourOpen: false,
       launchGameId: null,
+      // The detail panel goes with the dialogs: a player who comes back from a
+      // lock arrives at the PIN pad, and a card describing a game they were
+      // reading about ten minutes ago is not the screen they left.
+      detailGameId: null,
     }),
 
   // `resetUi` is a *fresh visit*, and no title survives the end of one — so this
@@ -183,6 +199,7 @@ export const createUiSlice: SliceCreator<UiSlice> = (set) => ({
       notificationsOpen: false,
       tourOpen: false,
       launchGameId: null,
+      detailGameId: null,
       runningGameId: null,
       // Same reason `runningGameId` is cleared here and nowhere else: a start
       // that was in flight when the visit ended has nobody left to hand the

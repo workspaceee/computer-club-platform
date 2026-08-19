@@ -35,6 +35,7 @@ import { MobileNav } from '@/components/launcher/mobile-nav'
 import { TopBar } from '@/components/launcher/top-bar'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
 import { FirstRunTour } from '@/components/launcher/first-run-tour'
+import { GameDetailPanel } from '@/components/launcher/game-detail-panel'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
 import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
@@ -179,6 +180,13 @@ export function GlobalOverlays() {
       <SfxArmBridge />
       <SfxSettingsBridge />
       <SfxGameBridge />
+      {/* One title, read about before it is started (C4.5). Mounted with the
+          other global overlays and reading its own id from the UI slice, so every
+          surface that shows a tile — the library, "Continue", the hero — opens the
+          same panel by setting one field. It sits *before* the launch dialog in
+          source order on purpose: both are on the `modal` rung, and the dialog the
+          panel raises has to land on top of it. */}
+      <GameDetailPanel />
       <GameLaunchModal />
       <CartDrawer />
       {/* "My session" (C2.3). Mounted with the other global overlays rather than
