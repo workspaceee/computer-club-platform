@@ -31,7 +31,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GameCover } from '@/components/game-cover'
 import { CATEGORY_KEYS } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
@@ -85,6 +85,24 @@ export function GameCard({
   const launchOpen = useStore((s) => s.launchGameId !== null)
   const detailOpen = useStore((s) => s.detailGameId !== null)
   const dialogOpen = launchOpen || detailOpen
+
+  /**
+   * When the last dialog closed, for `onFocus` to disqualify the focus a modal
+   * hands back to the button it was opened from.
+   *
+   * A ref, not state: nothing renders from it, and it has to be readable by the
+   * `focus` handler that fires in the same commit the overlay unmounts in.
+   */
+  const dialogClosedAt = useRef(0)
+  const wasDialogOpen = useRef(false)
+  useEffect(() => {
+    // Only the open → closed *transition* is stamped. Writing it on every render
+    // with no dialog up would include the card's own mount, and a member who
+    // reaches the shelf by Tab would find the first tile refusing to light for
+    // 400 ms.
+    if (wasDialogOpen.current && !dialogOpen) dialogClosedAt.current = performance.now()
+    wasDialogOpen.current = dialogOpen
+  }, [dialogOpen])
 
   // Focus that arrives from a mouse press, or is restored to the button after a
   // dialog closes, must not light the overlay — only real keyboard navigation
@@ -164,7 +182,7 @@ export function GameCard({
     >
       {/* `aspect-video`, not a fixed height: the covers are generated at 800×450,
           so a 16:9 box is the one shape that neither crops the art nor
-          letterboxes it, and it holds its own space before the file decodes —
+          letterboxes it, and it holds its own space before the file decodes ���
           the tile reserves its slot in the grid whether the image arrives,
           arrives late, or never arrives at all. */}
       <GameCover
