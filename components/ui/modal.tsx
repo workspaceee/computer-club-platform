@@ -16,8 +16,10 @@ const SIZES = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
   // `svh`, like `OVERLAY_MAX_H`: a `vh`-tall takeover overshoots the visible
-  // area whenever the browser keeps its own chrome on screen.
-  full: 'max-w-[min(96vw,1400px)] h-[calc(100svh-2rem)]',
+  // area whenever the browser keeps its own chrome on screen — and the gutter it
+  // subtracts follows the frame's own `p-4 sm:p-6`, or the overlay behind it gets
+  // a hairline of scroll it should never have.
+  full: 'max-w-[min(96vw,1400px)] h-[calc(100svh-2rem)] sm:h-[calc(100svh-3rem)]',
 } as const
 
 interface ModalProps {
@@ -145,8 +147,14 @@ export function Modal({
 
         {/* The card's own scroll body. This is what keeps the outer scroll port
             idle in the normal case: the header and footer stay pinned and only
-            the content moves. */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+            the content moves.
+
+            `overscroll-contain` stops a wheel flick that reaches the end of this
+            body from handing the rest of its momentum to the port behind it —
+            the scroll chaining that made a dialog feel like it was fighting the
+            pointer. `overflow-y-auto` on the compositor's own axis, with no
+            `backdrop-filter` on this node, so the scroll is a cheap repaint. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">{children}</div>
 
         {footer && (
           <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">

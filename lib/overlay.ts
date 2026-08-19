@@ -51,7 +51,15 @@ export type OverlayLayer = keyof typeof overlayZ
  * `svh`, not `vh`: on a kiosk in a browser with visible UI (and on the tablet
  * self-service surface) `vh` measures the *largest* possible viewport, so a
  * `max-h-[88vh]` card is taller than the space it actually has and its header
- * ends up under the address bar. The `2rem` is the `p-4` gutter the overlay
- * frame keeps on the short axis.
+ * ends up under the address bar.
+ *
+ * The subtraction **must match the frame's gutter at every breakpoint**, and this
+ * is where the janky scroll came from: `components/ui/overlay.tsx` pads its
+ * centring track `p-4 sm:p-6`, so from `sm` up a card capped at `100svh - 2rem`
+ * plus 3rem of gutter is 1rem *taller* than the window. That handed the outer
+ * scroll port a 16 px range — a full-height scrollbar down the right edge of the
+ * screen with almost nothing to travel, which is what "the page scrolls, but
+ * badly" actually was. Capping against the real gutter leaves the outer port
+ * idle, and the card's own body is the only thing that scrolls.
  */
-export const OVERLAY_MAX_H = 'max-h-[calc(100svh-2rem)]'
+export const OVERLAY_MAX_H = 'max-h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-3rem)]'

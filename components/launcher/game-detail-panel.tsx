@@ -44,7 +44,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { Modal } from '@/components/ui/modal'
-import { StatTile } from '@/components/ui/stat-tile'
 import { useApi } from '@/hooks/use-api'
 import { CATEGORY_KEYS } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
@@ -164,8 +163,11 @@ function GameDetailModal({
       <DataBoundary
         state={detail}
         loading={
-          <div className="flex flex-col gap-4">
-            <Skeleton className="aspect-video w-full" />
+          // The same shapes the body settles into — a 96 px band, not a full
+          // 16:9 block, or the dialog is twice as tall while it waits as it is
+          // once the payload lands.
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-24 w-full" />
             <Skeleton className="h-16" />
             <Skeleton className="h-28" />
           </div>
@@ -187,15 +189,18 @@ function DetailBody({
   stats: GameStats | undefined
   friends: FriendSummary[] | undefined
 }) {
-  const { t, tp, formatNumber } = useT()
+  const { t, formatNumber } = useT()
   const fit = FIT[detail.fit]
 
   return (
-    // `gap-4`, not `gap-6`: five sections at 24 px each spent 120 px of a
+    // `gap-3`, not `gap-6`: five sections at 24 px each spent 120 px of a
     // 693 px station screen on nothing but air, which is what pushed the member's
     // own hours and the friends in the title below the fold (§ the header's point
-    // 4 — the panel should fit, not scroll).
-    <div className="flex flex-col gap-4">
+    // 4 — the panel should fit, not scroll). The last 12 px came off with the
+    // stats strip and the shorter cover, and together they are what closes the
+    // gap: the whole panel now ends above the launch bar on the club's own screen
+    // instead of a scroll below it.
+    <div className="flex flex-col gap-3">
       {/* ── The title, in one look ───────────────────────────────────── */}
       <div className="flex flex-col gap-2">
         <GameCover
@@ -208,7 +213,13 @@ function DetailBody({
           // clicked. `max-h` crops through `object-cover` instead of letterboxing,
           // and the ratio still governs on a phone, where height is not the
           // scarce axis.
-          className="aspect-video max-h-32 w-full rounded-lg"
+          // 96 px, down from 128: the art is a reminder of the tile the player
+          // just clicked, not a hero, and every pixel it spends is a pixel the
+          // verdict and the member's own history have to scroll for. The cap is
+          // deliberately *not* raised at `lg` — the club's own station is
+          // 1216 × 693, so a `lg:` bump would hand the tallest cover back to
+          // exactly the screen that has the least room for it.
+          className="aspect-video max-h-24 w-full rounded-lg"
           // The dialog header already prints the name in the display face; the
           // cover's own caption would print it a second time, two centimetres
           // below the first.
@@ -369,12 +380,14 @@ function DetailBody({
           player deciding whether to walk over cannot scroll for it. Paired, the
           panel ends above the launch bar. They stack again under `sm`, where two
           columns of prose would be narrower than the words. */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {/* ── The member's own history with it ─────────────────────────── */}
         <section className="flex flex-col gap-2">
           <h3 className="label-mono text-[9px] text-text-low">{t('games.detailStats')}</h3>
           {stats === undefined ? (
-            <Skeleton className="h-20" />
+            // The height of the strip it stands in for, so the panel does not
+            // resettle by 60 px the moment the member's own read lands.
+            <Skeleton className="h-14" />
           ) : stats.launches === 0 ? (
             // "You have not played this here" is an answer, not an error — the
             // endpoint returns zeroes rather than a 404 for exactly this block.
@@ -386,22 +399,30 @@ function DetailBody({
               {t('games.detailNeverPlayed')}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <PlaytimeTile seconds={stats.seconds} />
-              <StatTile
-                size="sm"
-                mono
-                icon={<icons.play size={14} aria-hidden />}
+            // Three facts on one strip, not three `StatTile`s.
+            //
+            // The tiles were the wrong instrument here and it showed: `StatTile`
+            // is `justify-between` with a `text-xl` figure, built for a dashboard
+            // column ~200 px wide. Squeezed into a third of half a dialog, "25
+            // июл., 22:00" wrapped onto three lines, that tile set the row's
+            // height, and `justify-between` stretched the other two into tall
+            // boxes with a number pinned to the floor — 130 px of panel spent on
+            // "4 hours, twice, in July". This strip states the same three facts in
+            // ~56 px, at the size a supporting fact should be.
+            <dl className="well-shallow grid grid-cols-3 gap-3 rounded-md border border-border px-3 py-2">
+              <PlayedFact seconds={stats.seconds} />
+              <MiniFact
+                icon={<icons.play size={12} aria-hidden />}
                 label={t('games.detailStatLaunches')}
                 value={formatNumber(stats.launches)}
+                mono
               />
-              <StatTile
-                size="sm"
-                icon={<icons.calendar size={14} aria-hidden />}
+              <MiniFact
+                icon={<icons.calendar size={12} aria-hidden />}
                 label={t('games.detailStatLast')}
                 value={<LastPlayed at={stats.lastPlayedAt} />}
               />
-            </div>
+            </dl>
           )}
         </section>
 
@@ -492,24 +513,59 @@ function ReqRow({
 }
 
 /**
+ * One of the member's own three facts, at supporting weight.
+ *
+ * A label row and a value, and nothing that can stretch: the strip's height is
+ * whatever the longest of the three wraps to, so a wrapped date costs a line
+ * rather than forcing two neighbours into tall boxes with the figure at the
+ * bottom (see the strip's own note).
+ */
+function MiniFact({
+  icon,
+  label,
+  value,
+  mono = false,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: React.ReactNode
+  /** Clock face for a counted figure; the display face for prose like "4 hours". */
+  mono?: boolean
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="label-mono flex items-center gap-1 text-[9px] text-text-low">
+        <span className="text-text-medium">{icon}</span>
+        <span className="truncate">{label}</span>
+      </dt>
+      <dd
+        className={cn(
+          'text-pretty text-sm font-semibold leading-snug tabular-nums text-text-high',
+          mono ? 'font-clock' : 'font-display',
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+/**
  * Total playtime in whole units.
  *
- * Split out because it is the one tile whose *unit* changes with the value, and
+ * Split out because it is the one fact whose *unit* changes with the value, and
  * both halves come from the dictionaries' plural forms rather than from a
  * hardcoded "h"/"min" — Russian and Lithuanian inflect both nouns.
  */
-function PlaytimeTile({ seconds }: { seconds: number }) {
+function PlayedFact({ seconds }: { seconds: number }) {
   const { t, tp } = useT()
   const { hours, minutes } = formatDurationParts(seconds)
 
   return (
-    <StatTile
-      size="sm"
-      mono
-      icon={<icons.timer size={14} aria-hidden />}
+    <MiniFact
+      icon={<icons.timer size={12} aria-hidden />}
       label={t('games.detailStatPlaytime')}
       value={hours > 0 ? tp('common.hours', hours) : tp('common.minutes', minutes)}
-      hint={hours > 0 && minutes > 0 ? tp('common.minutes', minutes) : undefined}
     />
   )
 }
