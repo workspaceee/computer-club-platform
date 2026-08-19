@@ -462,11 +462,29 @@ export const mockAgent: AgentBridge = {
     // Claim the seat before the first await, so two clicks cannot both start.
     state.running = { launchId, gameId, pid: 0, startedAt: nowIso() }
 
+    /**
+     * The wait has to lose the race to the signal, not just be checked around
+     * it: with a plain `sleep` the seat stayed claimed for up to two seconds
+     * after "Cancel", so a player who pressed it and clicked Launch again was
+     * answered with `gameAlreadyRunning` — a real agent releases the moment it
+     * is told to.
+     */
+    const raceSleep = (ms: number) =>
+      options.signal
+        ? Promise.race([
+            sleep(ms),
+            new Promise<void>((resolve) =>
+              options.signal?.addEventListener('abort', () => resolve(), { once: true }),
+            ),
+          ])
+        : sleep(ms)
+
     try {
       for (const step of LAUNCH_STEPS) {
         if (options.signal?.aborted) throw new AgentError('agentFailed', { detail: 'aborted' })
         emit(step.phase, step.percent, step.step)
-        await sleep(between(step.ms[0], step.ms[1]))
+        await raceSleep(between(step.ms[0], step.ms[1]))
+        if (options.signal?.aborted) throw new AgentError('agentFailed', { detail: 'aborted' })
         if (rng() < config.launchFailureRate) {
           throw new AgentError('launcherFailed', { detail: `${entry.launcher}:${step.step}` })
         }

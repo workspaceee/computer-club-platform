@@ -8,8 +8,8 @@
  * the endpoint and the agent's steps, the guard that keeps two titles off one
  * machine, the confirmation toast, and the hand-over into `runningGameId`. What
  * is left here is what only a dialog has — cover art large enough to confirm you
- * picked the right game, the club's house accounts, and the checklist drawn from
- * the hook's step index.
+ * picked the right game, the club's house accounts, and the checklist, bar and
+ * "Cancel" drawn from the hook's live view of the agent (C4.6).
  *
  * The one thing to notice about the account list: it is a *choice offered* to the
  * player, not something the sequence needs. `catalog.launchGame` takes a game id
@@ -26,9 +26,14 @@ import { GameCover } from "@/components/game-cover";
 import { Skeleton } from "@/components/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Overlay } from "@/components/ui/overlay";
+import { Progress } from "@/components/ui/progress";
 import { useApi } from "@/hooks/use-api";
 import { useDismissableLayer } from "@/hooks/use-dismissable-layer";
-import { LAUNCH_STEP_KEYS, useGameLaunch } from "@/hooks/use-game-launch";
+import {
+  LAUNCH_STEPS,
+  LAUNCH_STEP_KEYS,
+  useGameLaunch,
+} from "@/hooks/use-game-launch";
 import { useT } from "@/lib/i18n/provider";
 import { fetchGame, fetchHouseAccounts } from "@/lib/mock/api";
 import { OVERLAY_MAX_H } from "@/lib/overlay";
@@ -39,7 +44,7 @@ export function GameLaunchModal() {
   const { t } = useT();
   const launchGameId = useStore((s) => s.launchGameId);
   const setLaunchGame = useStore((s) => s.setLaunchGame);
-  const { launch, launchingId, step } = useGameLaunch();
+  const { launch, cancel, launchingId, stepStatus, percent } = useGameLaunch();
 
   // `GET /api/games/:id` and `GET /api/club/house-accounts` (F3.4). Both are
   // conditional on the modal being open, so nothing is fetched while it is shut.
@@ -286,45 +291,68 @@ export function GameLaunchModal() {
               </div>
             </>
           ) : (
-            // The checklist is drawn from the hook's step index, so the
+            // Every row, the bar and the button come from the hook, so this
             // dialog and the "Continue" card cannot disagree about how far
-            // along a launch is.
-            <div className="flex flex-col items-center gap-4 py-6">
-              <icons.pending size={40} className="animate-spin text-primary" />
+            // along a launch is — the ticks are the agent's, not a timer's.
+            <div className="flex flex-col items-center gap-4 py-2">
+              <icons.pending size={36} className="animate-spin text-primary" />
               {/* The only thing on screen for the seconds a start takes, so
                       it is announced rather than only painted. */}
               <div
                 role="status"
                 aria-live="polite"
-                className="flex flex-col items-center gap-2"
+                className="flex flex-col items-start gap-2"
               >
-                {LAUNCH_STEP_KEYS.map((key, i) => (
-                  <div
-                    key={key}
-                    className={cn(
-                      "flex items-center gap-2 text-sm transition-colors",
-                      i <= step ? "text-text-high" : "text-text-low",
-                    )}
-                  >
-                    {i < step ? (
-                      <icons.check
-                        size={14}
-                        aria-hidden
-                        className="text-success"
-                      />
-                    ) : i === step ? (
-                      <icons.pending
-                        size={14}
-                        aria-hidden
-                        className="animate-spin text-primary"
-                      />
-                    ) : (
-                      <span aria-hidden className="h-3.5 w-3.5" />
-                    )}
-                    {t(key)}
-                  </div>
-                ))}
+                {LAUNCH_STEPS.map((id) => {
+                  const status = stepStatus(id);
+                  return (
+                    <div
+                      key={id}
+                      className={cn(
+                        "flex items-center gap-2 text-sm transition-colors",
+                        status === "pending"
+                          ? "text-text-low"
+                          : "text-text-high",
+                      )}
+                    >
+                      {status === "done" ? (
+                        <icons.check
+                          size={14}
+                          aria-hidden
+                          className="text-success"
+                        />
+                      ) : status === "active" ? (
+                        <icons.pending
+                          size={14}
+                          aria-hidden
+                          className="animate-spin text-primary"
+                        />
+                      ) : (
+                        <span aria-hidden className="h-3.5 w-3.5" />
+                      )}
+                      {t(LAUNCH_STEP_KEYS[id])}
+                    </div>
+                  );
+                })}
               </div>
+
+              {/* The agent's own percent, clamped monotonic by the hook: a bar
+                      that slips backwards reads as a failed start. */}
+              <Progress
+                value={percent}
+                label={t("games.launchProgress")}
+                className="w-full"
+              />
+
+              {/* Escape and the scrim stay inert during a launch (F6.4), so
+                      abandoning a start that is already running on the machine
+                      has to be a deliberate press. */}
+              <button
+                onClick={cancel}
+                className="w-full rounded-lg border border-border py-2.5 text-sm font-semibold text-text-high transition-colors hover:bg-white/5"
+              >
+                {t("common.cancel")}
+              </button>
             </div>
           )}
         </div>
