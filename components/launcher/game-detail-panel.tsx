@@ -43,7 +43,6 @@ import { Skeleton } from '@/components/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Modal } from '@/components/ui/modal'
 import { StatTile } from '@/components/ui/stat-tile'
 import { useApi } from '@/hooks/use-api'
@@ -192,9 +191,13 @@ function DetailBody({
   const fit = FIT[detail.fit]
 
   return (
-    <div className="flex flex-col gap-6">
+    // `gap-4`, not `gap-6`: five sections at 24 px each spent 120 px of a
+    // 693 px station screen on nothing but air, which is what pushed the member's
+    // own hours and the friends in the title below the fold (§ the header's point
+    // 4 — the panel should fit, not scroll).
+    <div className="flex flex-col gap-4">
       {/* ── The title, in one look ───────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <GameCover
           game={detail}
           // A band, not a hero. At the dialog's own width a full 16:9 cover is
@@ -205,7 +208,7 @@ function DetailBody({
           // clicked. `max-h` crops through `object-cover` instead of letterboxing,
           // and the ratio still governs on a phone, where height is not the
           // scarce axis.
-          className="aspect-video max-h-52 w-full rounded-lg"
+          className="aspect-video max-h-32 w-full rounded-lg"
           // The dialog header already prints the name in the display face; the
           // cover's own caption would print it a second time, two centimetres
           // below the first.
@@ -269,18 +272,18 @@ function DetailBody({
             {detail.description}
           </p>
         ) : (
-          <EmptyState
-            bare
-            size="sm"
-            className="py-3"
-            title={t('games.detailNoDescription')}
-            description={t('games.detailNoDescriptionBody')}
-          />
+          // One quiet line, the same move the friends block already makes: as a
+          // centred two-line `EmptyState` this absence was taller than the
+          // requirement grid beside it and read as the panel's headline — "НЕТ
+          // ОПИСАНИЯ" set larger than anything the panel does know.
+          <p className="text-pretty text-xs leading-relaxed text-text-low">
+            {t('games.detailNoDescription')}
+          </p>
         )}
       </section>
 
       {/* ── What it asks for, against what this seat has ─────────────── */}
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="label-mono text-[9px] text-text-low">
             {t('games.detailRequirements')}
@@ -294,7 +297,7 @@ function DetailBody({
             actually needs, and the four rows below are the evidence for it. */}
         <div
           className={cn(
-            'flex items-start gap-2.5 rounded-md border px-3 py-2.5',
+            'flex items-start gap-2.5 rounded-md border px-3 py-2',
             fit.tone === 'warning'
               ? 'border-warning/40 bg-warning/10'
               : 'border-success/40 bg-success/10',
@@ -371,13 +374,9 @@ function DetailBody({
           // tallest thing in the panel — and it is the normal state for most of
           // the shelf. An absence should not outweigh the sections that carry
           // facts.
-          <EmptyState
-            bare
-            size="sm"
-            className="py-3"
-            title={t('games.detailNeverPlayed')}
-            description={t('games.detailNeverPlayedBody')}
-          />
+          <p className="text-pretty text-xs leading-relaxed text-text-low">
+            {t('games.detailNeverPlayed')}
+          </p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <PlaytimeTile seconds={stats.seconds} />
@@ -466,7 +465,7 @@ function ReqRow({
   const { t } = useT()
 
   return (
-    <div className="well-shallow flex flex-col gap-1 rounded-md border border-border px-3 py-2">
+    <div className="well-shallow flex flex-col gap-0.5 rounded-md border border-border px-3 py-1.5">
       <dt className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
         <span className="text-text-medium">{icon}</span>
         {label}

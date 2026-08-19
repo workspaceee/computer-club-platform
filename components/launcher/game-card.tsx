@@ -211,7 +211,13 @@ export function GameCard({
           text selection. It only becomes a surface when it is actually visible —
           and because the trigger is `group-hover`, the same pointer that reveals
           it is the one that then reaches the button. */}
-      <div className="scrim pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+      {/* `group-has-[:focus-visible]`, not `group-focus-within`: focus-within
+          fires for a *mouse* click too, so the tile a player launched from kept
+          its overlay after they cancelled the dialog — the browser restores
+          focus to the button that opened it — and the next tile they hovered lit
+          up as well, two launch buttons on screen for one decision. Keyboard
+          focus still reveals it, which is the reason the variant exists. */}
+      <div className="scrim pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100">
         <button
           onClick={() => setLaunchGame(game.id)}
           // The card carries the title, but a button announcing just "Play"

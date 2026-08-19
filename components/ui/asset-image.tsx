@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 
 import { FALLBACK_ASSET, blurFor } from '@/lib/assets/blur'
 import { cn } from '@/lib/utils'
@@ -75,6 +75,30 @@ export function AssetImage({
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const broken = src === '' || (failed && failedSrc === src)
 
+  /**
+   * Which file has actually finished decoding.
+   *
+   * Kept as the path rather than a boolean for the same reason as `failedSrc`: a
+   * carousel that swaps `src` must go back to "not painted yet" instead of
+   * showing the new file at full opacity the instant React reuses the node.
+   */
+  const [decodedSrc, setDecodedSrc] = useState<string | null>(null)
+  const decoded = decodedSrc === src
+
+  /**
+   * A cached file can be complete before React ever attaches `onLoad` — the
+   * markup is server-rendered, the browser has the bytes, and no load event is
+   * left to fire. Without this check the art would sit at `opacity-0` forever on
+   * the second visit, which is a blank tile, i.e. worse than the pop this fade
+   * removes.
+   */
+  const onMount = useCallback(
+    (node: HTMLImageElement | null) => {
+      if (node?.complete) setDecodedSrc(src)
+    },
+    [src],
+  )
+
   if (broken) {
     if (fallback === 'none') return null
     if (fallback === 'plate') return <FallbackPlate sizes={sizes} className={className} />
@@ -93,11 +117,23 @@ export function AssetImage({
       priority={priority}
       placeholder={blur ? 'blur' : 'empty'}
       blurDataURL={blur}
+      ref={onMount}
+      onLoad={() => setDecodedSrc(src)}
       onError={() => {
         setFailed(true)
         setFailedSrc(src)
       }}
-      className={className}
+      // The art arrives, it does not appear. Covers carry no LQIP by design, so
+      // until now a tile painted its gradient plate and then snapped to the photo
+      // the millisecond the file decoded — sixty-seven of those on one grid read
+      // as the page flickering rather than as images loading. A short opacity
+      // ramp is the whole fix: the designed layer underneath is what the fade
+      // comes *out of*, so nothing is blurred and nothing is hidden.
+      className={cn(
+        className,
+        'transition-opacity duration-500 ease-out motion-reduce:transition-none',
+        decoded ? 'opacity-100' : 'opacity-0',
+      )}
     />
   )
 }
