@@ -43,7 +43,6 @@ import { Skeleton } from '@/components/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Modal } from '@/components/ui/modal'
 import { StatTile } from '@/components/ui/stat-tile'
 import { useApi } from '@/hooks/use-api'
@@ -192,9 +191,13 @@ function DetailBody({
   const fit = FIT[detail.fit]
 
   return (
-    <div className="flex flex-col gap-6">
+    // `gap-4`, not `gap-6`: five sections at 24 px each spent 120 px of a
+    // 693 px station screen on nothing but air, which is what pushed the member's
+    // own hours and the friends in the title below the fold (§ the header's point
+    // 4 — the panel should fit, not scroll).
+    <div className="flex flex-col gap-4">
       {/* ── The title, in one look ───────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <GameCover
           game={detail}
           // A band, not a hero. At the dialog's own width a full 16:9 cover is
@@ -205,7 +208,7 @@ function DetailBody({
           // clicked. `max-h` crops through `object-cover` instead of letterboxing,
           // and the ratio still governs on a phone, where height is not the
           // scarce axis.
-          className="aspect-video max-h-52 w-full rounded-lg"
+          className="aspect-video max-h-32 w-full rounded-lg"
           // The dialog header already prints the name in the display face; the
           // cover's own caption would print it a second time, two centimetres
           // below the first.
@@ -269,18 +272,18 @@ function DetailBody({
             {detail.description}
           </p>
         ) : (
-          <EmptyState
-            bare
-            size="sm"
-            className="py-3"
-            title={t('games.detailNoDescription')}
-            description={t('games.detailNoDescriptionBody')}
-          />
+          // One quiet line, the same move the friends block already makes: as a
+          // centred two-line `EmptyState` this absence was taller than the
+          // requirement grid beside it and read as the panel's headline — "НЕТ
+          // ОПИСАНИЯ" set larger than anything the panel does know.
+          <p className="text-pretty text-xs leading-relaxed text-text-low">
+            {t('games.detailNoDescription')}
+          </p>
         )}
       </section>
 
       {/* ── What it asks for, against what this seat has ─────────────── */}
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="label-mono text-[9px] text-text-low">
             {t('games.detailRequirements')}
@@ -294,7 +297,7 @@ function DetailBody({
             actually needs, and the four rows below are the evidence for it. */}
         <div
           className={cn(
-            'flex items-start gap-2.5 rounded-md border px-3 py-2.5',
+            'flex items-start gap-2.5 rounded-md border px-3 py-2',
             fit.tone === 'warning'
               ? 'border-warning/40 bg-warning/10'
               : 'border-success/40 bg-success/10',
@@ -359,82 +362,87 @@ function DetailBody({
         </dl>
       </section>
 
-      {/* ── The member's own history with it ─────────────────────────── */}
-      <section className="flex flex-col gap-2">
-        <h3 className="label-mono text-[9px] text-text-low">{t('games.detailStats')}</h3>
-        {stats === undefined ? (
-          <Skeleton className="h-20" />
-        ) : stats.launches === 0 ? (
-          // "You have not played this here" is an answer, not an error — the
-          // endpoint returns zeroes rather than a 404 for exactly this block.
-          // No glyph either: with the icon this block was ~190 px tall — the
-          // tallest thing in the panel — and it is the normal state for most of
-          // the shelf. An absence should not outweigh the sections that carry
-          // facts.
-          <EmptyState
-            bare
-            size="sm"
-            className="py-3"
-            title={t('games.detailNeverPlayed')}
-            description={t('games.detailNeverPlayedBody')}
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <PlaytimeTile seconds={stats.seconds} />
-            <StatTile
-              size="sm"
-              mono
-              icon={<icons.play size={14} aria-hidden />}
-              label={t('games.detailStatLaunches')}
-              value={formatNumber(stats.launches)}
-            />
-            <StatTile
-              size="sm"
-              icon={<icons.calendar size={14} aria-hidden />}
-              label={t('games.detailStatLast')}
-              value={<LastPlayed at={stats.lastPlayedAt} />}
-            />
-          </div>
-        )}
-      </section>
+      {/* The member's own history and who is in it now sit side by side, because
+          on most of the shelf both are a single dim line — stacked, two
+          near-empty sections cost ~100 px of a 693 px station screen and pushed
+          the pair below the fold, which is the one place they are useless: a
+          player deciding whether to walk over cannot scroll for it. Paired, the
+          panel ends above the launch bar. They stack again under `sm`, where two
+          columns of prose would be narrower than the words. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* ── The member's own history with it ─────────────────────────── */}
+        <section className="flex flex-col gap-2">
+          <h3 className="label-mono text-[9px] text-text-low">{t('games.detailStats')}</h3>
+          {stats === undefined ? (
+            <Skeleton className="h-20" />
+          ) : stats.launches === 0 ? (
+            // "You have not played this here" is an answer, not an error — the
+            // endpoint returns zeroes rather than a 404 for exactly this block.
+            // No glyph either: with the icon this block was ~190 px tall — the
+            // tallest thing in the panel — and it is the normal state for most of
+            // the shelf. An absence should not outweigh the sections that carry
+            // facts.
+            <p className="text-pretty text-xs leading-relaxed text-text-low">
+              {t('games.detailNeverPlayed')}
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <PlaytimeTile seconds={stats.seconds} />
+              <StatTile
+                size="sm"
+                mono
+                icon={<icons.play size={14} aria-hidden />}
+                label={t('games.detailStatLaunches')}
+                value={formatNumber(stats.launches)}
+              />
+              <StatTile
+                size="sm"
+                icon={<icons.calendar size={14} aria-hidden />}
+                label={t('games.detailStatLast')}
+                value={<LastPlayed at={stats.lastPlayedAt} />}
+              />
+            </div>
+          )}
+        </section>
 
-      {/* ── Who is in it right now ───────────────────────────────────── */}
-      <section className="flex flex-col gap-2">
-        <h3 className="label-mono text-[9px] text-text-low">{t('games.detailFriends')}</h3>
-        {friends === undefined ? (
-          <Skeleton className="h-14" />
-        ) : friends.length === 0 ? (
-          // One quiet line, not a 56 px illustration: on sixty of sixty-seven
-          // titles this is the normal state, and it must not be the tallest
-          // thing in the panel.
-          <p className="text-pretty text-xs leading-relaxed text-text-low">
-            {t('games.detailFriendsEmpty')}
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {friends.map((friend) => (
-              <li
-                key={friend.userId}
-                className="well-shallow flex items-center gap-3 rounded-md border border-border px-3 py-2"
-              >
-                <Avatar name={friend.nickname} size="sm" level={friend.level} status="online" />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <p className="truncate text-sm font-semibold leading-snug text-text-high">
-                    {friend.nickname}
-                  </p>
-                  {/* The club's own seat label, so the line works for a hall
-                      numbered any way the club likes — and it is the only fact
-                      here a player can act on: they can walk over. */}
-                  <p className="label-mono flex items-center gap-1 text-[9px] tabular-nums text-text-low">
-                    <icons.display size={11} aria-hidden />
-                    {t('games.detailFriendSeat', { seat: friend.machineLabel ?? '' })}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        {/* ── Who is in it right now ───────────────────────────────────── */}
+        <section className="flex flex-col gap-2">
+          <h3 className="label-mono text-[9px] text-text-low">{t('games.detailFriends')}</h3>
+          {friends === undefined ? (
+            <Skeleton className="h-14" />
+          ) : friends.length === 0 ? (
+            // One quiet line, not a 56 px illustration: on sixty of sixty-seven
+            // titles this is the normal state, and it must not be the tallest
+            // thing in the panel.
+            <p className="text-pretty text-xs leading-relaxed text-text-low">
+              {t('games.detailFriendsEmpty')}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {friends.map((friend) => (
+                <li
+                  key={friend.userId}
+                  className="well-shallow flex items-center gap-3 rounded-md border border-border px-3 py-2"
+                >
+                  <Avatar name={friend.nickname} size="sm" level={friend.level} status="online" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <p className="truncate text-sm font-semibold leading-snug text-text-high">
+                      {friend.nickname}
+                    </p>
+                    {/* The club's own seat label, so the line works for a hall
+                        numbered any way the club likes — and it is the only fact
+                        here a player can act on: they can walk over. */}
+                    <p className="label-mono flex items-center gap-1 text-[9px] tabular-nums text-text-low">
+                      <icons.display size={11} aria-hidden />
+                      {t('games.detailFriendSeat', { seat: friend.machineLabel ?? '' })}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {/* No gallery: `screenshots` is empty for every title the club ships today
           (see `GameDetail.screenshots`), and a framed row of placeholders would
@@ -466,7 +474,7 @@ function ReqRow({
   const { t } = useT()
 
   return (
-    <div className="well-shallow flex flex-col gap-1 rounded-md border border-border px-3 py-2">
+    <div className="well-shallow flex flex-col gap-0.5 rounded-md border border-border px-3 py-1.5">
       <dt className="label-mono flex items-center gap-1.5 text-[9px] text-text-low">
         <span className="text-text-medium">{icon}</span>
         {label}
