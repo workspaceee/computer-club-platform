@@ -10,15 +10,52 @@ export type GameCategory =
   | 'MMO'
   | 'RPG'
 
+/**
+ * Every launcher the club starts titles through (C4.4).
+ *
+ * A union and not `string`, because the value is *printed on the card* and read
+ * by the rule that decides whether a start needs one of the club's own logins
+ * (`HOUSE_ACCOUNT_LAUNCHERS`). As a free-form string, a seed row typed `Battle.Net`
+ * or `Riot Games` stayed valid, silently landed outside that set, and the title
+ * quietly became one nobody has to sign in for — a wrong badge and a wrong launch
+ * path from one typo. Names are product names and travel verbatim, never through
+ * the dictionaries (F2.2).
+ */
+export type GameLauncher =
+  | 'Steam'
+  | 'Epic'
+  | 'Riot'
+  | 'Battle.net'
+  | 'EA App'
+  | 'Ubisoft'
+  | 'Rockstar'
+  | 'GOG'
+  | 'Xbox'
+  | 'Mojang'
+  | 'Square Enix'
+  | 'BSG'
+  | 'Gaijin'
+  | 'Wargaming'
+
 export interface Game {
   id: ID
   name: string
   category: GameCategory
   rating: number
+  /**
+   * Lifetime starts of this title **inside this club** — the popularity figure
+   * `sort=popular` orders by.
+   *
+   * Emphatically not "playing right now": the club has forty seats and this
+   * number runs into the thousands. How many people are in a title at this
+   * moment is presence, not catalogue, and is answered by
+   * `fetchGamePresence()` (C4.4) — which is also why nothing may print this
+   * field next to a live-looking dot.
+   */
   players: number
   /** two tailwind color stops for the gradient cover */
   cover: [string, string]
-  launcher: string
+  launcher: GameLauncher
   /**
    * Does starting this title need one of the club's shared logins (C4.2)?
    *

@@ -1,6 +1,22 @@
 import type { ID, ISODateTime } from './common'
 import type { ZoneOccupancy } from './machine'
 
+/**
+ * `GET /api/club/playing` — how many people are in each title **in the hall right
+ * now** (C4.4).
+ *
+ * Presence, not catalogue, which is why it is here and not a field on `Game`:
+ * `Game.players` is a lifetime count that never changes between two reads, while
+ * this answer changes every time somebody sits down, and a library that carried
+ * it inside the shelf payload would have to refetch sixty-seven catalogue rows to
+ * learn one number. Separate read, separate cadence.
+ *
+ * Keyed by game id and **sparse**: a title nobody is in is absent rather than
+ * `0`, so a card cannot accidentally print a live-looking zero for the sixty
+ * titles that are simply idle on a Tuesday afternoon.
+ */
+export type GamePresence = Record<ID, number>
+
 /** `friendships.status` — a request is directional until it is accepted. */
 export type FriendshipStatus = 'pending' | 'accepted' | 'blocked'
 

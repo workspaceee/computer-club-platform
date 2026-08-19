@@ -16,6 +16,7 @@ import type {
   Game,
   GameCategory,
   GameLaunch,
+  GameLauncher,
   GameRelease,
   HouseAccount,
   Product,
@@ -262,7 +263,7 @@ export const CURRENT_MACHINE_ID: ID = 'pc-17'
  * Game catalogue (60+)
  * ------------------------------------------------------------------ */
 
-type GameSeed = [id: string, name: string, category: GameCategory, rating: number, cover: [string, string], launcher: string]
+type GameSeed = [id: string, name: string, category: GameCategory, rating: number, cover: [string, string], launcher: GameLauncher]
 
 const GAME_SEEDS: GameSeed[] = [
   ['cs2', 'Counter-Strike 2', 'Shooter', 4.8, ['#f0a500', '#3a2c00'], 'Steam'],
@@ -348,7 +349,7 @@ const GAME_SEEDS: GameSeed[] = [
  * stays a per-title field so a future exception can be written down without
  * teaching every screen about launchers.
  */
-const HOUSE_ACCOUNT_LAUNCHERS = new Set([
+const HOUSE_ACCOUNT_LAUNCHERS = new Set<GameLauncher>([
   'Riot',
   'Battle.net',
   'EA App',
@@ -2375,6 +2376,27 @@ export function getProduct(productId: ID): Product | undefined {
 
 export function getProductsByCategory(category: ProductCategory): Product[] {
   return db.products.filter((p) => p.category === category)
+}
+
+/**
+ * Who is in what, **in the hall**, right now (C4.4).
+ *
+ * Counted from the seat and not from the presence flag, exactly like the "Club
+ * now" card counts friends (C3.7): a member playing the same title from home is
+ * online and is not *here*, and the library promises the player somebody they
+ * could actually turn around and talk to. `machineId` is that promise.
+ *
+ * Sparse by construction — only titles with somebody in them get a key — so the
+ * caller reads `counts[id] ?? 0` and no card has to tell "nobody is in it" apart
+ * from "this title is not in the answer".
+ */
+export function getGamePresence(): Record<ID, number> {
+  const counts: Record<ID, number> = {}
+  for (const player of db.players.values()) {
+    if (!player.machineId || !player.playingGameId) continue
+    counts[player.playingGameId] = (counts[player.playingGameId] ?? 0) + 1
+  }
+  return counts
 }
 
 /** Free-seat counts per zone, for the lock screen and attract mode. */

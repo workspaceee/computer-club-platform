@@ -515,16 +515,7 @@ function Grid({
   )
 }
 
-/**
- * Marks the searched term inside a title (C4.3).
- *
- * Plain substring matching on a case-folded copy, and the slice comes out of the
- * *original* string — replacing the matched text with the query itself would
- * reprint "elden ring" in the player's own casing over the catalogue's
- * "Elden Ring". No regex either: titles carry `:`, `.` and `(` and a player
- * typing "PUBG:" would otherwise build an invalid pattern out of their own input.
- */
-function Highlight({ text, query }: { text: string; query: string }) {
+function RemovedHighlight({ text, query }: { text: string; query: string }) {
   const term = query.trim()
   // Every occurrence, not just the first: "Counter-Strike 2" against "st" left
   // one of two matches marked, which reads as the mark meaning something other
