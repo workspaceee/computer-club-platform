@@ -182,7 +182,7 @@ export function GameCard({
     >
       {/* `aspect-video`, not a fixed height: the covers are generated at 800×450,
           so a 16:9 box is the one shape that neither crops the art nor
-          letterboxes it, and it holds its own space before the file decodes ���
+          letterboxes it, and it holds its own space before the file decodes —
           the tile reserves its slot in the grid whether the image arrives,
           arrives late, or never arrives at all. */}
       <GameCover

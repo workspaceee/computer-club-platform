@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina ��������aidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina žaidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
