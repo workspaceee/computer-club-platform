@@ -142,18 +142,22 @@ export function SessionPaused({
   useEffect(() => setLive(visit), [visit])
 
   /**
-   * The remainder as a running reading, re-derived from the club's last answer.
+   * The remainder the card prints: the club's number, frozen.
    *
-   * Called here, at the top of the component, and not inside the JSX branch that
-   * prints it: the hook owns an interval and a ref, so a conditional call would be
-   * an order violation the first time the card flipped between its keypad and its
-   * "door closed" state.
+   * Deliberately *not* a countdown. The visit's clock is stopped, so nothing is
+   * being spent while this screen is up — a ticking reading would drift below the
+   * server's frozen `secondsLeft` and then jump back up the instant the PIN landed,
+   * telling the player their break had cost them time it never did. The 10 s poll
+   * below is what keeps this honest: if an admin tops the account up or closes an
+   * overrun, the number moves because the *club* moved it, not because the client
+   * animated it.
    */
-  const liveSeconds = useLiveRemainder(live.secondsLeft)
+  const liveSeconds = Math.max(0, Math.floor(live.secondsLeft))
 
   useEffect(() => {
     let alive = true
-    const id = setInterval(() => {
+
+    const read = () =>
       void fetchPausedVisit()
         .then((fresh) => {
           // A different visit — or none — is the parent's business to act on
@@ -167,7 +171,26 @@ export function SessionPaused({
           // A failed read is not new information: keep the last number the club
           // gave us rather than blanking the one fact this screen exists to state.
         })
-    }, REFRESH_MS)
+
+    /**
+     * Read once *now*, before the interval's first beat.
+     *
+     * This is the fix for the stale remainder on the way in, and it is a race the
+     * lock path opens by design: "Lock PC" swaps the screen immediately and flushes
+     * the unreported seconds in the background (`holdSeat`, deliberately not
+     * awaited — the player is waiting to see the station lock, not a spinner). So
+     * the parent's very first `fetchPausedVisit` can be answered *before* that flush
+     * lands, handing this card a `secondsLeft` from before the last span was billed
+     * — the pre-pause number. The parent's retry loop cannot correct it either: it
+     * stops the moment any visit appears, because its job is finding the visit, not
+     * pricing it. Without this immediate re-read the wrong number would sit on
+     * screen for a full `REFRESH_MS`, and on a short break the player would unlock
+     * straight out of it and see the clock "jump" as the launcher applied the
+     * server's real snapshot.
+     */
+    read()
+
+    const id = setInterval(read, REFRESH_MS)
     return () => {
       alive = false
       clearInterval(id)

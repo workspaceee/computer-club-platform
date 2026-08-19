@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 
 import { FALLBACK_ASSET, blurFor } from '@/lib/assets/blur'
 import { cn } from '@/lib/utils'
@@ -53,6 +53,12 @@ interface AssetImageProps {
  *    a 16px LQIP (`lib/assets/blur.ts`) is painted and scaled up until the real
  *    file arrives. Where a designed layer already sits underneath, there is no
  *    LQIP by construction and that layer does the same job for free.
+ * 3. **No hard pop.** That designed layer still has to hand over to the
+ *    photograph, and switching it in on one frame is what makes a shelf feel
+ *    like it is snapping together under the player. Art that was fetched over
+ *    the wire ramps across 220 ms (`asset-fade`); art that was already decoded
+ *    paints instantly, because fading in a file that is *already there* is what
+ *    reads as slow. See `ramps` below for why blur and `priority` opt out.
  *
  * `pnpm assets:verify` enforces the funnel: `next/image` may not be imported
  * outside this file, so a new surface cannot quietly reintroduce a bare `img`.
@@ -75,11 +81,35 @@ export function AssetImage({
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const broken = src === '' || (failed && failedSrc === src)
 
-  // No "has it decoded yet" state any more: the image is painted at full opacity
-  // the moment the browser has it. Tracking the decoded path only ever existed to
-  // drive the opacity ramp this component no longer runs, and it carried its own
-  // failure mode — a file already complete in cache fires no `load` event, so a
-  // second visit could leave the art transparent forever.
+  /**
+   * Which path has pixels on screen, and whether it had to be fetched to get
+   * them. Keyed by `src` for the same reason the failure above is: a carousel
+   * that swaps slides must ramp the *new* frame, not inherit the old one's
+   * "already painted".
+   */
+  const [paint, setPaint] = useState<{ src: string; cached: boolean } | null>(null)
+
+  /**
+   * Catches the file that was **already decoded** when React attached.
+   *
+   * This is the load-bearing half of the ramp, and the exact bug that sank the
+   * last attempt at one: a complete image fires no `load` event, so a component
+   * that waits for `onLoad` before lighting the art leaves every cached cover
+   * transparent *forever* on the second visit to a shelf. Reading `complete` in
+   * the ref runs during commit — React re-renders before the browser paints, so
+   * the tile is opaque on its first frame with no flash.
+   *
+   * `naturalWidth > 0` distinguishes "decoded" from "finished, empty" (a 404 is
+   * `complete` too); that path is `onError`'s.
+   */
+  const adopt = useCallback(
+    (node: HTMLImageElement | null) => {
+      if (node?.complete && node.naturalWidth > 0) {
+        setPaint((p) => (p?.src === src ? p : { src, cached: true }))
+      }
+    },
+    [src],
+  )
 
   if (broken) {
     if (fallback === 'none') return null
@@ -88,6 +118,25 @@ export function AssetImage({
   }
 
   const blur = blurFor(src)
+
+  /**
+   * Whether this image ramps in, and it is a narrow "yes" on purpose.
+   *
+   * Excluded, because in both cases a ramp makes things *worse*, not smoother:
+   *
+   *   - **`blur`** — `next/image` paints the LQIP as the `img`'s own
+   *     `background-image`, so holding the element at `opacity-0` would hide the
+   *     very placeholder that is covering the decode window. These families
+   *     already crossfade blur→photo inside `next/image`; this must not fight it.
+   *   - **`priority`** — the above-the-fold art (lock screen, first hero slide)
+   *     is the LCP element. Delaying the largest paint in the product by 220 ms
+   *     to make it prettier is the one trade that is never worth taking.
+   *
+   * What is left is exactly the lazy, gradient-backed art the player watches
+   * stream in while scrolling a shelf — the case the ramp is for.
+   */
+  const ramps = !blur && !priority
+  const state = paint?.src === src ? (paint.cached ? 'instant' : 'ramp') : 'pending'
 
   return (
     <Image
@@ -99,21 +148,23 @@ export function AssetImage({
       priority={priority}
       placeholder={blur ? 'blur' : 'empty'}
       blurDataURL={blur}
+      ref={ramps ? adopt : undefined}
+      onLoad={
+        ramps
+          ? () => setPaint((p) => (p?.src === src ? p : { src, cached: false }))
+          : undefined
+      }
       onError={() => {
         setFailed(true)
         setFailedSrc(src)
       }}
-      // The art paints the instant it decodes — no ramp, no blur-up.
-      //
-      // This used to hold the image at `opacity-0` and fade it in over 500 ms.
-      // On a shelf of sixty-seven covers that read as the whole grid dissolving
-      // into place, and worse: every tile the player scrolled past was mid-fade,
-      // so the art looked soft and unfinished for half a second exactly when they
-      // were deciding what to click. The designed layer underneath (the cover's
-      // own gradient, the product card's icon) already fills the decode window,
-      // so there is nothing for a transition to cover — the honest behaviour is
-      // a crisp swap from the placeholder to the photograph.
-      className={cn(className, 'opacity-100')}
+      // `asset-fade` starts at `opacity-0` and `[data-paint]` releases it: a
+      // 220 ms ramp for a file off the wire, an immediate hard paint for one that
+      // was already decoded. The gradient (or icon) underneath is what the player
+      // sees during `pending`, so nothing is ever blank — the ramp only softens
+      // the hand-off between that designed layer and the photograph.
+      data-paint={ramps ? state : undefined}
+      className={cn(className, ramps ? 'asset-fade' : 'opacity-100')}
     />
   )
 }
