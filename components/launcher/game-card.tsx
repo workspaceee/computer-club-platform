@@ -56,6 +56,7 @@ export function GameCard({
 }) {
   const { t, tp, formatNumber } = useT()
   const setLaunchGame = useStore((s) => s.setLaunchGame)
+  const setDetailGame = useStore((s) => s.setDetailGame)
 
   return (
     <motion.div
@@ -210,18 +211,38 @@ export function GameCard({
           text selection. It only becomes a surface when it is actually visible —
           and because the trigger is `group-hover`, the same pointer that reveals
           it is the one that then reaches the button. */}
-      <div className="scrim pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+      <div className="scrim pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         <button
           onClick={() => setLaunchGame(game.id)}
           // The card carries the title, but a button announcing just "Play"
           // repeats itself sixty times in the accessibility tree.
           aria-label={`${t('games.launch')} ${game.name}`}
-          // The card is the roving item, via its only control (F6.7).
+          // Both controls are roving items (F6.7): the grid stays one tab stop,
+          // and the arrows reach the second action too. Marking only the launch
+          // button would have left "Details" either unreachable by keyboard or —
+          // as a plain tab stop — sixty-seven extra stops between the library and
+          // the top bar, which is the exact counting problem the hook exists for.
           data-roving-item
           className="flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_24px_-4px_rgba(229,53,43,0.9)] transition-transform hover:scale-105"
         >
           <icons.play size={15} fill="currentColor" aria-hidden />
           {t('games.launch')}
+        </button>
+        {/* The way into the detail panel (C4.5), and deliberately the quieter of
+            the two: a player who already knows the title starts it from here, and
+            one who does not reads about it first. Stated as its own control rather
+            than as a click on the tile's body — an unlabelled clickable card is a
+            surface a keyboard player cannot find and a screen reader announces as
+            a picture. T1 stays with the launch button; this is plain text on the
+            scrim (§4.4). */}
+        <button
+          onClick={() => setDetailGame(game.id)}
+          aria-label={t('games.detailOpenLabel', { name: game.name })}
+          data-roving-item
+          className="flex items-center gap-1.5 rounded-sm px-3 py-1 text-[11px] font-medium text-text-medium transition-colors hover:bg-white/10 hover:text-text-high"
+        >
+          <icons.info size={13} aria-hidden />
+          {t('games.detailOpen')}
         </button>
       </div>
     </motion.div>

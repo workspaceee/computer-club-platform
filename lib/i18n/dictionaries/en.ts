@@ -1366,6 +1366,62 @@ export const en = {
      */
     inClubShort: 'in club',
 
+    /* ---------------------------------------------------------------- *
+     * The detail panel (C4.5)
+     *
+     * The surface a player reads *before* deciding: the club's blurb, what the
+     * title asks of a machine against what this seat has, their own history with
+     * it, and who is in it right now.
+     *
+     * Three things about this block are deliberate:
+     *
+     *  - **The verdict is one sentence, not a spec sheet.** `detailFitAbove` /
+     *    `Meets` / `Below` are the whole point of the section — the four rows of
+     *    hardware strings under them are the evidence, and a player standing at
+     *    the seat wants the answer first. Only `below` owes a second line, because
+     *    it is the only one that has to say what to do about it.
+     *  - **Absences are copy, not blanks.** A title with no blurb yet
+     *    (`detailNoDescription`) and one the member has never started here
+     *    (`detailNeverPlayed`) are real states the panel states in words; the
+     *    alternative is a genre template that reads like a description and carries
+     *    nothing, or an empty box that reads like a failed fetch.
+     *  - **`detailOpen` is not `rating` or `installed`.** The tile's second control
+     *    says what it opens ("Details"), and its accessible name carries the title
+     *    — sixty-seven tiles print the same word, and "Details" repeated
+     *    sixty-seven times in the accessibility tree names nothing.
+     * ---------------------------------------------------------------- */
+    detailOpen: 'Details',
+    detailOpenLabel: 'Details about {name}',
+    /** The dialog's name for the frame before the payload lands. */
+    detailPending: 'Game details',
+    detailAbout: 'About',
+    detailNoDescription: 'No description yet',
+    detailNoDescriptionBody: 'Nobody at the club has written one for this title.',
+    /** The badge that says a start will ask for one of the club's shared logins. */
+    detailHouseAccount: 'Club account',
+    detailRequirements: 'Requirements',
+    detailSeat: 'This seat: {seat}',
+    detailSeatHas: 'This seat: {v}',
+    detailReqCpu: 'Processor',
+    detailReqGpu: 'Graphics',
+    detailReqRam: 'Memory',
+    detailReqStorage: 'Free space',
+    detailGb: '{n} GB',
+    detailFitAbove: 'This seat is above what the game asks for',
+    detailFitMeets: 'This seat meets what the game asks for',
+    detailFitBelow: 'This seat is below what the game asks for',
+    detailFitBelowBody:
+      'It will start, but expect lower settings. An admin can move you to a VIP seat.',
+    detailStats: 'Your history',
+    detailStatPlaytime: 'Played',
+    detailStatLaunches: 'Launches',
+    detailStatLast: 'Last played',
+    detailNeverPlayed: 'You have not played this here',
+    detailNeverPlayedBody: 'Start it and the club will count the hours from now on.',
+    detailFriends: 'Friends in this game',
+    detailFriendsEmpty: 'None of your friends is in this game right now.',
+    detailFriendSeat: 'Seat {seat}',
+
     favorites: 'Favorites',
     recent: 'Recently played',
     allGames: 'All games',
