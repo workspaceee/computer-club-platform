@@ -91,7 +91,16 @@ export function GameCard({
               would read as one two-word label, so the pair is separated by
               material — tint for the club's own taxonomy, outline for the
               third-party name. */}
-          <span className="label-mono shrink-0 rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium">
+          {/* This is the badge that gives way when the row is too narrow, not the
+              launcher one: at two columns on a 390px phone the pair did not fit,
+              and the strip that yielded was the third-party name — "BATTLE…",
+              which names no launcher at all. The genre survives truncation
+              because it is the club's own taxonomy and it is stated in full one
+              scroll up, in the filter row that is on the same screen. */}
+          <span
+            className="label-mono min-w-0 truncate rounded-[4px] bg-white/5 px-2 py-0.5 text-[8px] text-text-medium"
+            title={t(CATEGORY_KEYS[game.category])}
+          >
             {t(CATEGORY_KEYS[game.category])}
           </span>
           {/* Which launcher the title starts through (C4.4) — the club runs Steam,
@@ -99,11 +108,12 @@ export function GameCard({
               whether the start needs a house account at all (C4.7), so it belongs
               on the tile and not only in the launch modal.
               Printed verbatim and never translated: product names follow the same
-              rule as the club's own copy (F2.2). `title` carries the word
-              "Launcher" as well as the name, because a two-column phone truncates
-              "Battle.net" and a bare truncated string names nothing. */}
+              rule as the club's own copy (F2.2). `shrink-0` so the longest name
+              the catalogue ships ("Square Enix", "Battle.net") is printed whole
+              at every breakpoint; `title` still carries the word "Launcher",
+              because the badge alone does not say what kind of name it is. */}
           <span
-            className="label-mono min-w-0 truncate rounded-[4px] border border-border px-1.5 py-0.5 text-[8px] text-text-medium"
+            className="label-mono shrink-0 rounded-[4px] border border-border px-1.5 py-0.5 text-[8px] text-text-medium"
             title={`${t('games.launcherLabel')}: ${game.launcher}`}
           >
             {game.launcher}
