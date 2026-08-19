@@ -26,7 +26,7 @@
 
 import { motion } from "framer-motion";
 import { icons } from "@/lib/icons";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { DataBoundary } from "@/components/data-boundary";
 import { GameCover } from "@/components/game-cover";
 import { Skeleton } from "@/components/skeleton";
@@ -113,19 +113,41 @@ export function GameLaunchModal() {
   // A launch anywhere blocks this button, because the machine takes one title.
   const blocked = launchingId !== null && !launching;
 
-  useEffect(() => {
-    if (launchGameId) {
-      setAccount(null);
-      setRemember(false);
+  /**
+   * Taking a place in line and leaving it (C4.7). Both write, so both go through
+   * `invalidate('catalog')` rather than storing a position locally — the number
+   * belongs to the club, and a client that kept its own copy would keep showing
+   * "you are third" after the two guests ahead had left.
+   */
+  const handleJoinQueue = async () => {
+    if (!launchGameId) return;
+    setQueuePending(true);
+    try {
+      await joinHouseAccountQueue(launchGameId);
+      invalidate("catalog");
+      toast("success", t("games.houseAccountQueueJoined"));
+    } catch (err) {
+      toast("error", t(`errors.${toApiError(err).code}` as TKey));
+    } finally {
+      setQueuePending(false);
     }
-  }, [launchGameId]);
+  };
 
-  // Preselect the first seat the club has free — the server owns availability.
-  useEffect(() => {
-    if (account !== null || houseAccounts.length === 0) return;
-    const free = houseAccounts.find((a) => a.status !== "in-use");
-    if (free) setAccount(free.id);
-  }, [account, houseAccounts]);
+  const handleLeaveQueue = async () => {
+    if (!launchGameId) return;
+    setQueuePending(true);
+    try {
+      await leaveHouseAccountQueue(launchGameId);
+      invalidate("catalog");
+      // Leaving the line is also leaving the panel: the refusal that opened it is
+      // spent, and the dialog goes back to being a launch dialog with a pool view.
+      clearAccountBusy();
+    } catch (err) {
+      toast("error", t(`errors.${toApiError(err).code}` as TKey));
+    } finally {
+      setQueuePending(false);
+    }
+  };
 
   const close = () => {
     if (launching) return;
@@ -219,94 +241,141 @@ export function GameLaunchModal() {
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {!launching ? (
             <>
-              <p className="label-mono mb-3 text-[10px] text-text-low">
-                {t("games.selectAccount")}
-              </p>
-              <DataBoundary
-                state={accounts}
-                errorBare
-                errorSize="sm"
-                loading={
-                  <div className="flex flex-col gap-2">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-[58px] w-full" />
-                    ))}
-                  </div>
-                }
-                isEmpty={(rows) => rows.length === 0}
-                empty={
+              {queueing ? (
+                /* The pool is empty: a state of this dialog, drawn *instead of*
+                   the list rather than under it — this card is the tallest in the
+                   product and a panel stacked below the pool would push the cover
+                   art off a 693px window. */
+                <div className="flex flex-col gap-4">
                   <EmptyState
                     bare
                     size="sm"
                     icon={icons.accountMissing}
                     title={t("games.noAccounts")}
-                    description={t("games.noAccountsBody")}
+                    description={t("games.houseAccountQueueBody")}
                   />
-                }
-              >
-                {(rows) => (
-                  <div className="flex flex-col gap-2">
-                    {rows.map((acc) => {
-                      const disabled = acc.status === "in-use";
-                      const selected = account === acc.id;
-                      return (
-                        <button
-                          key={acc.id}
-                          disabled={disabled}
-                          onClick={() => setAccount(acc.id)}
-                          className={cn(
-                            "flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors",
-                            selected
-                              ? "border-primary bg-primary/10"
-                              : "border-border well-shallow hover:border-border-strong",
-                            disabled && "cursor-not-allowed opacity-45",
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            {/* Decoration: the same fact is written out to the
-                                right of the row, so the disc is not the only
-                                place availability lives (F6.6). */}
-                            <span
+                  <DataBoundary
+                    state={ticket}
+                    errorBare
+                    errorSize="sm"
+                    loading={<Skeleton className="h-10 w-full" />}
+                  >
+                    {(row) =>
+                      row ? (
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-border well-shallow px-4 py-3">
+                          <p className="flex items-center gap-2 text-sm text-text-high">
+                            <icons.timer
+                              size={14}
                               aria-hidden
-                              className={cn(
-                                "h-2.5 w-2.5 rounded-full",
-                                disabled ? "bg-danger" : "bg-success",
-                              )}
+                              className="text-primary"
                             />
-                            <div>
-                              <p className="text-sm font-semibold text-text-high">
-                                {acc.label}
-                              </p>
-                              {acc.linkedUser && (
-                                <p className="text-xs text-text-low">
-                                  {t("games.accountLinked", {
-                                    name: acc.linkedUser,
-                                  })}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <span className="text-xs font-medium text-text-medium">
-                            {disabled
-                              ? t("games.accountInUse")
-                              : t("games.accountAvailable")}
-                          </span>
+                            {/* The club's number, printed as it arrived. */}
+                            {t("games.houseAccountQueuePosition", {
+                              n: row.position,
+                            })}
+                          </p>
+                          <button
+                            onClick={() => void handleLeaveQueue()}
+                            disabled={queuePending}
+                            className="shrink-0 text-xs font-semibold text-text-medium underline-offset-2 transition-colors hover:text-text-high hover:underline disabled:opacity-50"
+                          >
+                            {t("games.houseAccountQueueLeave")}
+                          </button>
+                        </div>
+                      ) : (
+                        /* One action, and no second neon: the glow in this dialog
+                           belongs to "Launch" (§3.3), so the queue button borrows
+                           the primary fill without it. */
+                        <button
+                          onClick={() => void handleJoinQueue()}
+                          disabled={queuePending}
+                          className="w-full rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {t("games.houseAccountQueueJoin")}
                         </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </DataBoundary>
-
-              <label className="mt-4 flex cursor-pointer select-none items-center gap-2 text-sm text-text-medium">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                {t("games.rememberAccount")}
-              </label>
+                      )
+                    }
+                  </DataBoundary>
+                </div>
+              ) : (
+                <>
+                  <p className="label-mono mb-3 text-[10px] text-text-low">
+                    {t("games.selectAccount")}
+                  </p>
+                  <DataBoundary
+                    state={accounts}
+                    errorBare
+                    errorSize="sm"
+                    loading={
+                      <div className="flex flex-col gap-2">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className="h-[58px] w-full" />
+                        ))}
+                      </div>
+                    }
+                    isEmpty={(rows) => rows.length === 0}
+                    empty={
+                      <EmptyState
+                        bare
+                        size="sm"
+                        icon={icons.accountMissing}
+                        title={t("games.noAccounts")}
+                        description={t("games.noAccountsBody")}
+                      />
+                    }
+                  >
+                    {(rows) => (
+                      <ul className="flex flex-col gap-2">
+                        {rows.map((acc) => {
+                          const busy = acc.status === "in-use";
+                          return (
+                            /* A row, not a button (C4.7): the club picks the
+                               login, so anything clickable here would offer a
+                               decision the server has already made. */
+                            <li
+                              key={acc.id}
+                              className={cn(
+                                "flex items-center justify-between rounded-lg border border-border well-shallow px-4 py-3",
+                                busy && "opacity-60",
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                {/* Decoration: the same fact is written out to
+                                    the right of the row, so the disc is not the
+                                    only place availability lives (F6.6). */}
+                                <span
+                                  aria-hidden
+                                  className={cn(
+                                    "h-2.5 w-2.5 rounded-full",
+                                    busy ? "bg-danger" : "bg-success",
+                                  )}
+                                />
+                                <div>
+                                  <p className="text-sm font-semibold text-text-high">
+                                    {acc.label}
+                                  </p>
+                                  {acc.linkedUser && (
+                                    <p className="text-xs text-text-low">
+                                      {t("games.accountLinked", {
+                                        name: acc.linkedUser,
+                                      })}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-xs font-medium text-text-medium">
+                                {busy
+                                  ? t("games.accountInUse")
+                                  : t("games.accountAvailable")}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </DataBoundary>
+                </>
+              )}
 
               <div className="mt-6 flex gap-3">
                 <button
@@ -317,10 +386,11 @@ export function GameLaunchModal() {
                 </button>
                 <button
                   onClick={handleLaunch}
-                  // `blocked`: a quick launch fired from the home surface
-                  // owns the machine already, and this dialog must not queue
-                  // a second title behind it.
-                  disabled={!game || !account || blocked}
+                  // No longer waits on a pick — the grant is the server's
+                  // (C4.7). `blocked`: a quick launch fired from the home
+                  // surface owns the machine already, and this dialog must not
+                  // queue a second title behind it.
+                  disabled={!game || blocked}
                   className="flex flex-[1.4] items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-bold uppercase tracking-wide text-primary-foreground shadow-[0_0_18px_rgba(229,53,43,0.4)] transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {t("games.launch")}
@@ -340,7 +410,10 @@ export function GameLaunchModal() {
                 aria-live="polite"
                 className="flex flex-col items-start gap-2"
               >
-                {LAUNCH_STEPS.map((id) => {
+                {/* The hook's subset, not the full vocabulary: a Steam title
+                    gets three rows, because an "Assigning an account…" line it
+                    never needed would be a step the launcher invents (C4.7). */}
+                {steps.map((id) => {
                   const status = stepStatus(id);
                   return (
                     <div
@@ -372,6 +445,16 @@ export function GameLaunchModal() {
                   );
                 })}
               </div>
+
+              {/* The label the club just attached to this visit (C4.7). One line
+                  under the checklist, not a card: it is a fact about the session,
+                  and the lasting copy of it is the strip's, read off the server. */}
+              {grant && (
+                <p className="flex items-center gap-2 text-sm text-text-medium">
+                  <icons.check size={14} aria-hidden className="text-success" />
+                  {t("games.houseAccountAssigned", { label: grant.label })}
+                </p>
+              )}
 
               {/* The agent's own percent, clamped monotonic by the hook: a bar
                       that slips backwards reads as a failed start. */}

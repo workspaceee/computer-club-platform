@@ -42,9 +42,9 @@
 import { motion } from 'framer-motion'
 import { icons } from '@/lib/icons'
 import { mockAgent } from '@/lib/agent/mock-agent'
-import { useApi } from '@/hooks/use-api'
+import { useApi, useInvalidate } from '@/hooks/use-api'
 import { useT } from '@/lib/i18n/provider'
-import { fetchGame } from '@/lib/mock/api'
+import { fetchAssignedHouseAccount, fetchGame, releaseHouseAccount } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 
 export function InGameStrip() {
@@ -52,12 +52,28 @@ export function InGameStrip() {
   const runningGameId = useStore((s) => s.runningGameId)
   const setRunningGame = useStore((s) => s.setRunningGame)
   const toast = useStore((s) => s.toast)
+  const invalidate = useInvalidate()
 
   // Same key the launch dialog used, so this is normally a cache read rather
   // than a request. Conditional on the state, so nothing is fetched while no
   // game is running.
   const { data: game } = useApi(runningGameId ? ['game', runningGameId] : null, () =>
     fetchGame(runningGameId as string),
+  )
+
+  /**
+   * The shared login attached to this visit (C4.7), read from the **server** and
+   * not handed down from the launch that produced it.
+   *
+   * The grant outlives the dialog: quick launch from the "Continue" card never
+   * opened one, a reload throws the frame away, and the player who wants to know
+   * which account they are signed in as asks half an hour into a match. A copy
+   * kept in the store would have to be right in all three cases and would still
+   * disagree with the pool the moment an admin freed the row.
+   */
+  const { data: assigned } = useApi(
+    runningGameId ? 'catalog/assigned-account' : null,
+    fetchAssignedHouseAccount,
   )
 
   if (!runningGameId) return null
@@ -87,6 +103,14 @@ export function InGameStrip() {
         <p className="hidden min-w-0 flex-1 text-xs leading-relaxed text-text-medium sm:block">
           {t('games.inGameQuiet')}
         </p>
+        {/* The label, printed for as long as the login is held — the answer to
+            "which account am I on" has to survive the dialog that granted it. */}
+        {assigned && (
+          <p className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-text-medium">
+            <icons.check size={13} aria-hidden className="text-success" />
+            {t('games.houseAccountAssigned', { label: assigned.label })}
+          </p>
+        )}
         <button
           onClick={() => {
             /**
@@ -100,6 +124,21 @@ export function InGameStrip() {
              * into an error the player has to dismiss.
              */
             void mockAgent.killGame(runningGameId).catch(() => {})
+            /**
+             * And the club hears about it too (C4.7): the game is over, so the
+             * shared login goes back into the pool. This is the second and last
+             * place a grant is released — the other is the launch hook's failure
+             * path — because a row still marked `in-use` with nobody holding it
+             * cannot be repaired from inside the product. Fire-and-forget with a
+             * swallow: `releaseHouseAccount` is deliberately allowed offline and
+             * ignores a row that is not this visit's, so there is no outcome here
+             * the player could act on.
+             */
+            if (assigned) {
+              void releaseHouseAccount(assigned.accountId)
+                .then(() => invalidate('catalog'))
+                .catch(() => {})
+            }
             setRunningGame(null)
             // Sound is back, and the toast that says so is itself the proof —
             // it is the first cue heard since the launch, so the player learns
