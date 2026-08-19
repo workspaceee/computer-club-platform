@@ -31,7 +31,7 @@
  */
 
 import { motion } from 'framer-motion'
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GameCover } from '@/components/game-cover'
 import { CATEGORY_KEYS } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
@@ -39,6 +39,7 @@ import { icons } from '@/lib/icons'
 import { LAUNCHER_MARKS, LauncherMark } from '@/lib/launcher-marks'
 import { useStore } from '@/lib/store'
 import type { Game } from '@/lib/types/catalog'
+import { cn } from '@/lib/utils'
 
 export function GameCard({
   game,
@@ -58,9 +59,72 @@ export function GameCard({
   const setLaunchGame = useStore((s) => s.setLaunchGame)
   const setDetailGame = useStore((s) => s.setDetailGame)
 
+  /**
+   * Is this tile's action overlay showing?
+   *
+   * Owned in state rather than left to `group-hover` / `group-has-[:focus-visible]`,
+   * because the CSS pair could not express the one rule that matters: **at most
+   * one tile offers a launch at a time.**
+   *
+   * The bug it fixes: a player clicks Launch, cancels the dialog, and the modal
+   * hands focus back to the button it was opened from (`useDismissableLayer`
+   * restores it). Chrome treats that restored focus as `:focus-visible`, so the
+   * tile kept its scrim and its red Launch button with the pointer nowhere near
+   * it — and the moment the player hovered the *next* tile, two launch buttons
+   * were on screen for one decision.
+   *
+   * So: the pointer reveals it, and keyboard focus reveals it only while the
+   * pointer is not driving (`pointerFocus` below) — and any open dialog hides it
+   * outright, since the tile underneath a modal has nothing to offer.
+   */
+  const [hovered, setHovered] = useState(false)
+  const [keyboardFocus, setKeyboardFocus] = useState(false)
+
+  // A dialog is up: the launch modal this card opens, or the detail panel. Either
+  // way this tile is behind an overlay and must not paint a second start button.
+  const launchOpen = useStore((s) => s.launchGameId !== null)
+  const detailOpen = useStore((s) => s.detailGameId !== null)
+  const dialogOpen = launchOpen || detailOpen
+
+  // Focus that arrives from a mouse press, or is restored to the button after a
+  // dialog closes, must not light the overlay — only real keyboard navigation
+  // does. `:focus-visible` alone is not enough (Chrome grants it to restored
+  // focus), so the pointer's own position is the tiebreaker.
+  const onFocus = useCallback(
+    (e: React.FocusEvent<HTMLDivElement>) => {
+      if (hovered) return
+      const target = e.target as HTMLElement
+      setKeyboardFocus(typeof target.matches === 'function' && target.matches(':focus-visible'))
+    },
+    [hovered],
+  )
+
+  const onBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    // Only when focus actually leaves the card — moving between the two buttons
+    // inside it is not a reason to drop the overlay out from under the pointer.
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setKeyboardFocus(false)
+  }, [])
+
+  // The overlay is gone while a dialog is open, and it must not come *back* by
+  // itself when that dialog closes: the focus the modal restores would otherwise
+  // leave a stale tile lit. Cleared here so the next pointer or Tab decides.
+  useEffect(() => {
+    if (dialogOpen) setKeyboardFocus(false)
+  }, [dialogOpen])
+
+  const revealed = !dialogOpen && (hovered || keyboardFocus)
+
   return (
     <motion.div
       whileHover={{ y: -6 }}
+      onPointerEnter={(e) => {
+        // Touch is a tap, not a hover: a finger that "enters" a tile would leave
+        // the overlay stuck open on it after the player scrolled away.
+        if (e.pointerType !== 'touch') setHovered(true)
+      }}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={onFocus}
+      onBlur={onBlur}
       // Lifting the card used to add a second red bloom directly under the
       // launch button's own halo, so the hovered tile glowed twice for one
       // action. The raise is depth now — a black elevation shadow, the same
@@ -211,13 +275,18 @@ export function GameCard({
           text selection. It only becomes a surface when it is actually visible —
           and because the trigger is `group-hover`, the same pointer that reveals
           it is the one that then reaches the button. */}
-      {/* `group-has-[:focus-visible]`, not `group-focus-within`: focus-within
-          fires for a *mouse* click too, so the tile a player launched from kept
-          its overlay after they cancelled the dialog — the browser restores
-          focus to the button that opened it — and the next tile they hovered lit
-          up as well, two launch buttons on screen for one decision. Keyboard
-          focus still reveals it, which is the reason the variant exists. */}
-      <div className="scrim pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100">
+      {/* Driven by `revealed` (see the state above), not by a CSS `group-hover` /
+          `group-has-[:focus-visible]` pair: neither variant can tell a restored
+          focus from a deliberate Tab, which is how two tiles used to offer a
+          launch at the same time. `aria-hidden` while it is down, so the pair of
+          buttons is not announced on a tile the player is not on. */}
+      <div
+        aria-hidden={!revealed}
+        className={cn(
+          'scrim absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 backdrop-blur-[2px] transition-opacity',
+          revealed ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+        )}
+      >
         <button
           onClick={() => setLaunchGame(game.id)}
           // The card carries the title, but a button announcing just "Play"
