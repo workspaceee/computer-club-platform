@@ -605,7 +605,7 @@ export const lt: Dictionary = {
     passXpOf: '{xp} / {max} XP',
     // Antraštė virš kitos pakopos atlygio — eilutė „ką už tai gausiu“.
     passNextGives: '{level} pakopa duoda',
-    // Pakopa, kuri atsilygina žaidimo laiku. `{duration}` atkeliauja kaip frazė.
+    // Pakopa, kuri atsilygina ��aidimo laiku. `{duration}` atkeliauja kaip frazė.
     passRewardTime: '{duration} žaidimo laiko',
     // Pasiektos, bet nepasiimtos pakopos. Tai priežastis paspausti mygtuką, o ne
     // skaičius, su kuriuo kortelė gali ką nors padaryti: pasiimama praleidimo
@@ -902,15 +902,25 @@ export const lt: Dictionary = {
     launchDialog: 'Paleisti {name}',
     launchDialogPending: 'Paleisti žaidimą',
 
-    // Agento žingsniai — vienintelis dalykas, kurį žaidėjas mato tas sekundes (F2.4).
-    launchStepAccount: 'Ruošiama paskyra…',
-    launchStepSession: 'Įterpiama sesija…',
+    // Keturios eilutės — septynių agento žingsnių grupės (C4.6), o ne laikmačio
+    // užrašai; vienintelis dalykas, kurį žaidėjas mato tas sekundes (F2.4).
+    // „Priskiriama paskyra“ — ne agento žingsnis, o klubo patvirtinimas (C4.7).
+    launchStepUpdates: 'Tikrinami atnaujinimai…',
+    launchStepAccount: 'Priskiriama paskyra…',
+    launchStepLauncher: 'Prisijungiama prie paleidyklės…',
     launchStepStart: 'Startuoja žaidimas…',
+
+    // Juostos vardas ekrano skaitytuvui: procentas nupieštas, o ne parašytas.
+    launchProgress: 'Paleidimo eiga',
 
     // Abu paleidimo baigties variantus rodo pats kabliukas, todėl greitas
     // paleidimas iš „Tęsti“ kortelės sako tais pačiais žodžiais — be dialogo.
     launchedToast: '{name} paleistas — paleidyklė nuleidžiama',
     launchFailed: 'Paleisti nepavyko ({code})',
+
+    // Trečia baigtis, sąmoningai neutrali (C4.6): žaidėjas pats sustabdė paleidimą,
+    // todėl raudonas pranešimas jo sprendimą paskelbtų paleidyklės klaida.
+    launchCancelled: 'Paleidimas atšauktas',
 
     // Klubo paskyrų sąrašas (F3.4) — pasiūlytas pasirinkimas, o ne paleidimo
     // parametras: užimtumą tvarko serveris. Todėl vienas paspaudimas jį praleidžia.

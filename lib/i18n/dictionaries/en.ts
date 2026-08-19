@@ -1467,13 +1467,25 @@ export const en = {
     /**
      * The agent's checklist, in order (see hooks/use-game-launch.ts).
      *
-     * These three lines are the *only* thing on screen for the seconds a start
-     * takes, so they were the last place in the product that could afford a
-     * hardcoded English string (F2.4).
+     * Four lines, not four labels on a timer: each one is a *group* of the seven
+     * progress ticks the station agent reports (C4.6), which is why the wording
+     * describes a stage rather than a single call. They are the *only* thing on
+     * screen for the seconds a start takes, so they were the last place in the
+     * product that could afford a hardcoded English string (F2.4).
+     *
+     * `launchStepAccount` is the one row the agent knows nothing about — it is
+     * the club's confirmation, and C4.7 moves it onto `grantHouseAccount`.
      */
-    launchStepAccount: 'Preparing account…',
-    launchStepSession: 'Injecting session…',
-    launchStepStart: 'Starting game…',
+    launchStepUpdates: 'Checking for updates…',
+    launchStepAccount: 'Assigning an account…',
+    launchStepLauncher: 'Signing in to the launcher…',
+    launchStepStart: 'Starting the game…',
+
+    /**
+     * The bar under the checklist. Never visible copy: the percentage is drawn,
+     * so this is the name a screen reader gets instead of "progressbar".
+     */
+    launchProgress: 'Launch progress',
 
     /**
      * Both outcomes of a start, raised as toasts by the hook — which is why they
@@ -1485,6 +1497,13 @@ export const en = {
      */
     launchedToast: '{name} launched — minimizing the launcher',
     launchFailed: 'Launch failed ({code})',
+
+    /**
+     * The third outcome, and deliberately neutral (C4.6): the player asked for
+     * the start to stop, so a red toast would report their own decision as a
+     * fault in the launcher. Agent failures still go through `errors.<code>`.
+     */
+    launchCancelled: 'Launch cancelled',
 
     /**
      * The house-account list (F3.4).
