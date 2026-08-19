@@ -73,6 +73,32 @@ export function fetchGamePresence(): Promise<GamePresence> {
   return query('social.fetchGamePresence', () => getGamePresence())
 }
 
+/**
+ * `GET /api/games/:id/friends` — friends in **this** title right now (C4.5).
+ *
+ * Server-side for the same reason the `friendsPlaying` filter is (see
+ * `fetchGames`): the client holds neither half of the answer, and a detail panel
+ * that wanted it would have to pull the whole friend list plus everyone's presence
+ * to name two people. One join, two shapes — the filter returns titles, this
+ * returns the people.
+ *
+ * Seated players only — `online` **and** a seat. A friend playing this game from
+ * home is not somebody the panel can offer to sit down next to, and listing them
+ * under "in the club now" sends a player looking round the hall for somebody who
+ * is not in it. Same rule as `friendsInClub` on the home card (C3.7).
+ */
+export function fetchFriendsInGame(
+  gameId: ID,
+  userId: ID = db.currentUserId,
+): Promise<FriendSummary[]> {
+  return query('social.fetchFriendsInGame', () =>
+    getFriends(userId)
+      .filter((f) => f.online && f.machineLabel !== null && f.playingGameId === gameId)
+      // Seat order, like `friendsInClub`: the order a player can walk the room in.
+      .sort((a, b) => (a.machineLabel ?? '').localeCompare(b.machineLabel ?? '')),
+  )
+}
+
 export interface FriendRequestSummary {
   userId: ID
   nickname: string

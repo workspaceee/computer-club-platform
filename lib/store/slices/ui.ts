@@ -13,6 +13,23 @@ export interface UiSlice {
   launchGameId: string | null
 
   /**
+   * The title whose detail panel is open, or `null` (C4.5).
+   *
+   * A third id beside `launchGameId` and `runningGameId`, and the three are
+   * genuinely three things: this one is "the player is *reading about* a game",
+   * the second is "the launch dialog is open for it", the third is "it holds the
+   * machine". Collapsing the first two would make opening the panel the same act
+   * as deciding to start — which is exactly the decision the panel exists to help
+   * with — and the panel is also what *raises* the dialog, so both are set at once
+   * while the player confirms.
+   *
+   * Nothing the panel shows lives here, like `sessionPanelOpen`: the description,
+   * the requirements, the personal stats and who is in the game are fetched under
+   * their own keys when it opens, so a stale copy cannot outlive the panel.
+   */
+  detailGameId: string | null
+
+  /**
    * The "My session" panel behind the HUD (C2.3).
    *
    * In `ui` rather than in `session` for the same reason `cartOpen` is: it is a

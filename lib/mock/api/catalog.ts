@@ -8,14 +8,23 @@ import { mutate, newId, query, required, serverTime } from '@/lib/mock/api/clien
 import {
   db,
   getFriends,
+  getGameRequirements,
   getLiveSession,
   getMachine,
   getPlayer,
+  getStationFit,
   getZone,
   getZoneOccupancy,
 } from '@/lib/mock/db'
 import type { BookingStatus } from '@/lib/types/booking'
-import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
+import type {
+  Game,
+  GameCategory,
+  GameDetail,
+  GameLaunch,
+  GameStats,
+  HouseAccount,
+} from '@/lib/types/catalog'
 import type { ID, ISODateTime } from '@/lib/types/common'
 import type {
   Machine,
@@ -125,6 +134,82 @@ export function fetchGames(params: GameQuery = {}): Promise<GameListResult> {
 /** `GET /api/games/:id` */
 export function fetchGame(gameId: ID): Promise<Game> {
   return query('catalog.fetchGame', () => required(db.games.find((g) => g.id === gameId)))
+}
+
+/**
+ * `GET /api/games/:id/detail` — the detail panel's one read (C4.5).
+ *
+ * Everything the panel states about the *title* in one payload, seat verdict
+ * included. Three things about the shape are deliberate:
+ *
+ *  - **The verdict travels with the requirements.** `fit` is computed here against
+ *    the machine this launcher runs on, because the requirement rows are
+ *    publisher prose ("RTX 2060 / RX 5700") and the club is the only party that
+ *    knows what is in seat 17. A view that compared the strings itself would
+ *    disagree with the counter's screen the first time a launcher spelled a card
+ *    differently.
+ *  - **`machineId` is a parameter, not a constant.** The launcher always asks
+ *    about its own seat, but the same endpoint answers "would this run in the VIP
+ *    zone" for the admin surface (Stage 3) — and a hardcoded seat would have made
+ *    that a second endpoint.
+ *  - **`screenshots` is empty and that is the answer.** The club ships covers, not
+ *    stills; the panel drops the gallery rather than framing placeholders, and the
+ *    asset run is the open `C4.1`.
+ */
+export function fetchGameDetail(
+  gameId: ID,
+  machineId: ID = db.currentMachineId,
+): Promise<GameDetail> {
+  return query('catalog.fetchGameDetail', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const machine = required(getMachine(machineId))
+    const { requirements, description } = getGameRequirements(game)
+
+    return {
+      ...game,
+      description,
+      requirements,
+      fit: getStationFit(game, machine.specs),
+      fitSeatLabel: machine.label,
+      seatSpecs: machine.specs,
+      screenshots: [],
+    }
+  })
+}
+
+/**
+ * `GET /api/games/:id/stats` — this member's history with one title (C4.5).
+ *
+ * Reduced from `game_launches` here for the same reason `sortGames` is: the client
+ * has never seen that table and must not learn to. An open-ended launch — the
+ * title running on this machine right now — is counted up to **server** now, so a
+ * station whose clock has drifted cannot inflate its own playtime (C2.18).
+ *
+ * A title never played answers `{ launches: 0, seconds: 0, lastPlayedAt: null }`
+ * rather than a 404: "you have not played this" is an answer the panel shows, not
+ * an error it has to survive.
+ */
+export function fetchGameStats(
+  gameId: ID,
+  userId: ID = db.currentUserId,
+): Promise<GameStats> {
+  return query('catalog.fetchGameStats', () => {
+    const now = Date.parse(serverTime())
+    const rows = db.gameLaunches.filter((l) => l.userId === userId && l.gameId === gameId)
+
+    let seconds = 0
+    let lastPlayedAt: ISODateTime | null = null
+    for (const launch of rows) {
+      const from = Date.parse(launch.startedAt)
+      const to = launch.endedAt ? Date.parse(launch.endedAt) : now
+      // `max(0, …)`: a row whose end is before its start is corrupt seed or a
+      // clock that moved, and negative playtime must not cancel a real launch out.
+      seconds += Math.max(0, Math.round((to - from) / 1000))
+      if (lastPlayedAt === null || from > Date.parse(lastPlayedAt)) lastPlayedAt = launch.startedAt
+    }
+
+    return { gameId, launches: rows.length, seconds, lastPlayedAt }
+  })
 }
 
 // `GET /api/games/featured` used to live here — the five covers of the old hero
