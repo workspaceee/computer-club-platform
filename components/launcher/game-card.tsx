@@ -18,12 +18,16 @@
  *     which is off by two orders of magnitude and moving. `playersInClub` comes
  *     from `fetchGamePresence()` (seated players only), and when it is `0` the chip
  *     is *absent*: a live-looking zero on sixty idle titles is noise, and absence
- *     is what "nobody, right now" honestly looks like.
- *  2. **The launcher is a label, not fine print.** Steam, Epic, Riot and
- *     Battle.net decide whether the start needs one of the club's shared logins
- *     (C4.7), so the name is a bordered badge next to the genre — and it is
- *     printed verbatim from the catalogue, never translated, because these are
- *     product names (F2.2).
+ *     is what "nobody, right now" honestly looks like. It is stated as a badge
+ *     that says what it counts, because the green dot it replaced spent a status
+ *     colour — the club's word for *availability* — on "people".
+ *  2. **The launcher is a mark, not a word.** Steam, Epic, Riot and Battle.net
+ *     decide whether the start needs one of the club's shared logins (C4.7), so
+ *     which one it is belongs on the tile. It is drawn as the brand's own mark
+ *     (`lib/launcher-marks.tsx`), which a player identifies without reading and
+ *     which fits where the boxed all-caps word cropped to "BATTLE…"; the four
+ *     launchers with no mark keep the word, printed verbatim and never translated,
+ *     because these are product names (F2.2).
  */
 
 import { motion } from 'framer-motion'
@@ -32,6 +36,7 @@ import { GameCover } from '@/components/game-cover'
 import { CATEGORY_KEYS } from '@/lib/game-labels'
 import { useT } from '@/lib/i18n/provider'
 import { icons } from '@/lib/icons'
+import { LAUNCHER_MARKS, LauncherMark } from '@/lib/launcher-marks'
 import { useStore } from '@/lib/store'
 import type { Game } from '@/lib/types/catalog'
 
@@ -107,17 +112,32 @@ export function GameCard({
               Epic, Riot and Battle.net side by side, and which one it is decides
               whether the start needs a house account at all (C4.7), so it belongs
               on the tile and not only in the launch modal.
-              Printed verbatim and never translated: product names follow the same
-              rule as the club's own copy (F2.2). `shrink-0` so the longest name
-              the catalogue ships ("Square Enix", "Battle.net") is printed whole
-              at every breakpoint; `title` still carries the word "Launcher",
-              because the badge alone does not say what kind of name it is. */}
-          <span
-            className="label-mono shrink-0 rounded-[4px] border border-border px-1.5 py-0.5 text-[8px] text-text-medium"
-            title={`${t('games.launcherLabel')}: ${game.launcher}`}
-          >
-            {game.launcher}
-          </span>
+              Stated as the brand's own mark where one exists: a player recognises
+              the Steam cog without reading it, which is the whole reason the strip
+              can be 12 px wide instead of the 60 px the boxed word needed — and
+              the word is what cropped to "BATTLE…" at two columns. No frame and no
+              tint around it; the mark is already a distinct shape, and a box would
+              put it back to arguing with the genre chip beside it.
+              The name is never dropped, only moved: the four launchers with no mark
+              in the registry keep printing it, and every mark carries it in `title`
+              and for screen readers — verbatim, since these are product names
+              (F2.2). */}
+          {LAUNCHER_MARKS[game.launcher] ? (
+            <span
+              className="flex shrink-0 items-center text-text-low transition-colors group-hover:text-text-medium"
+              title={`${t('games.launcherLabel')}: ${game.launcher}`}
+            >
+              <LauncherMark launcher={game.launcher} size={13} />
+              <span className="sr-only">{`${t('games.launcherLabel')}: ${game.launcher}`}</span>
+            </span>
+          ) : (
+            <span
+              className="label-mono shrink-0 text-[8px] text-text-low"
+              title={`${t('games.launcherLabel')}: ${game.launcher}`}
+            >
+              {game.launcher}
+            </span>
+          )}
         </div>
         <h3 className="truncate font-display text-sm font-semibold text-text-high">
           <Highlight text={game.name} query={query} />
@@ -147,21 +167,23 @@ export function GameCard({
               })}
             </span>
           </span>
-          {/* Absent at zero, on purpose — see the header. A dot rather than a
-              second glyph: the row already carries a star, and "live" is a
-              convention a coloured dot states without adding another icon to
-              read. It does not pulse; the club's motion rules make animation
-              opt-out (§4.4–4.5), and an animated dot on sixty tiles would be
-              sixty things moving behind one decision. */}
+          {/* Absent at zero, on purpose — see the header. Stated as a badge with
+              the words in it, not as a green dot beside a bare number: the dot
+              borrowed a status colour to mean "people", which is the club's
+              *availability* language (a free seat, a machine that is up), and it
+              made the tile's only live fact the loudest thing on a shelf of sixty
+              — while still needing the reader to guess what the number counted.
+              The badge says it. It does not pulse; the club's motion rules make
+              animation opt-out (§4.4–4.5), and sixty animated dots would be sixty
+              things moving behind one decision. */}
           {playersInClub > 0 && (
-            <span className="flex min-w-0 items-center gap-1.5 text-text-medium">
-              <span
-                className="size-1.5 shrink-0 rounded-full bg-success"
-                aria-hidden
-              />
-              <span className="tabular-nums" aria-hidden>
+            <span className="label-mono flex min-w-0 shrink-0 items-center gap-1 rounded-[4px] bg-white/5 px-1.5 py-0.5 text-[8px] tracking-[0.1em] text-text-medium">
+              <span className="tabular-nums text-text-high" aria-hidden>
                 {formatNumber(playersInClub)}
               </span>
+              <span aria-hidden>{t('games.inClubShort')}</span>
+              {/* The badge reads "2 in club"; spoken it should be a sentence, and
+                  a plural one — Russian and Lithuanian inflect the noun. */}
               <span className="sr-only">
                 {tp('games.inClubNow', playersInClub, {
                   n: formatNumber(playersInClub),
