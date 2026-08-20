@@ -13,6 +13,7 @@ import type {
   HelpThread,
   HelpThreadStatus,
   Notification,
+  NotificationActionOutcome,
 } from '@/lib/types/notification'
 
 /* ------------------------------------------------------------------ *
@@ -56,6 +57,62 @@ export function markAllNotificationsRead(
     const unread = getInbox(userId, machineId).filter((n) => n.readAt === null)
     for (const notification of unread) notification.readAt = db.now
     return unread.length
+  })
+}
+
+/**
+ * `POST /api/notifications/:id/action` — answer a card without leaving the panel
+ * (C2.5).
+ *
+ * One endpoint for both kinds rather than two, because the *card* is what is
+ * being answered: the client sends the id it is looking at and the answer, and
+ * the server decides which domain that touches. Accepting an invite here and
+ * accepting it on the party screen therefore cannot drift — this writes the same
+ * `party.members[].state` that `respondToPartyInvite` does, and the outcome
+ * stored on the notification is a record of the answer, not a second source of
+ * truth for membership.
+ *
+ * Answering also marks the card read: a player who just accepted an invite has
+ * unquestionably seen it, and leaving it bold would keep the badge counting a
+ * message that no longer asks anything.
+ */
+export function answerNotification(
+  notificationId: ID,
+  outcome: NotificationActionOutcome,
+  rating: number | null = null,
+  userId: ID = db.currentUserId,
+): Promise<Notification> {
+  return mutate('support.answerNotification', () => {
+    const notification = required(db.notifications.find((n) => n.id === notificationId))
+    const action = notification.action
+    // A card with no action has nothing to answer; answering twice is a stale
+    // panel racing a fresh one, not a new decision.
+    if (!action) throw new ApiError('validation', { outcome: 'validation' })
+    if (action.outcome !== null) throw new ApiError('conflict')
+
+    if (action.kind === 'party-invite') {
+      if (outcome !== 'accepted' && outcome !== 'declined') {
+        throw new ApiError('validation', { outcome: 'validation' })
+      }
+      const party = db.parties.find((p) => p.id === action.refId)
+      const member = party?.members.find((m) => m.userId === userId)
+      // The party may have disbanded while the card sat in the inbox. The card
+      // still records the answer — what it must not do is invent a membership.
+      if (member?.state === 'invited') {
+        member.state = outcome === 'accepted' ? 'joined' : 'declined'
+      }
+      action.outcome = outcome
+    } else {
+      if (outcome !== 'rated') throw new ApiError('validation', { outcome: 'validation' })
+      if (!Number.isInteger(rating) || rating === null || rating < 1 || rating > 5) {
+        throw new ApiError('validation', { rating: 'validation' })
+      }
+      action.outcome = 'rated'
+      action.rating = rating
+    }
+
+    notification.readAt ??= db.now
+    return notification
   })
 }
 

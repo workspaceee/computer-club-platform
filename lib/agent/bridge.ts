@@ -170,8 +170,26 @@ export interface AgentInfo {
  * Games
  * ------------------------------------------------------------------ */
 
-/** Store the title is started through. Matches `Game.launcher` in the catalogue. */
-export type GameLauncher = 'steam' | 'epic' | 'riot' | 'battlenet' | 'ea' | 'ubisoft' | 'standalone'
+/**
+ * Store the title is started through, as an **id the agent speaks**.
+ *
+ * Deliberately not the catalogue's `GameLauncher` (`lib/types/catalog.ts`), and
+ * deliberately no longer sharing its name: that union is the *display* string the
+ * club sells the title under ("Battle.net", "EA App" — fourteen of them, printed
+ * verbatim on the library tile, F2.2), while this is the lowercase handle the
+ * station's agent accepts on the wire, and a title whose store the agent has no id
+ * for is `standalone` rather than absent. One name for two meanings compiled fine —
+ * the modules never import each other — and read as one concept to anyone opening
+ * either file. `LAUNCHER_MAP` in `mock-agent.ts` is the crossing between them.
+ */
+export type AgentLauncherId =
+  | 'steam'
+  | 'epic'
+  | 'riot'
+  | 'battlenet'
+  | 'ea'
+  | 'ubisoft'
+  | 'standalone'
 
 /**
  * One title as the *disk* sees it, joined to the catalogue by `gameId`. The
@@ -180,7 +198,7 @@ export type GameLauncher = 'steam' | 'epic' | 'riot' | 'battlenet' | 'ea' | 'ubi
  */
 export interface InstalledGame {
   gameId: ID
-  launcher: GameLauncher
+  launcher: AgentLauncherId
   installed: boolean
   /** Bytes on disk, for "needs 84 GB free" style copy. `null` when unknown. */
   sizeBytes: number | null

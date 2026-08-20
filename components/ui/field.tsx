@@ -53,8 +53,14 @@ export function Field({
 
       <div
         className={cn(
-          'flex items-center gap-2.5 rounded-md border bg-black/40 px-3.5 transition-all',
-          'focus-within:border-primary focus-within:bg-black/60',
+          // Depth from the scale (§3.3): `well` is the recess an input sits in,
+          // `well-deep` the same recess one rung lower while focus is inside.
+          // `rounded-lg`, not `-md`: 10 px is the frame radius of the reference
+          // login card the primitive was extracted from (F9), and of every
+          // settings row. C1.1 is the first real consumer, so the primitive
+          // moves to the product's value instead of the screen re-stating it.
+          'well flex items-center gap-2.5 rounded-lg border px-3.5 transition-all',
+          'focus-within:border-primary focus-within:well-deep',
           'focus-within:shadow-[0_0_0_3px_rgba(229,53,43,0.14),0_0_24px_-6px_rgba(229,53,43,0.35)]',
           error ? 'border-danger' : 'border-border',
           props.disabled && 'opacity-50',
