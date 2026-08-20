@@ -11,6 +11,7 @@ import { Overlay } from "@/components/ui/overlay"
 // extraction has not reached yet.
 import { Slider as RangeSlider } from "@/components/ui/slider"
 import { Toggle as SwitchRow } from "@/components/ui/toggle"
+import { useDismissableLayer } from "@/hooks/use-dismissable-layer"
 import { useT } from "@/lib/i18n/provider"
 import type { TKey } from "@/lib/i18n/types"
 import { OVERLAY_MAX_H } from "@/lib/overlay"
@@ -167,18 +168,47 @@ export function SettingsModal() {
   const { t } = useT()
   const [tab, setTab] = useState<TabId>("display")
 
+  // C2.10 — settings is one of the four destinations of the profile menu, and it
+  // was the only overlay in the shell that declared `role="dialog"` without ever
+  // joining the shared layer stack. `Overlay` is geometry and a scrim; the
+  // keyboard half has always been the panel's job (`ConfirmDialog` does exactly
+  // this). Four things were missing, and the last one is the one that bites:
+  //
+  //   • **Escape did nothing.** The dialog you reach from the menu was the only
+  //     one in the product you could not dismiss with the keyboard — the X and
+  //     "Done" were the only ways out.
+  //   • **No initial focus.** Focus stayed on whatever opened it — the menu
+  //     trigger, or the profile's Settings button — i.e. *behind* the scrim, so
+  //     the first Tab walked the launcher underneath instead of the dialog.
+  //   • **No focus trap**, for the same reason: `aria-modal="true"` claimed the
+  //     rest of the page was inert while Tab happily left it.
+  //   • **The digit shortcuts stayed live.** `isLayerOpen()` reads this stack, so
+  //     with settings open, pressing `2` navigated the launcher to the games
+  //     library behind the dialog (F6.7). Body scroll was never locked either.
+  //
+  // All five defaults are right for a modal, so nothing is opted out of here.
+  const panelRef = useDismissableLayer({
+    open: settingsOpen,
+    onClose: () => setSettingsOpen(false),
+  })
+
   return (
     <Overlay open={settingsOpen} layer="modal" onDismiss={() => setSettingsOpen(false)}>
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label={t('settings.title')}
+            // The panel is the trap's fallback target when it holds no focusable
+            // control, so it has to be programmatically focusable — and then the
+            // ring it would draw around the whole card has to go.
+            tabIndex={-1}
             // Was `z-[60]`, the same rung the offline banner claimed — so during
             // an outage which of the two won depended on render order. The rung
             // now comes from the ladder, and `86vh` becomes the shared `svh` cap
             // so the header cannot leave the top of a short window (F6.4).
             className={cn(
-              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl',
+              'tick-corners flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface-2 shadow-2xl outline-none',
               OVERLAY_MAX_H,
             )}
             initial={{ scale: 0.95, y: 12 }}

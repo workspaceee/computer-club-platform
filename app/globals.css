@@ -166,6 +166,25 @@
   --scrim: 0.7;
   --pill: 0.3;
   --pill-deep: 0.55;
+
+  /* ---- Frame inset, bottom edge (C2.9) ----
+     The debt taken on by `viewportFit: 'cover'` in layout.tsx. With `cover` the
+     document owns the full display, which is what a kiosk wants — but it also
+     means the bottom edge of the viewport is *behind* the iPhone home indicator
+     on the surface the Companion PWA runs on. Anything fixed to that edge has to
+     buy back the gap itself.
+
+     A token rather than `env()` spelled out per file, for two reasons: `env()`
+     inside an arbitrary Tailwind value is easy to get wrong once and impossible
+     to grep for, and the fallback belongs in exactly one place — every browser
+     that does not know the keyword must read `0px`, not an invalid length that
+     collapses the whole `calc()`.
+
+     Only the two bottom-fixed layers consume it (the launcher's mobile bar and
+     the toast column), plus the main region's reserved space so content still
+     scrolls clear of the bar. Nothing else in the product is bottom-fixed; if
+     something becomes so, it adds this and does not invent its own. */
+  --frame-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @layer base {
@@ -370,6 +389,60 @@
   );
 }
 
+/* ---------------------------------------------------------------------------
+   Asset paint ramp (F7.5)
+   ---------------------------------------------------------------------------
+   The opacity ramp for art that has a *designed layer underneath* — a cover's
+   hashed gradient, a product card's category icon. `AssetImage` owns when it
+   runs; this is only the curve.
+
+   Why it is a class and not an inline transition: the ramp has to be off in two
+   independent cases the component cannot express in a single className without
+   losing to Tailwind's source order — a file that came from cache, and a player
+   who asked for less motion. Both are `[data-paint]`/media overrides below, and
+   both are unlayered so they beat the `@utility` they correct.
+
+   220 ms, not the 500 ms this once shipped as. Half a second across a
+   sixty-seven tile shelf read as the whole grid dissolving into place, and every
+   cover the player scrolled past sat soft and unfinished exactly while they were
+   deciding what to click. 220 ms is long enough to remove the hard swap and
+   short enough that a tile is settled before the eye arrives.
+
+   Deliberately opacity-only: the covers sit in a CSS grid, so a transform or a
+   filter here would either invite layout work per tile or force sixty-seven
+   simultaneous blur passes on a kiosk GPU. */
+@utility asset-fade {
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+  /* Keeps the ramp off the main thread on a shelf that lands many at once. */
+  will-change: opacity;
+}
+
+/* Fetched over the wire: ramp it. */
+.asset-fade[data-paint='ramp'] {
+  opacity: 1;
+  will-change: auto;
+}
+
+/* Already decoded when React attached (cache, or a revisit to a shelf the
+   player has scrolled before). There is nothing to cover, and ramping a file
+   that is *already there* is the one case that reads as sluggish rather than
+   smooth — so it is painted, hard, on the first frame. */
+.asset-fade[data-paint='instant'] {
+  opacity: 1;
+  transition: none;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-fade {
+    transition: none;
+  }
+}
+:root[data-reduce-motion='true'] .asset-fade {
+  transition: none;
+}
+
 /* CRT / broadcast texture: 1 px line every 3 px. Opacity and blend mode are
    baked in rather than left to the caller — they *are* the effect, and the two
    times this shipped as loose utility classes in JSX is exactly how a texture
@@ -484,16 +557,30 @@
    travels around borders (.neon-ring), breathes through display text
    (.neon-text) and haloes the brand mark (.neon-logo). */
 
+/* `inherits: true` is the whole synchronisation mechanism, so it is not a
+   detail to flip back: the sweep is animated **once**, on the root, and every
+   tube on the page reads that one inherited value in the same frame. Per-element
+   animations could not do this — a CSS animation starts when its element gets
+   its first style, so the login card (mounted with the screen) and the telemetry
+   chips (mounted when their reading arrives) ended up sweeping seconds apart,
+   which is what made a row of lit plates read as noise instead of one system.
+   A tube that must stay put overrides the angle locally (see T2 below) — it does
+   not opt out of an animation. */
 @property --neon-angle {
   syntax: '<angle>';
   initial-value: 0deg;
-  inherits: false;
+  inherits: true;
 }
 
 @keyframes neon-spin {
   to {
     --neon-angle: 360deg;
   }
+}
+
+/* The single clock. Nothing else in the neon system animates. */
+:root {
+  animation: neon-spin 7s linear infinite;
 }
 
 /* Thin neon border: red and white light on the edge of a panel.
@@ -506,20 +593,29 @@
        relative` would collapse those, so the edge is offered without it.
 
    HOW LOUD IT IS — the tier (§4.4, F9.4):
-     T1  .neon-ring / .neon-edge                — light TRAVELS. One element
-         per screen: the thing the visitor is meant to act on.
-     T2  .neon-ring-static / .neon-edge-static  — same tube, frozen. Status
-         plates: they must read as lit, not as the destination.
+     T1  .neon-ring / .neon-edge                — light travels, FULL halo
+         (.55). One element per screen: the thing the visitor is meant to act
+         on.
+     T2  .neon-ring-sync                        — same travelling light, in
+         phase with T1, halo halved (.28). Status plates that must feel live:
+         the telemetry strip both screens share.
+     T2F .neon-ring-static / .neon-edge-static  — the tube frozen mid-sweep.
+         For plates whose motion comes from somewhere else (the Segmented
+         pill slides) and for the kit, which has to show the frozen state.
      T3  no class at all. Everything else earns attention with border, glass
          and type.
 
    Why the tier lives in CSS and not in each screen's head: with T1 handed
    out per element, the idle screen ended up wearing seven traveling rings at
-   once, and an accent that is everywhere is not an accent. The animation is
-   the scarce resource here, so it is what the tier switches — the gradient,
-   mask, glow and geometry stay one block, and editing the tube edits all
-   four entry points. */
+   once, each on its own clock, and an accent that is everywhere is not an
+   accent. F9.4 fixed that by freezing them; the phase lock above fixes it the
+   other way round, so being lit no longer has to mean being still — seven
+   tubes sweeping as one read as a single instrument, and T1 keeps its rank
+   through the halo instead. What the tier switches now is the halo and
+   whether the angle is pinned; the gradient, mask and geometry stay one
+   block, so editing the tube edits every entry point. */
 .neon-ring,
+.neon-ring-sync,
 .neon-ring-static {
   position: relative;
 }
@@ -527,6 +623,8 @@
 .neon-ring::after,
 .neon-edge::before,
 .neon-edge::after,
+.neon-ring-sync::before,
+.neon-ring-sync::after,
 .neon-ring-static::before,
 .neon-ring-static::after,
 .neon-edge-static::before,
@@ -557,17 +655,13 @@
   mask-composite: exclude;
   pointer-events: none;
 }
-/* T1 only: the light travels. This one declaration is the whole difference
-   between the tiers — which is the point of F9.4. */
-.neon-ring::before,
-.neon-ring::after,
-.neon-edge::before,
-.neon-edge::after {
-  animation: neon-spin 7s linear infinite;
-}
-/* T2: the tube is frozen mid-sweep. 135deg puts the white segment on the
+/* T1 and T2 declare nothing here: both inherit the root's sweep, which is
+   exactly why they cannot drift apart. */
+/* T2F: the tube is frozen mid-sweep. 135deg puts the white segment on the
    top-left corner, so a row of status plates catches light from one
-   consistent direction instead of each freezing wherever it happened to be. */
+   consistent direction instead of each freezing wherever it happened to be —
+   and it is the angle motion-damping pins everything to, so a frozen plate
+   next to a damped ring still lights from the same side. */
 .neon-ring-static::before,
 .neon-ring-static::after,
 .neon-edge-static::before,
@@ -577,18 +671,21 @@
 /* Above the panel's own inner content (backgrounds, media, highlights). */
 .neon-ring::before,
 .neon-ring::after,
+.neon-ring-sync::before,
+.neon-ring-sync::after,
 .neon-ring-static::before,
 .neon-ring-static::after {
   z-index: 3;
 }
-/* Soft glow copy of the ring. T2 halves it: a frozen glow reads as a smudge
-   at full strength, and a status plate is small enough that the bloom would
-   swallow its own label. */
+/* Soft glow copy of the ring. Below T1 it is halved — a status plate is small
+   enough that a full bloom would swallow its own label, and with the light now
+   travelling on the plates too, the halo is what still tells T1 apart. */
 .neon-ring::after,
 .neon-edge::after {
   filter: blur(6px);
   opacity: 0.55;
 }
+.neon-ring-sync::after,
 .neon-ring-static::after,
 .neon-edge-static::after {
   filter: blur(5px);
@@ -904,6 +1001,32 @@
   animation: urgency-pulse 1.4s ease-in-out infinite;
 }
 
+/* The HUD plate answering a time warning (C2.6).
+   Distinct from `urgency-pulse` above, and the difference is what each one
+   means. `urgency-pulse` is a *state*: it runs for the whole danger band on the
+   digits, because under five minutes is continuously true. This is an *event* —
+   a mark was just crossed — so it runs a fixed three beats and stops, on the
+   plate's own halo rather than on the digits, and it borrows `currentColor` so
+   the amber of the 15-minute mark and the red of the 5-minute one need no second
+   rule. A ring that never stopped would be indistinguishable from the state
+   pulse it sits two centimetres away from, and by minute four the player would
+   have stopped seeing either. */
+@keyframes hud-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(from currentColor r g b / 0);
+  }
+  35% {
+    box-shadow: 0 0 0 4px rgb(from currentColor r g b / 0.28);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(from currentColor r g b / 0);
+  }
+}
+.hud-alert-pulse {
+  animation: hud-alert-pulse 1.1s ease-out 3;
+}
+
 /* Idle-screen wake hint ("Move mouse to unlock").
    It competes with fullscreen banner art, so it can't rely on the old
    opacity flicker down to 0.45 — that made the one instruction on the
@@ -978,34 +1101,30 @@
 :root[data-reduce-motion='true'] .wake-hint,
 :root[data-reduce-motion='true'] .wake-hint-copy,
 :root[data-reduce-motion='true'] .wake-hint-scan,
-:root[data-reduce-motion='true'] .urgency-pulse {
+:root[data-reduce-motion='true'] .urgency-pulse,
+:root[data-reduce-motion='true'] .hud-alert-pulse {
   animation: none !important;
 }
 
-/* When motion is damped, T1 becomes T2 rather than "T1 stopped at 0deg":
-   without this the ring freezes wherever the angle happened to be, which is
-   the one look the tier ladder exists to prevent. Duplicated per selector
-   list because the media query cannot see the data attribute. */
-:root[data-reduce-motion='true'] .neon-ring::before,
-:root[data-reduce-motion='true'] .neon-ring::after,
-:root[data-reduce-motion='true'] .neon-edge::before,
-:root[data-reduce-motion='true'] .neon-edge::after {
+/* When motion is damped, every travelling tier becomes T2F rather than
+   "stopped at 0deg": without the pinned angle the tubes freeze wherever the
+   sweep happened to be, which is the one look the tier ladder exists to
+   prevent. Setting it on the root reaches T1 and T2 in one line — the same
+   inheritance that keeps them in phase — and the `animation: none` below is
+   what actually stops the clock. Duplicated per selector list because the
+   media query cannot see the data attribute. */
+:root[data-reduce-motion='true'] {
   --neon-angle: 135deg;
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .neon-ring::before,
-  .neon-ring::after,
-  .neon-edge::before,
-  .neon-edge::after {
+  :root {
     --neon-angle: 135deg;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .neon-ring::before,
-  .neon-ring::after,
-  .neon-edge::before,
-  .neon-edge::after,
+  :root,
   .neon-text,
   .neon-digits,
   .neon-logo,
@@ -1018,7 +1137,8 @@
   .wake-hint,
   .wake-hint-copy,
   .wake-hint-scan,
-  .urgency-pulse {
+  .urgency-pulse,
+  .hud-alert-pulse {
     animation: none !important;
   }
 }

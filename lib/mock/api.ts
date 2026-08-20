@@ -7,7 +7,7 @@
 //
 // Domains:
 //   client    transport, `ApiError`, fault injection (`mockFaults`)
-//   auth      sign-in, register, guest, QR handshake
+//   auth      sign-in, register, password recovery, guest, QR handshake
 //   profile   profile, wallet, preferences, privacy
 //   session   the live session: heartbeat, pause, extend, end
 //   catalog   games, club, zones, seats, occupancy
@@ -15,13 +15,22 @@
 //   loyalty   coins, quests, battle pass, rewards, leaderboard
 //   social    friends, requests, parties
 //   events    tournaments and bookings
-//   promo     marketing campaigns for the hero strip and attract-mode
+//   hero      the composed slides of the Home carousel (C3.9)
+//   promo     marketing campaigns for the hero carousel and attract-mode
 //   support   notifications and help threads
 export {
   ApiError,
   isApiError,
+  // C2.16. The heartbeat asks before speaking: an offline reading is not lost,
+  // it simply keeps accumulating in the anchor until the link is back.
+  isTransportOffline,
   mockFaults,
+  // C2.12. The two ends of the "no purchases while the link is down" guard: the
+  // realtime provider pushes the banner's delayed `offline` flag in, and registers
+  // the reporter that turns a refused purchase into a translated toast.
+  onPurchaseRefused,
   serverTime,
+  setTransportOffline,
   toApiError,
   type ApiErrorCode,
   type FaultConfig,
@@ -30,6 +39,7 @@ export {
 export * from '@/lib/mock/api/auth'
 export * from '@/lib/mock/api/catalog'
 export * from '@/lib/mock/api/events'
+export * from '@/lib/mock/api/hero'
 export * from '@/lib/mock/api/loyalty'
 export * from '@/lib/mock/api/profile'
 export * from '@/lib/mock/api/promo'

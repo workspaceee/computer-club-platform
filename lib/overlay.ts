@@ -18,6 +18,10 @@
  *   modal     dialogs that own the screen.
  *   confirm   confirmations sit *above* the dialog that raised them, otherwise
  *             "are you sure?" would be hidden behind the thing it is asking about.
+ *   takeover  the last minute of the visit (C2.6). Above every dialog, because
+ *             at 60 seconds nothing the player was doing matters more than the
+ *             clock — but still under `toast`, so the outcome of pressing
+ *             "Extend" is readable on top of the screen that offered it.
  *   toast     feedback has to be readable **while a dialog is open** — a failed
  *             launch reports into a toast while the launch dialog is still up.
  *   blocking  the end of the visit. Nothing may cover it, and it covers
@@ -34,6 +38,7 @@ export const overlayZ = {
   drawer: 'z-[60]',
   modal: 'z-[70]',
   confirm: 'z-[80]',
+  takeover: 'z-[85]',
   toast: 'z-[90]',
   blocking: 'z-[100]',
 } as const
@@ -46,7 +51,15 @@ export type OverlayLayer = keyof typeof overlayZ
  * `svh`, not `vh`: on a kiosk in a browser with visible UI (and on the tablet
  * self-service surface) `vh` measures the *largest* possible viewport, so a
  * `max-h-[88vh]` card is taller than the space it actually has and its header
- * ends up under the address bar. The `2rem` is the `p-4` gutter the overlay
- * frame keeps on the short axis.
+ * ends up under the address bar.
+ *
+ * The subtraction **must match the frame's gutter at every breakpoint**, and this
+ * is where the janky scroll came from: `components/ui/overlay.tsx` pads its
+ * centring track `p-4 sm:p-6`, so from `sm` up a card capped at `100svh - 2rem`
+ * plus 3rem of gutter is 1rem *taller* than the window. That handed the outer
+ * scroll port a 16 px range — a full-height scrollbar down the right edge of the
+ * screen with almost nothing to travel, which is what "the page scrolls, but
+ * badly" actually was. Capping against the real gutter leaves the outer port
+ * idle, and the card's own body is the only thing that scrolls.
  */
-export const OVERLAY_MAX_H = 'max-h-[calc(100svh-2rem)]'
+export const OVERLAY_MAX_H = 'max-h-[calc(100svh-2rem)] sm:max-h-[calc(100svh-3rem)]'
