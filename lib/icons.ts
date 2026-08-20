@@ -23,8 +23,10 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
+  ArrowDownUp,
   ArrowUpRight,
   Award,
+  Bell,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -66,6 +68,7 @@ import {
   Moon,
   Mouse,
   MousePointer2,
+  Pause,
   Pizza,
   PlugZap,
   Play,
@@ -146,6 +149,11 @@ export const icons = {
   back: ChevronLeft,
   forward: ChevronRight, // «дальше», в том числе CTA промо
   expand: ChevronDown, // раскрыть список/меню
+  // Порядок списка, а не фильтр: `expand` на том же контроле говорит «раскроется»,
+  // а этот глиф — «что именно раскроется». Воронку (`Filter`) намеренно не берём:
+  // фильтры в библиотеке — это чипы, у них подписи, и второй смысл у иконки
+  // сортировки читался бы как «здесь ещё одни фильтры» (C4.2).
+  sort: ArrowDownUp,
   search: Search,
   add: Plus, // добавить: время, товар, количество
   remove: Minus, // убавить количество
@@ -157,9 +165,11 @@ export const icons = {
   volume: Volume2,
   controls: MousePointer2, // раздел «Управление», курсор, «подвигай мышью»
   empty: Inbox, // пусто по данным
+  notifications: Bell, // входящие клуба: колокольчик и панель уведомлений
   support: LifeBuoy, // помощь, поддержка
   home: Home,
-  play: Play, // запустить игру
+  play: Play, // запустить игру; возобновить автопрокрутку карусели
+  pause: Pause, // остановить автопрокрутку (карусель героя, C3.9)
   demo: Rocket, // быстрый вход в демо-сессию
 
   // ── доступ и защита

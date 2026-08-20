@@ -4,11 +4,39 @@
 // the club's own settings. Filtering and sorting live here on purpose — the real
 // endpoints take the same query params, so no component ever grows a `.filter()`
 // over the whole library.
-import { mutate, newId, query, required } from '@/lib/mock/api/client'
-import { db, getMachine, getPlayer } from '@/lib/mock/db'
-import type { Game, GameCategory, GameLaunch, HouseAccount } from '@/lib/types/catalog'
-import type { ID } from '@/lib/types/common'
-import type { Machine, Zone } from '@/lib/types/machine'
+import { ApiError, mutate, newId, query, required, serverTime } from '@/lib/mock/api/client'
+import {
+  db,
+  getFriends,
+  getGameRequirements,
+  getLiveSession,
+  getMachine,
+  getPlayer,
+  getStationFit,
+  getZone,
+  getZoneOccupancy,
+} from '@/lib/mock/db'
+import type { BookingStatus } from '@/lib/types/booking'
+import type {
+  Game,
+  GameCategory,
+  GameDetail,
+  GameLaunch,
+  GameStats,
+  HouseAccount,
+  HouseAccountGrant,
+  HouseAccountQueueTicket,
+} from '@/lib/types/catalog'
+import type { ID, ISODateTime } from '@/lib/types/common'
+import type {
+  Machine,
+  MachineSpecs,
+  MachineStatus,
+  Zone,
+  ZoneClass,
+  ZoneOccupancy,
+} from '@/lib/types/machine'
+import type { SessionState } from '@/lib/types/session'
 import type { Club, ClubSettings } from '@/lib/types/settings'
 
 export type GameSort = 'popular' | 'rating' | 'name' | 'recent'
@@ -19,6 +47,20 @@ export interface GameQuery {
   sort?: GameSort
   /** Only titles the member has launched before. */
   playedOnly?: boolean
+  /**
+   * Only titles that need one of the club's shared logins (C4.2). A catalogue
+   * predicate, so it is answered here and not by the grid.
+   */
+  needsHouseAccount?: boolean
+  /**
+   * Only titles an accepted friend is in **right now** (C4.2).
+   *
+   * Server-side because the client has neither half of the answer: it would have
+   * to pull the whole friend list *and* everyone's live presence into the library
+   * screen to filter covers. The endpoint joins the two and returns titles, never
+   * people — who is in what is the social panel's business (C3.7) and C4.5's.
+   */
+  friendsPlaying?: boolean
   limit?: number
   offset?: number
 }
@@ -49,17 +91,36 @@ function sortGames(items: Game[], sort: GameSort, launches: GameLaunch[]): Game[
   }
 }
 
-/** `GET /api/games` — search, category filter, sort and pagination. */
+/** `GET /api/games` — search, filters, sort and pagination (C4.2). */
 export function fetchGames(params: GameQuery = {}): Promise<GameListResult> {
   return query('catalog.fetchGames', () => {
-    const { search = '', category = 'all', sort = 'popular', playedOnly = false } = params
+    const {
+      search = '',
+      category = 'all',
+      sort = 'popular',
+      playedOnly = false,
+      needsHouseAccount = false,
+      friendsPlaying = false,
+    } = params
     const needle = search.trim().toLowerCase()
     const launches = db.gameLaunches.filter((l) => l.userId === db.currentUserId)
     const played = new Set(launches.map((l) => l.gameId))
+    // Built once per call rather than per row, and only when the filter is on:
+    // resolving the friend list for every one of 67 titles is the same answer 67
+    // times. Titles, not friends — a game with four friends in it appears once.
+    const friendTitles = friendsPlaying
+      ? new Set(
+          getFriends()
+            .filter((f) => f.online && f.playingGameId)
+            .map((f) => f.playingGameId as ID),
+        )
+      : null
 
     let items = db.games.filter((game) => {
       if (category !== 'all' && game.category !== category) return false
       if (playedOnly && !played.has(game.id)) return false
+      if (needsHouseAccount && !game.needsHouseAccount) return false
+      if (friendTitles && !friendTitles.has(game.id)) return false
       if (needle && !game.name.toLowerCase().includes(needle)) return false
       return true
     })
@@ -78,16 +139,85 @@ export function fetchGame(gameId: ID): Promise<Game> {
 }
 
 /**
- * `GET /api/games/featured` — the curated hero row. Resolved from ids in curator
- * order, and silently skips an id whose title left the catalogue.
+ * `GET /api/games/:id/detail` — the detail panel's one read (C4.5).
+ *
+ * Everything the panel states about the *title* in one payload, seat verdict
+ * included. Three things about the shape are deliberate:
+ *
+ *  - **The verdict travels with the requirements.** `fit` is computed here against
+ *    the machine this launcher runs on, because the requirement rows are
+ *    publisher prose ("RTX 2060 / RX 5700") and the club is the only party that
+ *    knows what is in seat 17. A view that compared the strings itself would
+ *    disagree with the counter's screen the first time a launcher spelled a card
+ *    differently.
+ *  - **`machineId` is a parameter, not a constant.** The launcher always asks
+ *    about its own seat, but the same endpoint answers "would this run in the VIP
+ *    zone" for the admin surface (Stage 3) — and a hardcoded seat would have made
+ *    that a second endpoint.
+ *  - **`screenshots` is empty and that is the answer.** The club ships covers, not
+ *    stills; the panel drops the gallery rather than framing placeholders, and the
+ *    asset run is the open `C4.1`.
  */
-export function fetchFeaturedGames(): Promise<Game[]> {
-  return query('catalog.fetchFeaturedGames', () =>
-    db.featuredGameIds
-      .map((id) => db.games.find((g) => g.id === id))
-      .filter((game): game is Game => game !== undefined),
-  )
+export function fetchGameDetail(
+  gameId: ID,
+  machineId: ID = db.currentMachineId,
+): Promise<GameDetail> {
+  return query('catalog.fetchGameDetail', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const machine = required(getMachine(machineId))
+    const { requirements, description } = getGameRequirements(game)
+
+    return {
+      ...game,
+      description,
+      requirements,
+      fit: getStationFit(game, machine.specs),
+      fitSeatLabel: machine.label,
+      seatSpecs: machine.specs,
+      screenshots: [],
+    }
+  })
 }
+
+/**
+ * `GET /api/games/:id/stats` — this member's history with one title (C4.5).
+ *
+ * Reduced from `game_launches` here for the same reason `sortGames` is: the client
+ * has never seen that table and must not learn to. An open-ended launch — the
+ * title running on this machine right now — is counted up to **server** now, so a
+ * station whose clock has drifted cannot inflate its own playtime (C2.18).
+ *
+ * A title never played answers `{ launches: 0, seconds: 0, lastPlayedAt: null }`
+ * rather than a 404: "you have not played this" is an answer the panel shows, not
+ * an error it has to survive.
+ */
+export function fetchGameStats(
+  gameId: ID,
+  userId: ID = db.currentUserId,
+): Promise<GameStats> {
+  return query('catalog.fetchGameStats', () => {
+    const now = Date.parse(serverTime())
+    const rows = db.gameLaunches.filter((l) => l.userId === userId && l.gameId === gameId)
+
+    let seconds = 0
+    let lastPlayedAt: ISODateTime | null = null
+    for (const launch of rows) {
+      const from = Date.parse(launch.startedAt)
+      const to = launch.endedAt ? Date.parse(launch.endedAt) : now
+      // `max(0, …)`: a row whose end is before its start is corrupt seed or a
+      // clock that moved, and negative playtime must not cancel a real launch out.
+      seconds += Math.max(0, Math.round((to - from) / 1000))
+      if (lastPlayedAt === null || from > Date.parse(lastPlayedAt)) lastPlayedAt = launch.startedAt
+    }
+
+    return { gameId, launches: rows.length, seconds, lastPlayedAt }
+  })
+}
+
+// `GET /api/games/featured` used to live here — the five covers of the old hero
+// row. C3.9 replaced that rail with the club's own deck (`GET /api/hero`), which
+// composes campaigns, brackets and the novelty shelf; nothing reads a curated
+// game list any more, and the shelf it *would* have duplicated is `gameReleases`.
 
 /** `GET /api/games/categories` — with counts, for the filter chips. */
 export function fetchGameCategories(): Promise<{ category: GameCategory; count: number }[]> {
@@ -102,11 +232,41 @@ export function fetchGameCategories(): Promise<{ category: GameCategory; count: 
   })
 }
 
-/** `GET /api/games/recent` — the member's continue-playing row. */
-export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Promise<Game[]> {
+/**
+ * One row of the "Continue" card (C3.2): a title the member has played, and when
+ * they last started it.
+ *
+ * The timestamp travels *with* the game rather than the row being a bare `Game`,
+ * because "last played" is the only thing that makes the card more than three
+ * more covers — it is what tells the player which of these three is the match
+ * they just stepped away from. Deriving it on the client would mean pulling the
+ * whole launch history onto the home surface and reducing it there, which is the
+ * same mistake `sortGames` exists to prevent one function above.
+ *
+ * A `Minutes` total is deliberately *not* here: the card has room for one fact,
+ * and the profile screen is where playtime per title belongs.
+ */
+export interface RecentGame {
+  game: Game
+  /** Start of the most recent launch of this title. */
+  lastPlayedAt: ISODateTime
+}
+
+/**
+ * `GET /api/games/recent` — the member's continue-playing row.
+ *
+ * Deduplicated by title, newest first: a player who restarted CS2 four times
+ * tonight has played *one* game, and a row that repeated it four times would
+ * bury the other two. `limit` is the caller's — the home card asks for three,
+ * and nothing about that number lives in this function.
+ */
+export function fetchRecentGames(
+  userId: ID = db.currentUserId,
+  limit = 6,
+): Promise<RecentGame[]> {
   return query('catalog.fetchRecentGames', () => {
     const seen = new Set<ID>()
-    const ordered: Game[] = []
+    const ordered: RecentGame[] = []
     const launches = db.gameLaunches
       .filter((l) => l.userId === userId)
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
@@ -116,7 +276,9 @@ export function fetchRecentGames(userId: ID = db.currentUserId, limit = 6): Prom
       const game = db.games.find((g) => g.id === launch.gameId)
       if (!game) continue
       seen.add(launch.gameId)
-      ordered.push(game)
+      // Newest-first order means the first row seen for a title *is* its latest
+      // launch, so no per-title max has to be computed.
+      ordered.push({ game, lastPlayedAt: launch.startedAt })
       if (ordered.length === limit) break
     }
     return ordered
@@ -175,6 +337,165 @@ export function fetchHouseAccounts(): Promise<HouseAccount[]> {
   return query('catalog.fetchHouseAccounts', () => db.houseAccounts)
 }
 
+/* ------------------------------------------------------------------ *
+ * House accounts: the grant, the release, the queue (C4.7)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Rows of the pool the club is allowed to lend out.
+ *
+ * A `linkedUser` row is somebody's own launcher login that happens to be stored
+ * on this machine — handing it to the next guest is not a pool the club owns, it
+ * is giving away an account. So the grant never sees it, and the dialog's list
+ * still shows it, because "present but not ours to lend" is a true statement
+ * about the pool.
+ */
+function isGrantable(account: HouseAccount): boolean {
+  return account.linkedUser === undefined
+}
+
+/** The response shape, read off the row the club wrote when it lent it out. */
+function toGrant(account: HouseAccount): HouseAccountGrant {
+  return {
+    accountId: account.id,
+    label: account.label,
+    sessionId: account.sessionId as ID,
+    gameId: account.grantedForGameId as ID,
+    grantedAt: account.grantedAt as ISODateTime,
+  }
+}
+
+/**
+ * `POST /api/club/accounts/grant` — hand a shared login to this visit (C4.7).
+ *
+ * **Idempotent per visit, on purpose.** A player who alt-tabs out of CS2 and
+ * starts it again is one visit needing one account, not two: without the lookup
+ * below, three restarts would eat the whole pool and the fourth guest of the
+ * evening would be told the club is full while two of its accounts sat claimed by
+ * a session that only ever played one game at a time.
+ *
+ * The game id is taken but no account is reserved *per title*, which is the club's
+ * actual rule: one shared login per seat, whatever is running on it.
+ *
+ * Refuses with `noFreeAccount` rather than `conflict`: the launcher has a whole
+ * state for this refusal (the queue panel), and it can only tell it apart from a
+ * generic clash by the code.
+ */
+export function grantHouseAccount(gameId: ID): Promise<HouseAccountGrant> {
+  return mutate('catalog.grantHouseAccount', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const sessionId = db.currentSessionId
+
+    const held = db.houseAccounts.find((a) => a.sessionId === sessionId)
+    if (held) return toGrant(held)
+
+    const free = db.houseAccounts.find((a) => a.status === 'available' && isGrantable(a))
+    if (!free) throw new ApiError('noFreeAccount')
+
+    free.status = 'in-use'
+    free.sessionId = sessionId
+    free.grantedForGameId = game.id
+    free.grantedAt = serverTime()
+    return toGrant(free)
+  })
+}
+
+/**
+ * `POST /api/club/accounts/release` — give the login back (C4.7).
+ *
+ * Scoped to the caller's own visit and silent when it does not match: the client
+ * calls this from the failure path of a launch, where "the row is somebody else's
+ * now" is not an error the player can act on — but freeing a stranger's account
+ * because a stale id was retried would take a game away from whoever is playing
+ * on it.
+ *
+ * Deliberately **not** in `OFFLINE_BLOCKED` (`client.ts`): a release hands a club
+ * resource back and is safe to honour late, while blocking it would leak the row
+ * for the rest of the evening.
+ */
+export function releaseHouseAccount(accountId: ID): Promise<void> {
+  return mutate('catalog.releaseHouseAccount', () => {
+    const account = db.houseAccounts.find((a) => a.id === accountId)
+    if (!account || account.sessionId !== db.currentSessionId) return
+    account.status = 'available'
+    account.sessionId = undefined
+    account.grantedForGameId = undefined
+    account.grantedAt = undefined
+  })
+}
+
+/**
+ * `GET /api/club/accounts/mine` — the login attached to this visit, or `null`.
+ *
+ * The **server** owns the fact, which is why this read exists at all: the grant
+ * outlives the dialog that asked for it, so the in-game strip has to be able to
+ * learn about it a minute later and after a reload, without the launch frame that
+ * produced it still being on screen.
+ */
+export function fetchAssignedHouseAccount(): Promise<HouseAccountGrant | null> {
+  return query('catalog.fetchAssignedHouseAccount', () => {
+    const held = db.houseAccounts.find((a) => a.sessionId === db.currentSessionId)
+    return held ? toGrant(held) : null
+  })
+}
+
+/** Tickets in club order, with the position the server assigns on every read. */
+function queueOf(gameId: ID): HouseAccountQueueTicket[] {
+  return db.houseAccountQueue
+    .filter((ticket) => ticket.gameId === gameId)
+    .map((ticket, index) => ({ ...ticket, position: index + 1 }))
+}
+
+/**
+ * `POST /api/club/accounts/queue` — take a place in line (C4.7).
+ *
+ * Idempotent for the same reason the grant is: a second press must return the
+ * ticket the visit already has, or an impatient player would push themselves to
+ * the back of a queue they were already first in.
+ */
+export function joinHouseAccountQueue(gameId: ID): Promise<HouseAccountQueueTicket> {
+  return mutate('catalog.joinHouseAccountQueue', () => {
+    const game = required(db.games.find((g) => g.id === gameId))
+    const sessionId = db.currentSessionId
+
+    const existing = db.houseAccountQueue.find(
+      (ticket) => ticket.gameId === game.id && ticket.sessionId === sessionId,
+    )
+    if (!existing) {
+      db.houseAccountQueue.push({
+        id: newId('hq'),
+        gameId: game.id,
+        sessionId,
+        // Overwritten by `queueOf` on the way out; stored so a snapshot restored
+        // without a read still carries a sane number.
+        position: db.houseAccountQueue.length + 1,
+        joinedAt: serverTime(),
+      })
+    }
+
+    return required(queueOf(game.id).find((ticket) => ticket.sessionId === sessionId))
+  })
+}
+
+/** `DELETE /api/club/accounts/queue` — leave the line. Everyone behind moves up. */
+export function leaveHouseAccountQueue(gameId: ID): Promise<void> {
+  return mutate('catalog.leaveHouseAccountQueue', () => {
+    const sessionId = db.currentSessionId
+    const index = db.houseAccountQueue.findIndex(
+      (ticket) => ticket.gameId === gameId && ticket.sessionId === sessionId,
+    )
+    if (index >= 0) db.houseAccountQueue.splice(index, 1)
+  })
+}
+
+/** `GET /api/club/accounts/queue` — this visit's ticket for a title, or `null`. */
+export function fetchHouseAccountQueueTicket(gameId: ID): Promise<HouseAccountQueueTicket | null> {
+  return query(
+    'catalog.fetchHouseAccountQueueTicket',
+    () => queueOf(gameId).find((ticket) => ticket.sessionId === db.currentSessionId) ?? null,
+  )
+}
+
 /** `GET /api/club` */
 export function fetchClub(): Promise<Club> {
   return query('catalog.fetchClub', () => db.club)
@@ -202,6 +523,144 @@ export function fetchMachine(machineId: ID = db.currentMachineId): Promise<Machi
   return query('catalog.fetchMachine', () => required(getMachine(machineId)))
 }
 
+/**
+ * The seat this launcher runs on, resolved into one answer (C1.6).
+ *
+ * The station panel needs the machine, its zone *and* whatever is booked on it
+ * next. Three separate reads would make the lock screen join them itself and
+ * paint a seat as free while its own booking row was still in flight, so the
+ * join happens here — the real `GET /api/club/station` answers the same shape.
+ *
+ * Hardware facts (`specs`) travel with it because the HUD strip states the panel
+ * and the GPU next to the status: those are club data, not agent telemetry, and
+ * a seat with a dead agent must still be able to say what it is (F5.4).
+ */
+export interface StationInfo {
+  machineId: ID
+  /** Display name of the seat, e.g. `PC #17`. Never built from the id in the UI. */
+  label: string
+  zoneId: ID
+  zoneName: string
+  zoneClass: ZoneClass
+  status: MachineStatus
+  /**
+   * Start of the next live reservation on this seat, `null` when the horizon
+   * below is empty. Drives the third status the panel can show — "booked from
+   * HH:MM" — which no other field can express: a seat that is free *right now*
+   * and taken in twenty minutes is neither `free` nor `reserved`.
+   */
+  nextBookingAt: ISODateTime | null
+  specs: MachineSpecs
+  /** `null` when the Windows agent has never checked in (F5.4). */
+  agentLastSeen: ISODateTime | null
+}
+
+/**
+ * How far ahead a reservation is worth naming on the lock screen. Beyond half a
+ * day "booked from 09:00" is not information a walk-in can act on, and it would
+ * make every seat in the club look taken.
+ */
+const STATION_BOOKING_HORIZON_MS = 12 * 60 * 60 * 1000
+
+/** Reservations that still hold the seat. Cancelled and no-show ones do not. */
+const HOLDING_BOOKING_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'checked-in']
+
+/** `GET /api/club/station` — seat + zone + next reservation, for the lock screen. */
+export function fetchStation(machineId: ID = db.currentMachineId): Promise<StationInfo> {
+  return query('catalog.fetchStation', () => {
+    const machine = required(getMachine(machineId))
+    const zone = required(getZone(machine.zoneId))
+    const now = Date.parse(serverTime())
+
+    const next = db.bookings
+      .filter(
+        (booking) =>
+          booking.machineId === machine.id &&
+          HOLDING_BOOKING_STATUSES.includes(booking.status) &&
+          // Still running counts: a booking whose window has started but whose
+          // check-in never happened is exactly what holds this seat now.
+          Date.parse(booking.endsAt) > now &&
+          Date.parse(booking.startsAt) - now < STATION_BOOKING_HORIZON_MS,
+      )
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0]
+
+    return {
+      machineId: machine.id,
+      label: machine.label,
+      zoneId: zone.id,
+      zoneName: zone.name,
+      zoneClass: zone.class,
+      status: machine.status,
+      nextBookingAt: next?.startsAt ?? null,
+      specs: machine.specs,
+      agentLastSeen: machine.agentLastSeen,
+    }
+  })
+}
+
+/**
+ * Who is sitting here right now (C1.7).
+ *
+ * `StationInfo.status` answers "can this seat be taken", which is the question
+ * the lock screen's strip asks. It cannot answer the one the *sign-in* asks —
+ * "is the person who just authenticated the person this seat already belongs
+ * to" — because `occupied` is an aggregate for the floor map and names nobody.
+ * Only the session row knows, so this is a separate read against the sessions,
+ * not another field on the seat.
+ *
+ * `holder` is a display name and the only human-readable field: a nickname for a
+ * member, the walk-in's own label for a guest. It travels as *data* because it is
+ * data — an admin-authored account name, not copy to translate (F2.2).
+ */
+export interface StationHolder {
+  sessionId: ID
+  machineId: ID
+  /** Nickname of the member, or the walk-in's label. Never an id. */
+  holder: string
+  /** `null` for a walk-in — there is no account to compare an arrival against. */
+  userId: ID | null
+  /** `null` for a member. Exactly one of the two is set, like `Session`. */
+  guestId: ID | null
+  /**
+   * `ended` never reaches the client: a closed session holds nothing, and a
+   * screen that had to filter it out would be one `if` away from locking a
+   * player out of a seat nobody is on.
+   */
+  state: Exclude<SessionState, 'ended'>
+  startedAt: ISODateTime
+}
+
+/**
+ * `GET /api/club/station/holder` — the live session on this seat, or `null`.
+ *
+ * A paused session counts, and that is the whole point: "Lock PC" keeps the
+ * seat, so a paused visit is exactly the case where the machine looks free and
+ * is not. Its own player walks back in by PIN (`fetchPausedVisit` /
+ * `unlockWithPin`, C1.10); for everybody else this endpoint is what stops a
+ * second visit from being opened on top of the first.
+ */
+export function fetchStationHolder(
+  machineId: ID = db.currentMachineId,
+): Promise<StationHolder | null> {
+  return query('catalog.fetchStationHolder', () => {
+    const live = getLiveSession(machineId)
+    if (!live) return null
+
+    const member = live.userId ? getPlayer(live.userId) : undefined
+    return {
+      sessionId: live.id,
+      machineId,
+      // Same label shape `continueAsGuest` hands out, so the screen does not
+      // have to tell a member and a walk-in apart just to print a name.
+      holder: member?.user.nickname ?? `Guest ${(live.guestId ?? live.id).slice(-4).toUpperCase()}`,
+      userId: live.userId,
+      guestId: live.guestId,
+      state: live.state as Exclude<SessionState, 'ended'>,
+      startedAt: live.startedAt,
+    }
+  })
+}
+
 export interface OccupancySummary {
   total: number
   free: number
@@ -227,4 +686,18 @@ export function fetchOccupancy(zoneId?: ID): Promise<OccupancySummary> {
       loadPct: seats.length === 0 ? 0 : Math.round((occupied / seats.length) * 100),
     }
   })
+}
+
+/**
+ * `GET /api/club/occupancy/zones` — free seats **per zone** (C1.8).
+ *
+ * `fetchOccupancy` answers "how full is the club"; the idle screen has to answer
+ * "where can I sit", and those are different questions: a walk-in reading `12
+ * free` from the door still has to be told that eleven of them are in the Main
+ * Hall and the last one is a €5/h console seat. Counted here rather than by the
+ * screen for the usual reason — a client that counts seats itself is a client
+ * that will disagree with the counter's screen.
+ */
+export function fetchZoneOccupancy(): Promise<ZoneOccupancy[]> {
+  return query('catalog.fetchZoneOccupancy', () => getZoneOccupancy())
 }

@@ -27,10 +27,27 @@
  * single interval in `session-manager.tsx` writes it so React can re-render each
  * second. Its meaning follows the billing mode — seconds left when prepaid,
  * seconds used when postpaid.
+ *
+ * `sessionPlayedSeconds` is the same arrangement for the *other* question — how
+ * long this visit has been running (C3.1) — and it is a separate anchor rather
+ * than arithmetic on the first, because adding time moves the remainder:
+ * `SESSION_LENGTH - sessionSeconds` measures the last purchase, not the evening.
+ * Both are written by the one tick, so the two directions cannot drift apart.
  */
-import { remainingSeconds, secondsSince, secondsToMinutes } from '@/lib/time'
-import type { ISODateTime, Seconds } from '@/lib/types/common'
-import type { BillingMode, SessionSnapshot } from '@/lib/types/session'
+import {
+  markSnapshotObserved,
+  monotonicSecondsSinceAnchor,
+  remainingSeconds,
+  secondsSince,
+  secondsToMinutes,
+} from '@/lib/time'
+import type { ID, ISODateTime, Seconds } from '@/lib/types/common'
+import type {
+  BillingMode,
+  SessionReport,
+  SessionSnapshot,
+  TimeSource,
+} from '@/lib/types/session'
 import type { SliceCreator } from '../types'
 
 /** Length of a prepaid session sold at the counter. */
@@ -54,14 +71,64 @@ export function timeChargeCents(secondsUsed: Seconds): number {
   return secondsToMinutes(secondsUsed) * POSTPAID_CENTS_PER_MINUTE
 }
 
+/**
+ * How much unreported time a **postpaid** seat may accrue before the club is
+ * asked to look at it (C2.17).
+ *
+ * Lives next to the rate because it is the same subject: what a walk-in minute
+ * costs, and how many of them the shell will let pile up without a word. It is a
+ * ceiling on the *reading* — `unreportedSeconds()`, the span the club has not
+ * heard about — never on the length of a visit. A guest who has been sitting for
+ * six hours with the link up has nothing to be warned about; one who has been
+ * sitting for thirty-one minutes with the link down does.
+ *
+ * Only postpaid has the problem. A prepaid seat carries its own wall in
+ * `expiresAt`: the clock runs out locally whether or not the server is
+ * reachable, so an outage cannot let anyone play more than they bought. A tab
+ * has no wall, so an eight-hour outage is a bill the guest first sees when it is
+ * already enormous — and the shell is the only thing in the room that can see it
+ * coming.
+ *
+ * Thirty minutes, because that is the largest amount of blind growth that can
+ * still be *explained* to a guest at the counter, and it lands well inside a
+ * club shift rather than after it.
+ *
+ * Reaching it changes nothing about the accounting. The clock does not stop, the
+ * tab is not closed locally and no charge is written: money is the server's
+ * (F3.7) and pausing a seat is the club's decision. All the ceiling buys is that
+ * somebody is told while the number is still small.
+ */
+export const OFFLINE_TAB_CAP_SECONDS = 30 * 60
+
 export interface SessionSlice {
   billingMode: BillingMode
+  /**
+   * Which pocket the minutes on the clock came out of (C2.2).
+   *
+   * Server-owned like the clock itself: it arrives in the snapshot and is
+   * *replaced* whenever one does, because whatever adds time also decides where
+   * the new time came from. An admin grant is the case that makes this a stored
+   * field rather than something derived — the seat keeps its billing mode and its
+   * deadline moves, so nothing else in this slice records that the extra minutes
+   * were a favour rather than a purchase.
+   */
+  timeSource: TimeSource
   /** Absolute deadline for prepaid time. `null` while paused — and always for postpaid. */
   expiresAt: ISODateTime | null
   /** Start of the current running span. Used by postpaid, `null` while paused. */
   runningSince: ISODateTime | null
   /** Server stamp paired with the anchors above; enables clock-skew correction. */
   serverTime: ISODateTime | null
+  /**
+   * The club's accounting epoch this clock was anchored to, or `null` when no
+   * snapshot has arrived yet (C2.14).
+   *
+   * Kept because the report the client is allowed to send is a *reading* attached
+   * to an epoch, and only the server knows which epoch is current: whatever moved
+   * time last minted it. `null` therefore means "there is nothing to report
+   * against", not "report zero".
+   */
+  anchorId: ID | null
   /**
    * The value carried across a pause: seconds *left* when prepaid, seconds
    * *used* when postpaid. Re-anchored into a timestamp on resume.
@@ -72,8 +139,80 @@ export interface SessionSlice {
   /** Derived cache written by `syncClock()`. Never decremented by hand. */
   sessionSeconds: Seconds
 
-  /** Fresh visit on the given billing model. */
-  startSession: (mode: BillingMode) => void
+  /**
+   * Billed seconds already behind this visit when the last anchor was set (C3.1).
+   *
+   * The banked half of the *other* direction. `bankedSeconds` answers "how much
+   * is left", this answers "how much has been played" — and the home greeting
+   * needs the second one, which no arithmetic on the first can recover: adding
+   * time moves the remainder, so `SESSION_LENGTH - sessionSeconds` measures the
+   * last purchase rather than the visit.
+   *
+   * Server-owned, like the remainder: it arrives in the snapshot and is replaced
+   * whenever one does. Both halves of the club's count are added, because they
+   * are the same fact split by billing model — a prepaid seat burns `secondsUsed`
+   * out of what it was granted, a walk-in has nothing granted and accrues the
+   * identical minutes into `debtSeconds`.
+   */
+  playedSeconds: Seconds
+  /**
+   * Derived cache of the played clock, written by the same `syncClock()` tick as
+   * `sessionSeconds` (F6.3).
+   *
+   * A cache rather than a second interval for the reason the whole slice exists:
+   * two timers counting the same visit in opposite directions would drift apart
+   * the first time the station slept, and the launcher would greet a player with
+   * "you have been playing 40 minutes" above a clock that had burned 55.
+   */
+  sessionPlayedSeconds: Seconds
+
+  /**
+   * Minute marks already announced this visit (C2.6) — 15 / 10 / 5 / 1.
+   *
+   * State, not a ref inside the warning component, for two reasons. The clock is
+   * re-*derived* rather than counted (F6.3), so a threshold can be crossed while
+   * the tab is backgrounded or the machine asleep: the announcement has to be
+   * decided from "has this mark been spoken", never from "did we see it tick past".
+   * And the mark has to survive the component unmounting on a screen change — a
+   * player who locks and unlocks the station must not be told the same thing twice.
+   */
+  warnedMinutes: number[]
+  /**
+   * When the last warning landed, or `null` while nothing is being announced.
+   *
+   * The HUD reads this to pulse (C2.6). It is a *timestamp* rather than a boolean
+   * so two warnings in a row restart the animation instead of leaving a flag that
+   * was already true — a 10-minute mark arriving during the 15-minute pulse would
+   * otherwise pass unseen.
+   */
+  warningPulseAt: number | null
+
+  /**
+   * Closing marks already announced this visit (C2.11) — 60 / 30 / 10 minutes
+   * before the club shuts.
+   *
+   * A **separate list** from `warnedMinutes`, not extra entries in it, because the
+   * two are measured against different clocks: `warnedMinutes` is a remainder the
+   * player can buy more of, this one is a wall nobody can move. Sharing one list
+   * would also make "60" ambiguous — a 60-minute session mark does not exist, but
+   * the next feature that adds one would silently mute the closing announcement.
+   *
+   * Per visit, like `warnedMinutes`, and for the same reason: the club's closing
+   * time does not change when a player locks the station and comes back, so they
+   * must not be told about it twice.
+   */
+  closingWarned: number[]
+
+  /**
+   * Fresh visit on the given billing model.
+   *
+   * `source` is optional because this is the *offline* opening path: when the
+   * mock API answered, `applySnapshot` has already named the pocket, and only a
+   * visit opened without server truth has to guess. The guess is deliberately the
+   * expensive one (`wallet`) — telling a player their minutes are banked pass
+   * time when they may be spending euros is the error that costs them money.
+   */
+  startSession: (mode: BillingMode, source?: TimeSource) => void
   /** Lock PC — the visit survives, the clock does not run. */
   pauseSession: () => void
   /** Unlock — re-anchor and resume, unless prepaid time is already spent. */
@@ -91,6 +230,28 @@ export interface SessionSlice {
   expireSession: () => void
   /** Acknowledge the expiry screen and hand the station back to the club. */
   clearExpired: () => void
+
+  /**
+   * Record that these minute marks have been announced, and start the HUD pulse.
+   *
+   * Takes a *list* because a station that was asleep can come back with several
+   * marks already behind it: warning about 15 minutes on a seat that now has 4
+   * left would be a lie, so the crossed marks are all retired in one write and
+   * only the most urgent of them is spoken.
+   */
+  noteTimeWarning: (minutes: number[]) => void
+  /** End the pulse. The warning is over; the colour on the digits carries on. */
+  clearWarningPulse: () => void
+
+  /**
+   * Record that these closing marks have been announced (C2.11).
+   *
+   * A list for the same reason `noteTimeWarning` takes one — a station that was
+   * asleep can wake with 60, 30 and 10 all behind it, and only the smallest of
+   * them is true. Unlike the session marks these are never re-armed: the club's
+   * closing time is not something a purchase can push back.
+   */
+  noteClosingWarning: (minutes: number[]) => void
 }
 
 /** Seconds on the clock right now, derived — down for prepaid, up for postpaid. */
@@ -103,7 +264,15 @@ function derive(s: {
   bankedSeconds: Seconds
 }): Seconds {
   if (!s.timerRunning) return s.bankedSeconds
-  if (s.billingMode === 'postpaid') return s.bankedSeconds + secondsSince(s.runningSince)
+  if (s.billingMode === 'postpaid') {
+    // The running span is measured monotonically (C2.18), with the wall clock as
+    // the fallback for a state that has no observed anchor. `runningSince` and the
+    // anchor stamp are written in the same instant, so this is the same span the
+    // report sends — a tab that grew by an hour on screen because someone fixed
+    // the kiosk's date would be a tab the club never agreed to.
+    const running = monotonicSecondsSinceAnchor(s.serverTime) ?? secondsSince(s.runningSince)
+    return s.bankedSeconds + running
+  }
   // Skew-corrected against the stamp the deadline arrived with, so a kiosk with a
   // wrong system clock still counts the time it was sold.
   return remainingSeconds({
@@ -113,15 +282,139 @@ function derive(s: {
   })
 }
 
+/**
+ * Seconds this visit has burned that the **server has not been told about yet**.
+ *
+ * The one number a client is allowed to report about time (F3.7): the agent says
+ * how much *elapsed*, the club does the accounting. Everything else in this slice
+ * answers "how much is left"; this answers "how much of that has the club not
+ * heard".
+ *
+ * It is derived from the anchors rather than counted, for the same reason the
+ * clock is (F6.3) — and, more importantly, because *counting* it is exactly the
+ * bug this function replaces. "Lock PC" used to report `SESSION_LENGTH - seconds`
+ * for a prepaid seat: the visit's total spent time, on the assumption that the
+ * clock had started at the store's own two hours and that nothing had ever been
+ * reported. Both halves fail on the path C1.10 is built for. A member who walks
+ * back into an adopted visit is anchored from the server's `secondsLeft`, so the
+ * difference from `SESSION_LENGTH` is time the row *already* counted — and
+ * locking the station charged it a second time. Measured on a real seat: 01:23:51
+ * on the launcher clock, 00:47 on the paused card it locked into. Thirty-six
+ * minutes destroyed by pressing lock, on the one screen whose whole promise is
+ * that the remainder survives.
+ *
+ * So both modes report the same thing — the span since the last anchor — and it
+ * is the same subtraction in each, only phrased in the direction that mode runs:
+ *
+ *  - **prepaid** — what the server said was left when the snapshot landed
+ *    (`expiresAt - serverTime`), minus what is left now.
+ *  - **postpaid** — how long the current running span has been running, which is
+ *    what `runningSince` was stamped for. The accrued `debtSeconds` that came
+ *    with the snapshot is *not* included: the row already has it.
+ *
+ * Zero while paused (a stopped clock burns nothing) and zero for a prepaid seat
+ * with no deadline to measure against. Under-reporting is the safe direction: an
+ * unreported second is time the club has not billed, while an over-reported one
+ * is time a player paid for and lost.
+ *
+ * **Measured monotonically, not by subtracting wall clocks** (C2.18). The screen
+ * and the report are different questions with different right answers: the screen
+ * has to agree with the deadline the server sent, so it stays skew-corrected
+ * through `serverTime`; the report only has to say how long this station has been
+ * running, and asking `Date.now()` makes that answer a property of the kiosk's
+ * system clock. An admin fixing the date mid-visit — backwards — used to erase
+ * every minute since the last snapshot (the span goes negative, the floor below
+ * turns it into zero, and the club is never told); forwards, it billed the player
+ * for time nobody sat down for. `monotonicSecondsSinceAnchor()` cannot be set, so
+ * neither happens. It returns `null` when there is no observed anchor to measure
+ * from (tests, server renders), and the wall-clock arithmetic stays as the
+ * fallback for exactly those callers.
+ *
+ * The price is that a monotonic clock may not advance while the machine is
+ * suspended, so a station resumed from sleep can report *less* than the wall
+ * clock would. That is the under-reporting direction, which this function is
+ * already built to prefer, and the next snapshot settles the difference.
+ */
+export function unreportedSeconds(s: {
+  billingMode: BillingMode
+  timerRunning: boolean
+  expiresAt: ISODateTime | null
+  runningSince: ISODateTime | null
+  serverTime: ISODateTime | null
+  bankedSeconds: Seconds
+}): Seconds {
+  if (!s.timerRunning) return 0
+  // Both anchors are stamped in the same instant the snapshot is observed, so one
+  // monotonic span answers for both modes.
+  const monotonic = monotonicSecondsSinceAnchor(s.serverTime)
+  if (s.billingMode === 'postpaid') return monotonic ?? secondsSince(s.runningSince)
+  const deadline = Date.parse(s.expiresAt ?? '')
+  const stamped = Date.parse(s.serverTime ?? '')
+  if (Number.isNaN(deadline) || Number.isNaN(stamped)) return 0
+  // What the server said was left when this snapshot landed. Both terms are
+  // server-stamped, so the ceiling holds whatever the kiosk clock believes.
+  const atAnchor = Math.max(0, Math.floor((deadline - stamped) / 1000))
+  // Capped at the anchor: a prepaid seat can never owe the club more than it was
+  // sold, however long the page has been open past its deadline.
+  if (monotonic !== null) return Math.min(atAnchor, monotonic)
+  return Math.max(0, atAnchor - derive(s))
+}
+
+/**
+ * The report the client is entitled to send, or `null` when there is nothing to
+ * send (C2.14).
+ *
+ * `null` means **stay quiet**, not "send a zero": without an anchor (a visit
+ * opened locally, no snapshot yet) the club has nothing to compare the reading
+ * with, and a zero reading is a request with no content in it.
+ *
+ * Built on `unreportedSeconds` rather than beside it, so there is exactly one way
+ * to answer "how much has the club not heard about".
+ */
+export function sessionReport(
+  s: Parameters<typeof unreportedSeconds>[0] & { anchorId: ID | null },
+): SessionReport | null {
+  if (!s.anchorId) return null
+  const elapsed = unreportedSeconds(s)
+  return elapsed > 0 ? { anchorId: s.anchorId, elapsedSinceAnchor: elapsed } : null
+}
+
+/**
+ * How long this visit has been played, derived (C3.1).
+ *
+ * Deliberately built on `unreportedSeconds` rather than on a second span of its
+ * own: that function already answers "how much has run since the last anchor" in
+ * whichever direction the mode counts, and it is the *same* span the club is owed
+ * an account of. Reusing it means the greeting and the heartbeat can never
+ * disagree about the length of the visit, and a paused clock contributes nothing
+ * here for free — a station locked at the bar is not time played.
+ */
+function derivePlayed(s: {
+  billingMode: BillingMode
+  timerRunning: boolean
+  expiresAt: ISODateTime | null
+  runningSince: ISODateTime | null
+  serverTime: ISODateTime | null
+  bankedSeconds: Seconds
+  playedSeconds: Seconds
+}): Seconds {
+  return s.playedSeconds + unreportedSeconds(s)
+}
+
 const nowIso = (): ISODateTime => new Date().toISOString()
 
 /** Anchors for a running span, from a banked value. */
 function anchor(mode: BillingMode, banked: Seconds) {
-  const now = nowIso()
+  const nowMs = Date.now()
+  const now = new Date(nowMs).toISOString()
+  // A locally minted stamp is observed at the instant it is minted. Saying so
+  // explicitly keeps `remainingSeconds` from having to guess, and keeps a resume
+  // that re-anchors to the same second from inheriting an older arrival time.
+  markSnapshotObserved(now, nowMs)
   return mode === 'postpaid'
     ? { expiresAt: null, runningSince: now, serverTime: now }
     : {
-        expiresAt: new Date(Date.now() + banked * 1000).toISOString(),
+        expiresAt: new Date(nowMs + banked * 1000).toISOString(),
         runningSince: null,
         serverTime: now,
       }
@@ -129,24 +422,46 @@ function anchor(mode: BillingMode, banked: Seconds) {
 
 export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   billingMode: 'prepaid',
+  timeSource: 'wallet',
   expiresAt: null,
   runningSince: null,
   serverTime: null,
+  anchorId: null,
   bankedSeconds: SESSION_LENGTH,
   timerRunning: false,
   sessionExpired: false,
   sessionSeconds: SESSION_LENGTH,
+  playedSeconds: 0,
+  sessionPlayedSeconds: 0,
+  warnedMinutes: [],
+  warningPulseAt: null,
+  closingWarned: [],
 
-  startSession: (mode) => {
+  startSession: (mode, source) => {
     // A prepaid visit opens with the hours it bought; a postpaid one opens at
     // zero used, because nothing has been owed yet.
     const banked = mode === 'prepaid' ? SESSION_LENGTH : 0
     set({
       billingMode: mode,
+      // Postpaid has no granted time to have a source, so the mode *is* the
+      // answer and a caller cannot override it into a lie.
+      timeSource: mode === 'postpaid' ? 'postpaid' : (source ?? 'wallet'),
       bankedSeconds: banked,
       sessionSeconds: banked,
+      // Nothing has been played yet, in either billing model — this is the one
+      // number that opens at zero regardless of what the seat was sold.
+      playedSeconds: 0,
+      sessionPlayedSeconds: 0,
       timerRunning: true,
       sessionExpired: false,
+      // Opened without server truth, so there is no epoch to report against yet:
+      // the first snapshot that lands names one (C2.14).
+      anchorId: null,
+      // A fresh visit has heard nothing yet, and the marks of the previous one
+      // are none of its business (C2.6, C2.11).
+      warnedMinutes: [],
+      warningPulseAt: null,
+      closingWarned: [],
       ...anchor(mode, banked),
     })
   },
@@ -154,10 +469,18 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   // Banking the derived value is what makes a pause lossless: the anchors are
   // dropped, so a paused visit has no deadline to drift against.
   pauseSession: () => {
-    const banked = derive(get())
+    const state = get()
+    const banked = derive(state)
+    // Banked *before* the anchors are dropped, for the same reason as the
+    // remainder: `derivePlayed` measures the running span against them, so
+    // clearing them first would silently forget everything played since the last
+    // snapshot — the minutes a locked station is most likely to be holding.
+    const played = derivePlayed(state)
     set({
       bankedSeconds: banked,
       sessionSeconds: banked,
+      playedSeconds: played,
+      sessionPlayedSeconds: played,
       timerRunning: false,
       expiresAt: null,
       runningSince: null,
@@ -178,31 +501,52 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
   resetSession: () =>
     set({
       billingMode: 'prepaid',
+      // The teardown path: a free station must not keep naming the pocket the
+      // player who just left was spending from, least of all an admin grant that
+      // belonged to their visit alone.
+      timeSource: 'wallet',
       bankedSeconds: SESSION_LENGTH,
       sessionSeconds: SESSION_LENGTH,
+      // A free station has played nothing. Leaving the previous visit's total
+      // here is what would greet the next player with somebody else's evening.
+      playedSeconds: 0,
+      sessionPlayedSeconds: 0,
       timerRunning: false,
       sessionExpired: false,
       expiresAt: null,
       runningSince: null,
       serverTime: null,
+      // A free station must not keep the epoch of the visit that just left: the
+      // next report would be attached to somebody else's row.
+      anchorId: null,
+      warnedMinutes: [],
+      warningPulseAt: null,
+      closingWarned: [],
     }),
 
   syncClock: () => {
     const state = get()
     if (!state.timerRunning) return
     const value = derive(state)
+    const played = derivePlayed(state)
 
     // Only prepaid time can run out. A guest reaching two hours owes for two
     // hours; ending their visit on a timer would be the shell inventing a limit
     // the club never sold.
     if (state.billingMode === 'prepaid' && value <= 0) {
-      set({ sessionSeconds: 0, bankedSeconds: 0 })
+      // The played total is banked on the way out rather than left at whatever the
+      // previous tick wrote: an expiry reached while the station slept crosses the
+      // deadline and the last minutes of the visit in the same instant, and the
+      // receipt behind the expiry screen has to include them.
+      set({ sessionSeconds: 0, bankedSeconds: 0, playedSeconds: played, sessionPlayedSeconds: played })
       get().expireSession()
       return
     }
     // Guard the write so a 1 Hz interval does not wake every subscriber when the
     // visible second has not actually changed (waking from sleep, fast resyncs).
-    if (value !== state.sessionSeconds) set({ sessionSeconds: value })
+    if (value !== state.sessionSeconds || played !== state.sessionPlayedSeconds) {
+      set({ sessionSeconds: value, sessionPlayedSeconds: played })
+    }
   },
 
   applySnapshot: (snapshot) => {
@@ -213,15 +557,61 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     // been run up. On a walk-in seat nothing is granted, so every billed second
     // is already in `debtSeconds` — the same figure the counter settles.
     const banked = postpaid ? snapshot.debtSeconds : snapshot.secondsLeft
+    // The club's own count of the visit's length (C3.1). Both halves are added
+    // rather than picked by mode, because they are one fact split by billing
+    // model: a prepaid seat burns `secondsUsed` out of what it was granted, a
+    // walk-in has nothing granted and accrues the identical minutes as debt. A
+    // prepaid seat carries no debt and a postpaid one nothing used, so the sum is
+    // the visit either way — and stays the visit if the club ever sells a walk-in
+    // an hour up front.
+    const played = snapshot.secondsUsed + snapshot.debtSeconds
+    // This snapshot is being adopted *now*, so the skew correction must measure
+    // from now. Without saying so, a stamp the client had seen before (a server
+    // answering twice in one second, or a mock clock that does not move) is dated
+    // to its previous arrival, and `remainingSeconds` deducts the whole gap from a
+    // deadline that was just re-granted — the "minutes vanished after unlocking"
+    // report this line exists to prevent.
+    markSnapshotObserved(snapshot.serverTime)
     set({
       billingMode: snapshot.billingMode,
+      // Written in the same `set` as the deadline it describes. A grant arrives as
+      // one snapshot — more minutes *and* a new pocket — so splitting the two
+      // writes would let the HUD render a frame naming the old source above the
+      // new remainder, which is the one combination that misinforms the player.
+      timeSource: snapshot.timeSource,
       expiresAt: running && !postpaid ? snapshot.expiresAt : null,
-      runningSince: running && postpaid ? snapshot.serverTime : null,
+      // The postpaid anchor is stamped on the **client** clock, not copied from
+      // `serverTime`. `derive` counts a running tab up with `secondsSince()`,
+      // which measures against `Date.now()`, so a server stamp here would be two
+      // timelines subtracted from each other: every second of skew between the
+      // club and this kiosk would land on the tab as billed time. Prepaid can
+      // safely carry the server's `expiresAt` because `remainingSeconds()` keeps
+      // the pair together and corrects for exactly that difference; the "up"
+      // direction has no such pair, so the snapshot's accrued seconds are banked
+      // and the count starts again from now.
+      runningSince: running && postpaid ? nowIso() : null,
       serverTime: snapshot.serverTime,
+      // Written in the same set as the anchors it belongs to: the reading the
+      // client sends next is measured from *this* snapshot, so an epoch out of
+      // step with the deadline beside it would be a report the club ignores.
+      anchorId: snapshot.anchorId,
       bankedSeconds: banked,
       sessionSeconds: banked,
+      // Re-anchored in the same write as the remainder: the snapshot is one
+      // instant of the club's books, and a played total left over from the
+      // previous one would be measured against the deadline that just replaced it.
+      playedSeconds: played,
+      sessionPlayedSeconds: played,
       timerRunning: running,
       sessionExpired: snapshot.state === 'ended',
+      // Time moved, so the warnings have to move with it (C2.6). A mark is kept
+      // *spoken* only while the seat is still below it; anything the new
+      // remainder has climbed back above is re-armed, so a player who extends at
+      // 4 minutes is warned again at 15 and at 5 rather than sliding into the
+      // next deadline in silence. Filtering rather than clearing is what keeps
+      // the opposite bug out: an admin correction that *removes* time must not
+      // replay the 15-minute toast the player already saw.
+      warnedMinutes: get().warnedMinutes.filter((minute) => banked <= minute * 60),
     })
   },
 
@@ -233,4 +623,18 @@ export const createSessionSlice: SliceCreator<SessionSlice> = (set, get) => ({
     set({ sessionExpired: false })
     get().logout()
   },
+
+  noteTimeWarning: (minutes) =>
+    set((s) => ({
+      warnedMinutes: [...new Set([...s.warnedMinutes, ...minutes])],
+      warningPulseAt: Date.now(),
+    })),
+
+  clearWarningPulse: () => set({ warningPulseAt: null }),
+
+  // No pulse on the time plate: the digits there are the *session's* remainder,
+  // and pulsing them for the club's closing would point the player at a number
+  // that is not the one changing (§4.2 — one runner per fact).
+  noteClosingWarning: (minutes) =>
+    set((s) => ({ closingWarned: [...new Set([...s.closingWarned, ...minutes])] })),
 })

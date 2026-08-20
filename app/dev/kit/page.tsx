@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation'
+import { KitClockSkew } from '@/components/dev-kit/kit-clock-skew'
 import { KitCrash } from '@/components/dev-kit/kit-crash'
 import { KitData } from '@/components/dev-kit/kit-data'
+import { KitMaterials } from '@/components/dev-kit/kit-materials'
+import { KitOfflineTabCap } from '@/components/dev-kit/kit-offline-tab-cap'
 import { KitSurfaces } from '@/components/dev-kit/kit-surfaces'
 import { Toaster } from '@/components/toaster'
 
@@ -74,14 +77,25 @@ export default function DevKitPage() {
           </div>
         </section>
 
+        {/* Sits directly after the tokens and before the primitives: materials,
+            neon tiers, veils and radii are the layer the primitives are built
+            out of, and the only part of the system a component gallery cannot
+            show (F9.6). */}
+        <KitMaterials />
         <KitSurfaces />
         <KitData />
         {/* Not an F1 primitive, but the only place the crash screen can be
             reviewed without breaking the real shell (F6.5). */}
         <KitCrash />
+        {/* Same reason: a postpaid tab that has grown for half an hour behind a
+            dead link cannot be produced on demand anywhere else (C2.17). */}
+        <KitOfflineTabCap />
+        {/* And the same reason again: a page cannot set the machine's clock, so a
+            kiosk with the wrong date is only reachable here (C2.18). */}
+        <KitClockSkew />
 
         <footer className="border-t border-border pt-6 text-xs text-text-low">
-          F1.1 – F1.22 · F6.5 · docs/DESIGN.md is the written counterpart to this page.
+          F1.1 – F1.23 · F6.5 · F9.6 · docs/DESIGN.md is the written counterpart to this page.
         </footer>
       </main>
 

@@ -28,19 +28,30 @@
  * See `components/toaster.tsx`.
  */
 
+import { AnimatePresence } from 'framer-motion'
 import { GuestNotice } from '@/components/launcher/guest-notice'
 import { InGameStrip } from '@/components/launcher/in-game-strip'
 import { MobileNav } from '@/components/launcher/mobile-nav'
 import { TopBar } from '@/components/launcher/top-bar'
 import { CartDrawer } from '@/components/launcher/cart-drawer'
+import { FirstRunTour } from '@/components/launcher/first-run-tour'
+import { GameDetailPanel } from '@/components/launcher/game-detail-panel'
 import { GameLaunchModal } from '@/components/launcher/game-launch-modal'
+import { SessionDetailModal } from '@/components/launcher/session-detail-modal'
 import { SettingsModal } from '@/components/launcher/settings-modal'
+import { TimeWarnings } from '@/components/launcher/time-warnings'
+import { ClubClosing } from '@/components/launcher/club-closing'
+import { SessionPauseOverlay } from '@/components/launcher/session-pause-overlay'
+import { SessionMovedOverlay } from '@/components/launcher/session-moved-overlay'
+import { DuplicateWindowScreen } from '@/components/duplicate-window-screen'
 import { SessionManager } from '@/components/session-manager'
 import { SfxArmBridge } from '@/components/sfx-arm-bridge'
 import { SfxGameBridge } from '@/components/sfx-game-bridge'
 import { SfxSettingsBridge } from '@/components/sfx-settings-bridge'
 import { Toaster } from '@/components/toaster'
+import { useReducedMotionAttribute } from '@/hooks/use-reduced-motion'
 import { useSfxPreload } from '@/hooks/use-sfx'
+import { useSingleWindow } from '@/hooks/use-single-window'
 import { useT } from '@/lib/i18n/provider'
 import type { LauncherSurface } from '@/lib/launcher-nav'
 
@@ -85,8 +96,11 @@ export function AppShell({
           unless a title holds the machine. */}
       <InGameStrip />
 
-      {/* `pb-24` on narrow screens is the mobile bar's reserved space: the bar is
-          fixed, so without it the last card would sit underneath the navigation. */}
+      {/* The 6rem rung on narrow screens is the mobile bar's reserved space: the
+          bar is fixed, so without it the last card would sit underneath the
+          navigation. It carries the device's bottom inset for the same reason the
+          bar does (C2.9) — the bar grew by that much, so the space held for it
+          has to as well, or the last row hides behind it on a notched phone. */}
       <main
         id="main-content"
         // The skip link's target has to be focusable itself, or the jump moves
@@ -94,7 +108,7 @@ export function AppShell({
         // go back to the avatar menu instead of into the section.
         tabIndex={-1}
         aria-label={t('nav.mainLandmark')}
-        className="flex-1 pb-24 outline-none sm:pb-10"
+        className="flex-1 pb-[calc(6rem+var(--frame-inset-bottom))] outline-none sm:pb-10"
       >
         <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
       </main>
@@ -133,16 +147,90 @@ export function AppShell({
  */
 export function GlobalOverlays() {
   useSfxPreload()
+  /**
+   * `<html data-reduce-motion>` (§4.5).
+   *
+   * `globals.css` damps the pure-CSS loops — the marquee, the wake hint, the
+   * caret, the neon ring's travelling angle — off this attribute, and nothing
+   * was setting it: the launcher's "Reduce animations" switch reached only the
+   * components that call the hook in JS, so a player who turned it on still got
+   * a scrolling crawl and a breathing pill. It belongs here for the same reason
+   * the toast host does — it has to hold on both screens and survive every
+   * screen change — and it writes to the document, so it renders nothing.
+   */
+  useReducedMotionAttribute()
+
+  /**
+   * One launcher per PC (C1.12).
+   *
+   * Read here rather than in `AppShell` for the same reason the toast host lives
+   * here: `AppShell` is the chrome of a *signed-in* surface, so a guard mounted
+   * inside it would leave the lock screen — the one screen where a stray window
+   * can claim a seat — unguarded, and would remount on every surface change,
+   * dropping and re-queueing the lock each time. `false` until the browser
+   * answers, so the panel never blinks on boot.
+   */
+  const duplicate = useSingleWindow()
 
   return (
     <>
+      {/* Before everything else, and it renders nothing in the window that holds
+          the lock. In the one that does not, it covers the whole product. */}
+      <AnimatePresence>{duplicate && <DuplicateWindowScreen key="duplicate" />}</AnimatePresence>
       <SfxArmBridge />
       <SfxSettingsBridge />
       <SfxGameBridge />
+      {/* One title, read about before it is started (C4.5). Mounted with the
+          other global overlays and reading its own id from the UI slice, so every
+          surface that shows a tile — the library, "Continue", the hero — opens the
+          same panel by setting one field. It sits *before* the launch dialog in
+          source order on purpose: both are on the `modal` rung, and the dialog the
+          panel raises has to land on top of it. */}
+      <GameDetailPanel />
       <GameLaunchModal />
       <CartDrawer />
+      {/* "My session" (C2.3). Mounted with the other global overlays rather than
+          in the top bar, because the HUD plate that opens it lives in chrome that
+          re-renders every second — a panel parented to it would remount its own
+          fetch on each tick. Reads its own `open` flag from the UI slice, so the
+          trigger only has to flip one boolean. */}
+      <SessionDetailModal />
       <SettingsModal />
       <SessionManager />
+      {/* Running out of time, announced (C2.6). Next to `SessionManager` because
+          it watches the same single clock and, like the expiry takeover, has to
+          be able to cover the launcher rather than live inside it — a watcher
+          mounted per screen would remount on every section change and re-arm
+          marks the visit has already been told about. Renders nothing until a
+          prepaid remainder crosses one. */}
+      <TimeWarnings />
+      {/* The club's day ending (C2.11). Next to the session watcher because it is
+          the same kind of thing about a different clock — and mounted globally for
+          the same two reasons: the marks must fire once per visit rather than once
+          per section change, and the "Club closed" overlay has to be able to cover
+          the launcher instead of living inside it. It stops no clock: closing ends
+          selling, never a session. */}
+      <ClubClosing />
+      {/* Paused by an admin (C2.7). Mounted here, above the launcher rather than
+          inside it, for the reason that makes the feature work at all: the shell
+          stays put, so a pause is a scrim over a live launcher instead of a
+          navigation, and lifting it hands back the exact screen — open cart,
+          typed search, scroll position — the player was on. */}
+      <SessionPauseOverlay />
+      {/* Re-seated by an admin (C2.8). Below the pause overlay in the tree and
+          below it in the stacking order too (`modal` under `blocking`), which is
+          the right way round: a paused seat cannot be walked away from until the
+          club unfreezes it, so the pause has to stay on top when both arrive.
+          Mounted globally for the same reason as the rest of this list — the
+          frame can land while the player is anywhere in the launcher, and a
+          watcher mounted per screen would miss it on every section change. */}
+      <SessionMovedOverlay />
+      {/* The first-run walk (C3.12). Global for a reason the others share and one
+          of its own: it dims the *chrome* — the session plate, the navigation rail,
+          the basket — so a tour mounted inside a section could not point at four
+          of its five steps. It renders nothing until the account says it has never
+          been offered, and nothing at all for a guest. */}
+      <FirstRunTour />
       <Toaster />
     </>
   )
