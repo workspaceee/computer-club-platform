@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -58,7 +58,7 @@ export function ErrorState({
         aria-hidden
         className="flex size-14 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger"
       >
-        <AlertTriangle size={24} />
+        <icons.error size={24} />
       </span>
 
       <div className="flex max-w-sm flex-col gap-1.5">
@@ -81,7 +81,7 @@ export function ErrorState({
               variant="secondary"
               loading={retrying}
               onClick={onRetry}
-              iconLeft={<RotateCcw aria-hidden />}
+              iconLeft={<icons.retry aria-hidden />}
             >
               {retryLabel}
             </Button>

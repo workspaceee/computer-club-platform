@@ -1,13 +1,18 @@
 'use client'
 
-import { Clock, Coins, Lock, Search, Timer, TrendingUp, User } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Grid, Row, Spec } from '@/components/dev-kit/kit-shell'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Countdown } from '@/components/ui/countdown'
+import { Dropdown } from '@/components/ui/dropdown'
 import { Field } from '@/components/ui/field'
+import { HudChip } from '@/components/ui/hud-chip'
+import { HudPlate } from '@/components/ui/hud-plate'
+import { IconAction } from '@/components/ui/icon-action'
 import { Money } from '@/components/ui/money'
+import { NavRail, type NavRailItem } from '@/components/ui/nav-rail'
 import { Panel } from '@/components/ui/panel'
 import { Progress } from '@/components/ui/progress'
 import { RingProgress } from '@/components/ui/ring-progress'
@@ -18,7 +23,21 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { Toggle } from '@/components/ui/toggle'
 import { useStore } from '@/lib/store'
 
-/** Form controls, data display and loyalty primitives (F1.5–F1.7, F1.11, F1.12, F1.17–F1.20). */
+/**
+ * Stand-in sections for the rail demo.
+ *
+ * Deliberately *not* imported from `lib/launcher-nav`: the kit demonstrates the
+ * primitive, and wiring it to the real table would make this page render whatever
+ * the launcher's navigation happens to be — and break when a section is renamed.
+ */
+const RAIL_ITEMS: NavRailItem<'home' | 'games' | 'shop' | 'profile'>[] = [
+  { id: 'home', label: 'Home', index: '01', icon: icons.home },
+  { id: 'games', label: 'Games', index: '02', icon: icons.games },
+  { id: 'shop', label: 'Shop', index: '03', icon: icons.shop },
+  { id: 'profile', label: 'Profile', index: '04', icon: icons.player },
+]
+
+/** Form controls, data display and loyalty primitives (F1.5–F1.7, F1.11, F1.12, F1.17–F1.20, F1.23). */
 export function KitData() {
   const [text, setText] = useState('')
   const [tab, setTab] = useState<'login' | 'guest'>('login')
@@ -26,6 +45,8 @@ export function KitData() {
   const [volume, setVolume] = useState(70)
   const [reduce, setReduce] = useState(false)
   const [res, setRes] = useState('1920x1080')
+  const [sort, setSort] = useState('popularity')
+  const [rail, setRail] = useState<(typeof RAIL_ITEMS)[number]['id']>('games')
   const toast = useStore((s) => s.toast)
 
   return (
@@ -34,7 +55,7 @@ export function KitData() {
         <div className="grid gap-4 rounded-lg border border-border bg-surface/40 p-4 sm:grid-cols-2">
           <Field
             label="Login"
-            icon={<User size={16} />}
+            icon={<icons.player size={16} />}
             placeholder="nickname"
             value={text}
             onValueChange={setText}
@@ -43,14 +64,14 @@ export function KitData() {
           <Field
             label="Password"
             type="password"
-            icon={<Lock size={16} />}
+            icon={<icons.lock size={16} />}
             placeholder="••••••••"
             error="Wrong login or password."
           />
-          <Field label="Search" icon={<Search size={16} />} placeholder="Find a game" />
+          <Field label="Search" icon={<icons.search size={16} />} placeholder="Find a game" />
           <Field
             label="Disabled"
-            icon={<User size={16} />}
+            icon={<icons.player size={16} />}
             placeholder="Locked by admin"
             disabled
           />
@@ -92,8 +113,8 @@ export function KitData() {
           <Segmented
             round
             options={[
-              { value: 'all', label: 'Hour', icon: <Clock size={14} /> },
-              { value: 'vip', label: 'Day', icon: <Timer size={14} /> },
+              { value: 'all', label: 'Hour', icon: <icons.clock size={14} /> },
+              { value: 'vip', label: 'Day', icon: <icons.calendar size={14} /> },
             ]}
             value={zone === 'ps5' ? 'all' : zone}
             onChange={setZone}
@@ -101,7 +122,11 @@ export function KitData() {
         </Row>
       </Spec>
 
-      <Spec id="F1.7" name="Slider / Toggle / Select" note="row and bare variants">
+      <Spec
+        id="F1.7"
+        name="Slider / Toggle / Select / Dropdown"
+        note="row and bare variants; native select vs in-skin listbox"
+      >
         <Panel variant="flat" className="flex flex-col gap-1">
           <Slider label="Master volume" value={volume} onChange={setVolume} suffix="%" />
           <Slider
@@ -142,20 +167,55 @@ export function KitData() {
           />
           <Slider hideValue value={volume} onChange={setVolume} className="w-64" />
         </Row>
+        {/* The two dropdowns stand next to each other on purpose: `Select` is the
+            native control in a product skin (fast, every input device, right for a
+            settings row), `Dropdown` draws its *open* panel too — which is what a
+            composed frame like the library filter row needs, because the OS panel
+            is grey where everything around it is not (C4.2). Open both to see the
+            difference the trigger alone cannot show. */}
+        <Row label="Dropdown — panel in the design system" stack>
+          <Dropdown
+            label="Sort library"
+            icon={<icons.sort size={15} />}
+            value={sort}
+            onChange={setSort}
+            className="w-56"
+            panelWidth="trigger"
+            align="start"
+            options={[
+              { value: 'popularity', label: 'Popularity' },
+              { value: 'az', label: 'A–Z' },
+              { value: 'recent', label: 'Recently played' },
+            ]}
+          />
+          <Dropdown
+            label="With hints and a disabled row"
+            showLabel
+            value={res}
+            onChange={setRes}
+            align="start"
+            className="w-72"
+            options={[
+              { value: '1920x1080', label: '1920 x 1080', hint: 'Native for this station' },
+              { value: '1366x768', label: '1366 x 768', hint: 'Falls back on the old seats' },
+              { value: '3840x2160', label: '3840 x 2160', hint: 'GPU cannot drive it', disabled: true },
+            ]}
+          />
+        </Row>
       </Spec>
 
       <Spec id="F1.11" name="StatTile" note="icon, value, delta, hint, tones">
         <Grid cols={4}>
-          <StatTile label="Time left" value="01:42:18" mono icon={<Clock size={16} />} />
+          <StatTile label="Time left" value="01:42:18" mono icon={<icons.clock size={16} />} />
           <StatTile
             label="Revenue today"
             value="€412.50"
             mono
             tone="success"
             delta={12.4}
-            icon={<TrendingUp size={16} />}
+            icon={<icons.trend size={16} />}
           />
-          <StatTile label="Coins" value="1 250" mono tone="coin" icon={<Coins size={16} />} />
+          <StatTile label="Coins" value="1 250" mono tone="coin" icon={<icons.coins size={16} />} />
           <StatTile label="Open tabs" value="3" tone="danger" delta={-8} hint="vs yesterday" />
         </Grid>
         <Grid cols={4}>
@@ -299,6 +359,194 @@ export function KitData() {
           >
             duration=0
           </Button>
+        </Row>
+      </Spec>
+
+      <Spec
+        id="F1.23"
+        name="HudChip"
+        note="telemetry chip — the shared bottom row of the login and idle screens (§5.3)"
+      >
+        {/* Literal samples on purpose: this is the gallery of the primitive, not
+            a station. The live seat readings belong to `StationPanel` (C1.6) —
+            wiring the kit to the club would make the tone rows below depend on
+            whichever seat this dev build happens to run on. */}
+        <Row label="the seam, exactly as both screens render it (values are live in the app)">
+          <HudChip dot variant="station" label="PC #17" value="Free" />
+          <HudChip label="Zone" value="Main Hall" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
+          <HudChip icon={<icons.display size={13} />} label="Display" value="240 Hz" />
+          <HudChip icon={<icons.hardware size={13} />} label="GPU" value="RTX 4080" />
+          <HudChip icon={<icons.status size={13} />} label="Status" value="Optimal" tone="accent" />
+        </Row>
+        <Row label="tone: default / accent / warning / danger / muted (icon + value, never the surface)">
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="4 ms" tone="accent" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="180 ms" tone="warning" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="lost" tone="danger" />
+          <HudChip icon={<icons.network size={13} />} label="Ping" value="—" tone="muted" />
+        </Row>
+        {/* The five seat states C1.6 has to be able to say. `station` reads
+            `default` as success, which is why "free" needs no tone. */}
+        <Row label="seat status, the five readings the station chip must carry">
+          <HudChip dot variant="station" label="PC #17" value="Free" />
+          <HudChip dot variant="station" label="PC #18" value="Free until 22:00" tone="default" />
+          <HudChip dot variant="station" label="PC #19" value="In use" tone="warning" />
+          <HudChip dot variant="station" label="PC #20" value="Booked from 21:30" tone="warning" />
+          <HudChip dot variant="station" label="PC #21" value="Maintenance" tone="danger" />
+        </Row>
+        <Row label="variants + optional parts (no icon, dot only, icon + dot)">
+          <HudChip variant="station" label="PC #17" value="READY" />
+          <HudChip label="Zone" value="VIP" />
+          <HudChip dot label="Session" value="LIVE" tone="accent" />
+          <HudChip dot icon={<icons.status size={13} />} label="Uplink" value="Stable" />
+        </Row>
+      </Spec>
+
+      <Spec
+        id="C2.1"
+        name="HudPlate"
+        note="bar-mounted reading — the right block of the top bar, tone tints the edge"
+      >
+        <Row label="tones (default / coin / warning ≤ 15m / danger ≤ 5m)">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={2 * 3600} size="sm" />}
+          />
+          <HudPlate
+            tone="coin"
+            icon={<icons.coins size={14} />}
+            label="Coins"
+            labelAt="always"
+            value="1 240"
+          />
+          <HudPlate
+            tone="warning"
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={12 * 60} size="sm" />}
+          />
+          <HudPlate
+            tone="danger"
+            icon={<icons.timer size={14} />}
+            label="Time left"
+            labelAt="always"
+            value={<Countdown seconds={3 * 60} size="sm" />}
+          />
+        </Row>
+        <Row label="what the two surfaces actually show (member coins vs walk-in tab, rising clock)">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Session time"
+            labelAt="always"
+            value={<Countdown seconds={47 * 60} size="sm" mode="elapsed" />}
+          />
+          <HudPlate
+            icon={<icons.bill size={14} />}
+            label="Open tab"
+            labelAt="always"
+            value={<Money value={1740} fromCents size="sm" />}
+          />
+          <HudPlate label="No icon" labelAt="always" value="—" />
+        </Row>
+        {/* C2.2. The four sources in one row, because their whole job is to be
+            told apart — and reaching them in the launcher means four different
+            session states (a banked pass, a wallet purchase, an admin grant, a
+            walk-in tab), which is exactly what a kit page is for. Labels are
+            written out rather than translated: the kit is dev-only, and reading
+            `t('session.sourceStaff')` here would only prove the dictionary
+            resolves, not that the four read differently at a glance. */}
+        <Row label="time source (C2.2) — pass / wallet / granted by admin / PostPaid">
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left · Pass"
+            labelAt="always"
+            value={<Countdown seconds={84 * 60} size="sm" />}
+          />
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Time left · Wallet"
+            labelAt="always"
+            value={<Countdown seconds={38 * 60} size="sm" />}
+          />
+          <HudPlate
+            tone="warning"
+            icon={<icons.timer size={14} />}
+            label="Time left · Granted"
+            labelAt="always"
+            value={<Countdown seconds={11 * 60} size="sm" />}
+          />
+          <HudPlate
+            icon={<icons.timer size={14} />}
+            label="Session time · PostPaid"
+            labelAt="always"
+            value={<Countdown seconds={47 * 60} size="sm" mode="elapsed" />}
+          />
+        </Row>
+      </Spec>
+
+      {/* The other half of the right-hand block: the plates above are readings,
+          these are doors. Here because the three call sites in the bar (bell,
+          basket, help) each show one state, and the states that matter — an
+          overflowing count, an open panel, the label a narrow bar drops — are
+          reachable in the launcher only by having mail, a full basket and a
+          viewport at the same time. */}
+      <Spec
+        id="C2.4"
+        name="IconAction"
+        note="icon-only bar door with an optional count — the badge is decoration, the count is in the name"
+      >
+        <Row label="counts (none / 2 primary = basket / 3 danger = the club talking / overflow 9+)">
+          <IconAction icon={<icons.support size={17} />} label="Help" />
+          <IconAction icon={<icons.cart size={17} />} label="Cart, 2 items" count={2} />
+          <IconAction
+            icon={<icons.notifications size={17} />}
+            label="Notifications, 3 unread messages"
+            count={3}
+            badgeTone="danger"
+          />
+          <IconAction
+            icon={<icons.notifications size={17} />}
+            label="Notifications, 24 unread messages"
+            count={24}
+            badgeTone="danger"
+            overflowLabel="9+"
+          />
+        </Row>
+        <Row label="resting vs open panel, and the printed label (prints from xl, name unaffected)">
+          <IconAction icon={<icons.cart size={17} />} label="Cart, empty" />
+          <IconAction icon={<icons.cart size={17} />} label="Cart, empty" active />
+          <IconAction icon={<icons.support size={17} />} label="Open Help" text="Help" />
+          <IconAction icon={<icons.support size={17} />} label="Open Help" text="Help" active />
+        </Row>
+      </Spec>
+
+      <Spec
+        id="C2.1 / nav"
+        name="NavRail"
+        note="launcher navigation — underline in the top bar, pill in the mobile bar"
+      >
+        <Row label="underline (desktop top bar; the rule hangs off the bar's edge, so it clips here)">
+          <NavRail
+            items={RAIL_ITEMS}
+            value={rail}
+            onChange={setRail}
+            label="Kit navigation"
+            className="h-12"
+          />
+        </Row>
+        <Row label="pill (mobile bottom bar), on the material it ships with">
+          <NavRail
+            items={RAIL_ITEMS}
+            value={rail}
+            onChange={setRail}
+            variant="pill"
+            label="Kit navigation, compact"
+            className="glass-strong w-full max-w-sm rounded-lg p-1"
+          />
         </Row>
       </Spec>
     </>

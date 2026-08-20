@@ -19,9 +19,44 @@
  */
 
 import { useCallback, useState } from 'react'
-import useSWR, { type SWRConfiguration } from 'swr'
+import useSWR, { type SWRConfiguration, useSWRConfig } from 'swr'
 import type { Key, SWRResponse } from 'swr'
 import { type ApiError, toApiError } from '@/lib/mock/api'
+
+/**
+ * Does an SWR key sit under one of these prefixes?
+ *
+ * One definition for both ways a read goes stale — a pushed event
+ * (`EVENT_INVALIDATES`, `useRealtimeRevalidation`) and a mutation this client
+ * just made (`useInvalidate`). Two copies of this rule would be two answers to
+ * "is `['loyalty/battlepass', email]` part of the loyalty family", and the pass
+ * would refresh on the club's news but not on the player's own claim.
+ */
+export function keyMatches(key: unknown, prefixes: readonly string[]): boolean {
+  const head =
+    typeof key === 'string' ? key : Array.isArray(key) && typeof key[0] === 'string' ? key[0] : null
+  if (head === null) return false
+  return prefixes.some((prefix) => head === prefix || head.startsWith(`${prefix}/`))
+}
+
+/**
+ * Revalidates every read under the given key prefixes.
+ *
+ * For the writes whose effects reach further than the endpoint that was called:
+ * claiming a quest pays coins *and* moves season XP, so a card that only
+ * re-read its own list would leave the Battle Pass beside it a level behind
+ * until the next push. The server is the one that knows both numbers, so the
+ * fix is to re-ask it rather than to patch two caches by hand.
+ */
+export function useInvalidate(): (...prefixes: string[]) => Promise<void> {
+  const { mutate } = useSWRConfig()
+  return useCallback(
+    async (...prefixes: string[]) => {
+      await mutate((key: unknown) => keyMatches(key, prefixes))
+    },
+    [mutate],
+  )
+}
 
 export interface ApiState<T> {
   /** Last successful payload. Stays put while a retry is in flight. */

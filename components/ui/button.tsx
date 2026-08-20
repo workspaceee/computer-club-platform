@@ -1,7 +1,7 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Loader2 } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 /**
@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils'
 const buttonVariants = cva(
   [
     'group/button relative inline-flex shrink-0 select-none items-center justify-center gap-2',
-    'font-display font-bold uppercase tracking-[0.14em] whitespace-nowrap',
     'border transition-all duration-200 outline-none',
     // Mandatory, always-visible focus ring (§0.4 accessibility rule).
     'focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -42,19 +41,54 @@ const buttonVariants = cva(
         lg: 'h-12 rounded-md px-5 text-sm [&_svg]:size-[18px]',
         xl: 'h-14 rounded-lg px-7 text-base [&_svg]:size-5',
       },
+      /**
+       * Label voice. `display` is the product's button voice — tracked
+       * uppercase slab, right for anything that commits (§1 typography).
+       *
+       * `plain` exists because C1.1 found the limit of a single voice: the
+       * three tertiary options under the sign-in CTA ("QR login", "Demo",
+       * "Admin") sit in ~90 px cells, and LT renders `admin` as
+       * "Administratorius". Uppercase at 0.14em tracking makes that word
+       * three lines. F2.6 is a design constraint, not a translation
+       * problem — so a quiet, sentence-case voice is part of the system
+       * rather than four `className` overrides at every call site.
+       */
+      voice: {
+        display: 'font-display font-bold uppercase tracking-[0.14em]',
+        plain: 'font-sans font-medium tracking-normal normal-case',
+      },
+      /**
+       * Icon above the label instead of beside it — the tile-shaped option
+       * button (QR / Demo / Admin here, quick actions later). Height goes
+       * auto because the stack is taller than the row it replaces.
+       */
+      stack: {
+        true: 'h-auto flex-col gap-2 py-3',
+        false: 'whitespace-nowrap',
+      },
       /** Full-width block button (forms, drawers). */
       block: { true: 'w-full', false: '' },
       /**
        * Signature bevelled corner + sheen. Reserved for the ONE primary action
        * on a screen — docs/DESIGN.md §4 forbids this shape anywhere else.
        */
-      cut: { true: 'cut-corner overflow-hidden', false: '' },
+      /**
+       * `rounded-none` is part of the shape, not a caller's override: the
+       * bevel is a 12 px straight cut, and a 6–10 px radius on the other
+       * three corners plus a *rounded* clip on the fourth reads as a
+       * rendering accident rather than a machined edge (C1.1 caught this on
+       * the sign-in CTA, whose F9 reference is square). `cut` is declared
+       * after `size` so the radius reset wins the merge.
+       */
+      cut: { true: 'cut-corner overflow-hidden rounded-none', false: '' },
     },
     defaultVariants: {
       variant: 'primary',
       size: 'md',
       block: false,
       cut: false,
+      voice: 'display',
+      stack: false,
     },
   },
 )
@@ -76,6 +110,8 @@ export function Button({
   size,
   block,
   cut,
+  voice,
+  stack,
   loading = false,
   disabled,
   iconLeft,
@@ -90,7 +126,7 @@ export function Button({
       data-slot="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(buttonVariants({ variant, size, block, cut }), className)}
+      className={cn(buttonVariants({ variant, size, block, cut, voice, stack }), className)}
       {...props}
     >
       {/* Sheen sweep — only meaningful on the bevelled CTA. */}
@@ -103,7 +139,7 @@ export function Button({
 
       {loading ? (
         <>
-          <Loader2 className="animate-spin" aria-hidden />
+          <icons.pending className="animate-spin" aria-hidden />
           <span className="sr-only">Loading</span>
         </>
       ) : (
@@ -128,7 +164,9 @@ export function IconButton({
   size = 'md',
   children,
   ...props
-}: Omit<ButtonProps, 'iconLeft' | 'iconRight' | 'block' | 'cut'> & { label: string }) {
+}: Omit<ButtonProps, 'iconLeft' | 'iconRight' | 'block' | 'cut' | 'stack' | 'voice'> & {
+  label: string
+}) {
   const box = { sm: 'size-8', md: 'size-10', lg: 'size-12', xl: 'size-14' }[size ?? 'md']
   return (
     <Button

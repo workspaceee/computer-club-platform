@@ -17,7 +17,7 @@
  * Copy comes from the `agent` namespace, never from the agent itself.
  */
 
-import { AlertTriangle, Gauge, Headphones, Keyboard, Mic, Monitor, MousePointer2, PlugZap, RefreshCw, type LucideIcon } from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { useState } from 'react'
 import { IconTile } from '@/components/icon-tile'
 import { Button } from '@/components/ui/button'
@@ -32,32 +32,32 @@ import { cn } from '@/lib/utils'
 /** Presentation for each target: icon plus the two dictionary keys. */
 const PANELS: Record<NativePanelTarget, { icon: LucideIcon; nameKey: TKey; hintKey: TKey }> = {
   'nvidia-control-panel': {
-    icon: Gauge,
+    icon: icons.performance,
     nameKey: 'agent.panelNvidia',
     hintKey: 'agent.panelNvidiaHint',
   },
   'windows-display': {
-    icon: Monitor,
+    icon: icons.display,
     nameKey: 'agent.panelWindowsDisplay',
     hintKey: 'agent.panelWindowsDisplayHint',
   },
   'audio-output': {
-    icon: Headphones,
+    icon: icons.headphones,
     nameKey: 'agent.panelAudioOutput',
     hintKey: 'agent.panelAudioOutputHint',
   },
   'audio-input': {
-    icon: Mic,
+    icon: icons.microphone,
     nameKey: 'agent.panelAudioInput',
     hintKey: 'agent.panelAudioInputHint',
   },
   mouse: {
-    icon: MousePointer2,
+    icon: icons.mouse,
     nameKey: 'agent.panelMouse',
     hintKey: 'agent.panelMouseHint',
   },
   keyboard: {
-    icon: Keyboard,
+    icon: icons.keyboard,
     nameKey: 'agent.panelKeyboard',
     hintKey: 'agent.panelKeyboardHint',
   },
@@ -93,7 +93,7 @@ export function NativePanels({ className }: { className?: string }) {
           role="status"
           className="flex flex-col gap-3 rounded-lg border border-warning/30 bg-warning/[0.07] p-4 sm:flex-row sm:items-center"
         >
-          <AlertTriangle size={18} className="shrink-0 text-warning" aria-hidden />
+          <icons.warning size={18} className="shrink-0 text-warning" aria-hidden />
           <div className="flex-1">
             <p className="font-display text-sm font-bold uppercase tracking-tight text-text-high">
               {t('agent.statusUnavailable')}
@@ -107,7 +107,7 @@ export function NativePanels({ className }: { className?: string }) {
             size="sm"
             onClick={recheck}
             loading={rechecking}
-            iconLeft={<RefreshCw aria-hidden />}
+            iconLeft={<icons.retry aria-hidden />}
             className="shrink-0 self-start sm:self-auto"
           >
             {t('agent.recheck')}
@@ -145,7 +145,7 @@ export function NativePanels({ className }: { className?: string }) {
                 )}
               >
                 <IconTile
-                  icon={usable ? icon : PlugZap}
+                  icon={usable ? icon : icons.agentOffline}
                   size="md"
                   variant={usable ? 'default' : 'muted'}
                 />

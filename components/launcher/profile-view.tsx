@@ -1,25 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import {
-  Award,
-  Calendar,
-  Clock,
-  Coins,
-  Crown,
-  Flame,
-  Gamepad2,
-  Lock,
-  type LucideIcon,
-  Moon,
-  Settings,
-  Shirt,
-  Sparkles,
-  Target,
-  Trophy,
-  Zap,
-  ShoppingBag,
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 import { DataBoundary } from '@/components/data-boundary'
 import { IconTile } from '@/components/icon-tile'
 import { Skeleton } from '@/components/skeleton'
@@ -30,20 +12,20 @@ import { fetchAchievements, fetchActivity } from '@/lib/mock/api'
 import { useStore } from '@/lib/store'
 
 const ACH_ICONS: Record<string, LucideIcon> = {
-  zap: Zap,
-  target: Target,
-  flame: Flame,
-  coins: Coins,
-  moon: Moon,
-  shirt: Shirt,
-  crown: Crown,
-  calendar: Calendar,
+  zap: icons.energy,
+  target: icons.accuracy,
+  flame: icons.streak,
+  coins: icons.coins,
+  moon: icons.night,
+  shirt: icons.merch,
+  crown: icons.premium,
+  calendar: icons.calendar,
 }
 
 const ACTIVITY_ICONS: Record<string, LucideIcon> = {
-  game: Gamepad2,
-  purchase: ShoppingBag,
-  achievement: Award,
+  game: icons.games,
+  purchase: icons.shop,
+  achievement: icons.achievement,
 }
 
 const ACTIVITY_ACCENT: Record<string, string> = {
@@ -109,7 +91,7 @@ function XpRing({ pct, initials, level }: { pct: number; initials: string; level
         {initials}
       </div>
       <span className="label-mono absolute -bottom-1 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-md border border-primary/40 bg-surface-2 px-2.5 py-1 text-[9px] text-text-high shadow-lg">
-        <Sparkles className="h-3 w-3 text-primary" />
+        <icons.level className="h-3 w-3 text-primary" />
         LVL {level}
       </span>
     </div>
@@ -159,7 +141,7 @@ export function ProfileView() {
             </div>
             <p className="mt-1 text-sm text-text-medium">{user.email}</p>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-text-low">
-              <Calendar className="h-3.5 w-3.5" />
+              <icons.calendar className="h-3.5 w-3.5" />
               Member since {user.memberSince}
             </p>
 
@@ -183,7 +165,7 @@ export function ProfileView() {
 
           <div className="flex flex-row gap-3 md:flex-col">
             <div className="flex flex-1 items-center gap-2.5 rounded-lg border border-warning/25 bg-warning/10 px-4 py-3">
-              <Coins className="h-5 w-5 text-warning" />
+              <icons.coins className="h-5 w-5 text-warning" />
               <div>
                 <p className="font-display text-lg font-bold leading-none tabular-nums text-text-high">
                   {coins.toLocaleString()}
@@ -196,7 +178,7 @@ export function ProfileView() {
               onClick={() => setSettingsOpen(true)}
               className="flex items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm font-semibold text-text-high transition-colors hover:border-border-strong hover:bg-white/5"
             >
-              <Settings className="h-4 w-4" />
+              <icons.settings className="h-4 w-4" />
               <span className="hidden sm:inline">Settings</span>
             </button>
           </div>
@@ -205,11 +187,11 @@ export function ProfileView() {
 
       {/* Stats */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard icon={Clock} label="Total hours" value={`${user.totalHours}h`} delay={0.05} />
-        <StatCard icon={Gamepad2} label="Games played" value={String(user.gamesPlayed)} delay={0.1} />
-        <StatCard icon={Calendar} label="Sessions" value={String(user.sessions)} delay={0.15} />
+        <StatCard icon={icons.clock} label="Total hours" value={`${user.totalHours}h`} delay={0.05} />
+        <StatCard icon={icons.games} label="Games played" value={String(user.gamesPlayed)} delay={0.1} />
+        <StatCard icon={icons.calendar} label="Sessions" value={String(user.sessions)} delay={0.15} />
         <StatCard
-          icon={Trophy}
+          icon={icons.achievement}
           label="Achievements"
           value={`${user.achievementsUnlocked}/${user.achievementsTotal}`}
           delay={0.2}
@@ -244,7 +226,7 @@ export function ProfileView() {
             isEmpty={(rows) => rows.length === 0}
             empty={
               <EmptyState
-                icon={Trophy}
+                icon={icons.achievement}
                 title={t('loyalty.noAchievements')}
                 description={t('loyalty.noAchievementsBody')}
               />
@@ -253,7 +235,7 @@ export function ProfileView() {
             {(rows) => (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {rows.map((a, i) => {
-                  const Icon = ACH_ICONS[a.icon] ?? Award
+                  const Icon = ACH_ICONS[a.icon] ?? icons.achievement
                   return (
                     <motion.div
                       key={a.id}
@@ -278,7 +260,7 @@ export function ProfileView() {
                         <Icon className="h-5 w-5" />
                         {!a.unlocked && (
                           <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-surface-2 text-text-low">
-                            <Lock className="h-2.5 w-2.5" />
+                            <icons.lock className="h-2.5 w-2.5" />
                           </span>
                         )}
                       </span>
@@ -312,7 +294,7 @@ export function ProfileView() {
             isEmpty={(rows) => rows.length === 0}
             empty={
               <EmptyState
-                icon={Gamepad2}
+                icon={icons.games}
                 title={t('loyalty.noActivity')}
                 description={t('loyalty.noActivityBody')}
               />
@@ -322,7 +304,7 @@ export function ProfileView() {
               <ol className="relative flex flex-col">
                 <span className="absolute bottom-4 left-[15px] top-4 w-px bg-border" aria-hidden />
                 {rows.map((e, i) => {
-                  const Icon = ACTIVITY_ICONS[e.type] ?? Gamepad2
+                  const Icon = ACTIVITY_ICONS[e.type] ?? icons.games
                   return (
                     <motion.li
                       key={e.id}

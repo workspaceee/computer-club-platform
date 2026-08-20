@@ -1,9 +1,10 @@
 'use client'
 
 import confetti from 'canvas-confetti'
-import { CheckCircle2, CreditCard, Loader2, Lock } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useState } from 'react'
 import { Modal } from '@/components/ui/modal'
+import { useSalesGate } from '@/hooks/use-sales-gate'
 import { useT } from '@/lib/i18n/provider'
 import type { TKey } from '@/lib/i18n/types'
 import { checkoutCart, toApiError } from '@/lib/mock/api'
@@ -31,6 +32,21 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
   const totalCents = cartTotalCents(cart)
 
+  /**
+   * The gate, read *live* rather than at open time (C2.12).
+   *
+   * This dialog is the one surface that can be sitting open, with a card number
+   * already typed into it, at the moment the link goes down: the drawer's button
+   * was legitimately enabled when it was pressed. So the refusal has to be able to
+   * arrive mid-form — the Pay button goes off under the player's hand, and `pay()`
+   * checks again before it posts, because a click can beat a re-render.
+   *
+   * The form is *not* torn down and the fields are not cleared. The link comes
+   * back in seconds and re-typing a card number is the rudest thing this dialog
+   * could do; the only thing that stops is the charge.
+   */
+  const sales = useSalesGate()
+
   const valid =
     onlyDigits(card).length === 16 &&
     expiry.length === 5 &&
@@ -53,6 +69,14 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
   const pay = async () => {
     if (!valid) return
+    // The click that beat the re-render. Refused here rather than allowed to
+    // reach the endpoint, and it says what the player needs to hear first —
+    // nothing was charged. The transport refuses it too (`lib/mock/api/client.ts`),
+    // so this is a courtesy with a better sentence, not the safety net.
+    if (!sales.canSpend) {
+      toast('error', t('realtime.salesRefused'))
+      return
+    }
     setStatus('processing')
     try {
       // The basket posts ids and quantities only — the server prices it, charges
@@ -97,7 +121,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
     <Modal
       open={open}
       onClose={close}
-      eyebrow={<CreditCard size={14} aria-hidden />}
+      eyebrow={<icons.payment size={14} aria-hidden />}
       title={t('shop.checkout')}
       // A click outside or an Escape must not abandon an in-flight charge, and
       // during processing that also hides the close button.
@@ -111,7 +135,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
       <>
             {status === 'done' ? (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto py-6 text-center">
-                <CheckCircle2 size={56} className="text-success" aria-hidden />
+                <icons.success size={56} className="text-success" aria-hidden />
                 {/* The result has to reach a screen reader that is not looking at
                     the tick: the region announces itself when the state flips. */}
                 <div role="status" aria-live="polite">
@@ -125,7 +149,8 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
               </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col gap-4">
-                <div className="flex items-center justify-between rounded-lg bg-black/25 px-4 py-3">
+                {/* Grouped total — recessed into the dialog (`well-shallow`, §3.3). */}
+                <div className="well-shallow flex items-center justify-between rounded-lg px-4 py-3">
                   <span className="text-sm text-text-medium">{t('shop.total')}</span>
                   <span className="font-display text-xl font-black text-text-high">
                     {formatEur(totalCents)}
@@ -184,13 +209,13 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
                 <button
                   onClick={pay}
-                  disabled={!valid || status === 'processing'}
+                  disabled={!valid || status === 'processing' || !sales.canSpend}
                   aria-busy={status === 'processing'}
                   className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary font-display font-bold uppercase tracking-wide text-primary-foreground transition-all hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {status === 'processing' ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" aria-hidden />
+                      <icons.pending size={18} className="animate-spin" aria-hidden />
                       {/* A spinner is not an accessible name: without this the
                           button announces itself as "button, busy" and nothing
                           says what is being waited on. */}
@@ -198,11 +223,26 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
                     </>
                   ) : (
                     <>
-                      <Lock size={15} aria-hidden />
+                      <icons.lock size={15} aria-hidden />
                       Pay {formatEur(totalCents)}
                     </>
                   )}
                 </button>
+                {/* Why the button is dead, said next to the button — a greyed-out
+                    "Pay €12.40" with a filled-in card form above it and no
+                    explanation is indistinguishable from a broken checkout.
+                    `role="status"`: it can appear while the player is looking at
+                    the form, so it has to announce itself. */}
+                {!sales.canSpend && (
+                  <p
+                    role="status"
+                    className="text-pretty text-center text-xs leading-relaxed text-warning"
+                  >
+                    {sales.reason === 'closed'
+                      ? t('shop.closedCheckoutHint')
+                      : `${t('realtime.salesTitle')} — ${t('realtime.salesHint')}`}
+                  </p>
+                )}
                 <p className="text-center text-xs text-text-low">
                   Mock payment — no real card is charged.
                 </p>
@@ -226,7 +266,9 @@ function CardField({ label, children }: { label: string; children: React.ReactNo
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-xs font-medium uppercase tracking-wide text-text-low">{label}</span>
-      <div className="rounded-lg border border-border bg-black/20 px-3 py-2.5 focus-within:border-primary">
+      {/* An input frame is a `well` (§3.3) — the same recess `Field` uses, so a
+          card number does not read as a shallower hole than an email. */}
+      <div className="well rounded-lg border border-border px-3 py-2.5 focus-within:border-primary focus-within:well-deep">
         {children}
       </div>
     </label>

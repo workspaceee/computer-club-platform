@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { icons } from '@/lib/icons'
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -66,7 +66,7 @@ export function Select({
           </option>
         ))}
       </select>
-      <ChevronDown
+      <icons.expand
         size={14}
         aria-hidden
         className="pointer-events-none absolute right-2.5 text-text-low"
