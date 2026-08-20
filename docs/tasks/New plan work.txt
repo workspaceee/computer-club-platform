@@ -1,0 +1,99 @@
+Контекст (что есть сейчас)
+Модалка запуска (components/launcher/game-launch-modal.tsx) показывает невыбираемый список пула (fetchHouseAccounts) — «вид на пул». В нём висит ряд Personal Steam Account (linkedUser), который грант никогда не выдаёт.
+Хук (hooks/use-game-launch.ts) для титулов с needsHouseAccount: true всегда вызывает grantHouseAccount(gameId) — сервер сам выбирает свободную строку. Личного режима нет вообще.
+In-game strip (components/launcher/in-game-strip.tsx) печатает выданный аккаунт (fetchAssignedHouseAccount) и возвращает его в пул при выходе.
+Админ симулируется через /dev/bus (components/dev-kit/bus-console.tsx + lib/realtime/admin-sim.ts): кнопка → запись в mock db → persist → frame в mockBus.
+Все строки — только через словари (lib/i18n/dictionaries/{en,ru,lt}.ts), деньги/факты владеет сервер, реestr событий закрыт в lib/realtime/events.ts.
+Целевое поведение
+Две плитки в модалке запуска (только для игр с needsHouseAccount: true):
+Личный аккаунт — лаунчер открывается «чистым», клиент логинится сам. Грант не запрашивается, шаг «Назначаем аккаунт» из чеклиста исчезает.
+Клубный аккаунт — как сейчас: сервер выдаёт свободную строку, после гранта в чеклисте видно «Аккаунт IMBA_0X закреплён за тобой». На плитке живые счётчики: N свободно · M занято.
+Жалобы на клубные аккаунты: игрок всегда может пожаловаться на нерабочий/забаненный аккаунт; аккаунт уходит в карантин (исключён из выдачи) до решения админа; админ видит жалобы в /dev/bus и решает «починил → вернуть в пул» или «отклонить».
+Часть 1. Режим запуска: личный / клубный
+1.1 Типы — lib/types/catalog.ts
+Новый тип: export type LaunchAccountMode = 'personal' | 'club'.
+1.2 Хук — hooks/use-game-launch.ts
+launch(game, mode: LaunchAccountMode = 'club').
+needsAccount = game.needsHouseAccount && mode === 'club' — от этого уже зависят: offline-гейт (isTransportOffline), вызов grantHouseAccount, строка «account» в steps, передача houseAccountId агенту. Личный режим просто идёт по пути «титул без клубного логина» — вся механика release/queue не трогается.
+Быстрый запуск с карточки «Continue» остаётся в режиме 'club' по умолчанию (поведение не меняется, refusal → очередь как раньше).
+1.3 Модалка — components/launcher/game-launch-modal.tsx
+Локальный стейт mode: LaunchAccountMode (по умолчанию 'club'), сбрасывается при открытии.
+Для игр needsHouseAccount: true вместо плоского списка пула — две крупные плитки-радио (роль radiogroup, выбор клавиатурой):
+Плитка «Клубный аккаунт» (рекомендована, выбрана по умолчанию): иконка, заголовок, подпись «Клуб выдаст свободный логин автоматически», живые счётчики из fetchHouseAccounts: свободные = status==='available' && !linkedUser && status!=='quarantined', занятые = in-use (+ отдельно «на проверке», если есть). Если свободных 0 — плитка показывает «нет свободных», выбор её при нажатии «Запустить» ведёт в существующую панель очереди (текущий queueing-флоу не трогаем).
+Плитка «Личный аккаунт»: иконка, «Откроется чистый лаунчер — войди под своим логином». Если в пуле есть строка с linkedUser (Personal Steam Account) — печатаем её как подпись «На этой станции привязан: demo_player_steam».
+Ряд Personal Steam Account убирается из списка пула — он теперь живёт на личной плитке; клубная плитка/раскрывающийся список показывают только клубные строки.
+Детальный список пула сохраняем как компактный блок под плитками (строки IMBA_01…, точки статусов, вкл. «на проверке» для карантина) — «вид на пул» остаётся, как требует C4.7.
+Кнопка «Запустить» вызывает launch(game, mode).
+Дизайн: плитки в стиле продукта — rounded-lg border border-border well-shallow, выбранная — border-primary + мягкое свечение primary, tick-corners не дублируем; счётчики — label-mono мелким кеглем; никакого второго неона (глоу остаётся у «Запустить», §3.3).
+Для игр без needsHouseAccount модалка выглядит как сейчас (без плиток).
+1.4 Словари — lib/i18n/dictionaries/{en,ru,lt}.ts
+Ключи: games.accountModeTitle, games.accountModePersonal, games.accountModePersonalBody, games.accountModePersonalLinked, games.accountModeClub, games.accountModeClubBody, games.accountPoolFree, games.accountPoolBusy, games.accountPoolQuarantined и т.п. Все три языка сразу (F2.4).
+
+Часть 2. Жалобы на клубные аккаунты
+2.1 Типы — lib/types/catalog.ts
+HouseAccount.status расширяется: 'available' | 'in-use' | 'quarantined'.
+Новый тип:
+export type HouseAccountReportReason = 'banned' | 'wrongPassword' | 'locked' | 'other'
+export interface HouseAccountReport {
+  id: ID
+  accountId: ID
+  accountLabel: string      // печатается в админке и тостах без второго чтения
+  gameId: ID
+  sessionId: ID
+  userId: ID | null
+  reason: HouseAccountReportReason
+  comment: string | null
+  status: 'open' | 'resolved' | 'dismissed'
+  createdAt: ISODateTime
+  resolvedAt: ISODateTime | null
+}
+2.2 Mock db — lib/mock/db.ts (+ persist)
+Коллекция houseAccountReports: HouseAccountReport[] (сид — пустой: жалоба с завода была бы враньём фикстуры). Включить в persistDb-снимок, если коллекции перечисляются явно.
+2.3 API — lib/mock/api/catalog.ts
+reportHouseAccount(accountId, reason, comment?) (mutate):
+строка должна принадлежать текущей визите (sessionId === db.currentSessionId) — чужой аккаунт зажаловать нельзя;
+создаёт open-жалобу;
+карантин: status = 'quarantined', sessionId/grantedFor*/grantedAt очищаются (строка выведена из выдачи и больше не «за тобой»);
+возвращает жалобу. isGrantable/грант уже фильтруют по status === 'available' — карантин выпадает из выдачи автоматически.
+fetchHouseAccountReports() (query) — для dev-панели.
+reportHouseAccount — вне OFFLINE_BLOCKED (как release: безопасно принять поздно, а блокировка оставила бы битый аккаунт в обороте).
+2.4 UI игрока
+Новый компонент components/launcher/account-report-dialog.tsx: небольшая модалка через Overlay + useDismissableLayer (паттерн модалки запуска): заголовок с ярлыком аккаунта («Жалоба на IMBA_02»), радио-список причин (бан / не подходит пароль / заблокирован / другое), необязательный комментарий, кнопки «Отправить» / «Отмена».
+Точка входа — in-game strip (in-game-strip.tsx): рядом со строкой «Аккаунт IMBA_0X закреплён за тобой» — маленькая pill-кнопка «Пожаловаться» (иконка flag/alert). Видна только когда assigned есть.
+После отправки:
+reportHouseAccount(...) (карантин + освобождение на сервере);
+mockAgent.killGame(...) fire-and-forget + setRunningGame(null) — под битым логином игра всё равно не живёт;
+invalidate('catalog');
+toast: «Жалоба отправлена. Запусти игру снова — клуб выдаст другой аккаунт». (Пул стал на строку меньше, но перезапуск честно пройдёт через грант/очередь.)
+В пуле модалки карантинная строка рисуется приглушённой с подписью «на проверке» (третье состояние точки — warning).
+2.5 Realtime-событие — lib/realtime/events.ts
+Новый тип 'account.updated' (payload: accountId, label, status, reportId | null, resolution: 'fixed' | 'dismissed' | null):
+карта тонов: 'info' (для fixed можно 'success' — решается payload'ом, тон в карте один: 'info');
+карта инвалидаций: ['catalog'] — строка стрипа, счётчики плиток и пул обновятся одним махом.
+2.6 Админ — lib/realtime/admin-sim.ts
+listAccountReports() — читает db.houseAccountReports (открытые первыми).
+resolveAccountReport(reportId, verdict: 'fixed' | 'dismissed'):
+fixed: жалоба → resolved, аккаунт → available (в пул);
+dismissed: жалоба → dismissed, аккаунт → available тоже (админ проверил — аккаунт рабочий); если админ считает аккаунт мёртвым, он просто не жмёт ничего — строка остаётся в карантине;
+commit() + publish account.updated со scope сиденья + staffMessage-подобное уведомление НЕ дублируем — тост родится из события через существующий приёмник (проверить realtime-приёмник: если тосты рождаются per-event, добавить копию для account.updated в словари: «Аккаунт IMBA_02 починен и вернулся в пул»).
+Возвращает null для несуществующей/уже закрытой жалобы (паттерн approveSessionTransfer).
+2.7 Dev-панель — components/dev-kit/bus-console.tsx
+Новая динамическая секция «House accounts» (статичный GROUPS-массив не подходит — жалобы появляются в рантайме): небольшой компонент внутри bus-console, который читает fetchHouseAccountReports() и переподгружается по useRealtimeAny/после каждого действия. Для каждой открытой жалобы — строка: ярлык аккаунта, причина, время, кнопки Fix & return (success) / Dismiss (neutral). Пустое состояние: «No reports — the pool is clean».
+2.8 Словари
+Ключи: games.accountReport, games.accountReportTitle, games.accountReportReasonBanned/WrongPassword/Locked/Other, games.accountReportComment, games.accountReportSubmit, games.accountReportSent, games.accountUnderReview, notifications.accountFixed, notifications.accountDismissed + ключ ошибки для чужой строки. Все три языка.
+
+Порядок работ
+Типы (catalog.ts) + mock db (коллекция жалоб, persist).
+API: reportHouseAccount, fetchHouseAccountReports; карантин в выдаче.
+Хук: параметр mode, ветка личного запуска.
+Модалка запуска: плитки, счётчики, пул без personal-ряда, карантинное состояние строк.
+Диалог жалобы + кнопка в in-game strip + сценарий «kill + release + toast».
+Событие account.updated (events.ts) + admin-sim (list/resolve) + секция в bus-console.
+Словари en/ru/lt для всего выше.
+Прогон: запуск клубного (грант → чеклист 4 строки), личного (3 строки, чистый лаунчер), жалоба → карантин → пул уменьшился → админ чинит в /dev/bus → тост игроку → счётчики вернулись.
+Ключевые инварианты (не ломать)
+Грант всегда серверный; плитки выбирают режим, а не конкретный аккаунт.
+Грант не утекает: карантин при жалобе очищает sessionId, а не оставляет строку «за» мёртвой сессией.
+linkedUser-строки никогда не выдаются и не считаются в «свободных».
+Очередь (queueing-панель) и весь refusal-флоу C4.7 остаются как есть, только в клубном режиме.
+Все новые строки — через словари, событие пишет db → persist → publish (в этом порядке).
